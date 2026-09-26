@@ -37,6 +37,8 @@ pub struct Prev {
     omarchy: Option<omarchy::Palette>,
     system_mode: iced::theme::Mode,
     theme: Theme,
+    /// Documents still being written after their windows closed.
+    pending_saves: usize,
 }
 
 struct Window {
@@ -81,6 +83,7 @@ pub enum Message {
     OmarchyPaletteToggled(bool),
     DismissNotice(window::Id),
     AnimationsEnabled(Option<bool>),
+    FinalSaveDone,
 }
 
 impl Prev {
@@ -100,6 +103,7 @@ impl Prev {
             omarchy: None,
             system_mode: iced::theme::Mode::None,
             theme: Theme::Light,
+            pending_saves: 0,
         };
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
@@ -374,12 +378,25 @@ impl Prev {
                 Task::none()
             }
             Message::WindowClosed(id) => {
-                self.windows.remove(&id);
-                if self.windows.is_empty() {
-                    iced::exit()
-                } else {
-                    Task::none()
+                let flush = self
+                    .windows
+                    .remove(&id)
+                    .and_then(|window| match window.content {
+                        Content::Document(Document {
+                            pdf: Some(mut pdf), ..
+                        }) => pdf.flush(),
+                        _ => None,
+                    });
+                if let Some(flush) = flush {
+                    // Finish writing edits before the last window's exit.
+                    self.pending_saves += 1;
+                    return flush.map(|_| Message::FinalSaveDone);
                 }
+                self.exit_if_done()
+            }
+            Message::FinalSaveDone => {
+                self.pending_saves = self.pending_saves.saturating_sub(1);
+                self.exit_if_done()
             }
             Message::Key(_, Key::Named(keyboard::key::Named::Tab), modifiers)
                 if !modifiers.command() && !modifiers.alt() =>
@@ -442,6 +459,14 @@ impl Prev {
                 self.refresh_theme();
                 Task::none()
             }
+        }
+    }
+
+    fn exit_if_done(&self) -> Task<Message> {
+        if self.windows.is_empty() && self.pending_saves == 0 {
+            iced::exit()
+        } else {
+            Task::none()
         }
     }
 

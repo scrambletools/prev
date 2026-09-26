@@ -9,10 +9,12 @@ use mupdf::{
     Colorspace, DestinationKind, Device, DisplayList, IRect, Matrix, MetadataName, Pixmap,
 };
 
+use crate::annotation::{Annotation, Field, Removed, StampContent};
 use crate::engine::{
     Bitmap, Document, Engine, Error, Link, LinkTarget, OutlineItem, PageDisplay, Result,
 };
 use crate::geometry::{PixelRect, Point, Quad, Rect, Size};
+use crate::mupdf_annotations;
 use crate::text::{TextChar, TextLayout, TextLine};
 
 const MAX_SEARCH_HITS: u32 = 10_000;
@@ -36,6 +38,15 @@ struct MupdfDocument {
 }
 
 impl MupdfDocument {
+    fn load_pdf_page(&self, index: usize) -> Result<mupdf::pdf::PdfPage> {
+        if index >= self.page_count()? {
+            return Err(Error::PageOutOfRange(index));
+        }
+        self.document
+            .load_pdf_page(index as i32)
+            .map_err(engine_error)
+    }
+
     fn load_page(&self, index: usize) -> Result<mupdf::Page> {
         if index >= self.page_count()? {
             return Err(Error::PageOutOfRange(index));
@@ -154,6 +165,83 @@ impl Document for MupdfDocument {
         let bounds = page.bounds().map_err(engine_error)?;
         let list = page.to_display_list(true).map_err(engine_error)?;
         Ok(Arc::new(MupdfPage { list, bounds }))
+    }
+
+    fn annotations(&self, page: usize) -> Result<Vec<Annotation>> {
+        mupdf_annotations::read_annotations(&self.load_pdf_page(page)?)
+    }
+
+    fn add_annotation(
+        &mut self,
+        page: usize,
+        annotation: &Annotation,
+        content: Option<&StampContent>,
+    ) -> Result<()> {
+        let mut pdf_page = self.load_pdf_page(page)?;
+        mupdf_annotations::add_annotation(&mut self.document, &mut pdf_page, annotation, content)?;
+        pdf_page.update().map_err(engine_error)?;
+        Ok(())
+    }
+
+    fn update_annotation(
+        &mut self,
+        page: usize,
+        annotation: &Annotation,
+        content: Option<&StampContent>,
+    ) -> Result<()> {
+        let mut pdf_page = self.load_pdf_page(page)?;
+        mupdf_annotations::update_annotation(
+            &mut self.document,
+            &mut pdf_page,
+            annotation,
+            content,
+        )?;
+        pdf_page.update().map_err(engine_error)?;
+        Ok(())
+    }
+
+    fn remove_annotation(&mut self, page: usize, id: &str) -> Result<Removed> {
+        let mut pdf_page = self.load_pdf_page(page)?;
+        let removed = mupdf_annotations::remove_annotation(&mut pdf_page, id)?;
+        pdf_page.update().map_err(engine_error)?;
+        Ok(removed)
+    }
+
+    fn restore_annotation(&mut self, page: usize, removed: &Removed) -> Result<()> {
+        {
+            let mut pdf_page = self.load_pdf_page(page)?;
+            mupdf_annotations::restore_annotation(&self.document, &mut pdf_page, removed)?;
+        }
+        // Loading the page again picks up the restored entry.
+        self.load_pdf_page(page)?.update().map_err(engine_error)?;
+        Ok(())
+    }
+
+    fn fields(&self, page: usize) -> Result<Vec<Field>> {
+        mupdf_annotations::read_fields(&self.load_pdf_page(page)?)
+    }
+
+    fn set_field(&mut self, page: usize, id: i32, value: &str) -> Result<()> {
+        let pdf_page = self.load_pdf_page(page)?;
+        mupdf_annotations::set_field(&mut self.document, &pdf_page, id, value)
+    }
+
+    fn has_changes(&self) -> bool {
+        self.document.has_unsaved_changes()
+    }
+
+    fn save(&mut self) -> Result<Vec<u8>> {
+        let mut options = mupdf::pdf::PdfWriteOptions::default();
+        if self.document.can_be_saved_incrementally() {
+            options.set_incremental(true);
+        } else {
+            options.set_garbage_level(1);
+        }
+        let mut bytes = Vec::new();
+        self.document
+            .write_to_with_options(&mut bytes, options)
+            .map_err(engine_error)?;
+        Ok(bytes)
     }
 }
 

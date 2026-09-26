@@ -184,7 +184,9 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
             }
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
                 if let Some((x0, y0)) = state.select_from {
-                    let (x1, y1) = self.to_image(bounds, *position);
+                    // The event has window coordinates; the cursor given to
+                    // this widget is moved by the scroll offset.
+                    let (x1, y1) = self.to_image(bounds, cursor.position().unwrap_or(*position));
                     shell.publish((self.on_event)(CanvasEvent::Selection(Some((
                         x0, y0, x1, y1,
                     )))));

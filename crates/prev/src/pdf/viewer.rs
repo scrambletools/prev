@@ -13,6 +13,10 @@ use prev_pdf::text::{Selection, TextLayout};
 use prev_pdf::worker::{DocumentHandle, DocumentInfo, RenderPool, SearchEvent, Ticket};
 
 use super::layout::{self, Area, Fit, Layout, ViewMode};
+use prev_pdf::worker::{Edited, PageMarkup};
+
+pub mod editing;
+pub use editing::{Editing, FieldEdit, TextEdit};
 
 /// Device pixels across a page preview, used until sharp tiles arrive and
 /// for sidebar thumbnails.
@@ -33,6 +37,9 @@ impl std::fmt::Debug for SharedDisplay {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TileKey {
     pub page: usize,
+    /// Bumped each time the page changes, so older tiles can stand in
+    /// until the new ones arrive.
+    pub generation: u32,
     /// Device pixels per point, times 1000.
     pub scale: u32,
     pub x: i32,
@@ -108,6 +115,11 @@ pub enum PdfMessage {
         x: f32,
         y: f32,
     },
+    /// Shift held during a press or drag.
+    Shift(bool),
+    MarkupReady(usize, Option<PageMarkup>),
+    Edited(editing::Sent, Result<Edited, String>),
+    Editing(editing::EditMessage),
     SearchChanged(String),
     SearchEvent(u64, SearchEvent),
     NextMatch,
@@ -117,8 +129,14 @@ pub enum PdfMessage {
 /// Something the app must do on the viewer's behalf.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Request {
-    ScrollTo { x: f32, y: f32 },
+    ScrollTo {
+        x: f32,
+        y: f32,
+    },
     OpenUri(String),
+    /// The document changed; autosave it.
+    Changed,
+    Notice(String),
 }
 
 #[derive(Debug, Default)]
@@ -164,6 +182,11 @@ pub struct PdfViewer {
     pending_copy: bool,
     pub search: SearchState,
     requests: Vec<Request>,
+    pub markup: HashMap<usize, PageMarkup>,
+    markup_requested: HashSet<usize>,
+    generations: HashMap<usize, u32>,
+    pub edit: Editing,
+    shift: bool,
 }
 
 impl PdfViewer {
@@ -218,7 +241,16 @@ impl PdfViewer {
             pending_copy: false,
             search: SearchState::default(),
             requests: Vec::new(),
+            markup: HashMap::new(),
+            markup_requested: HashSet::new(),
+            generations: HashMap::new(),
+            edit: Editing::default(),
+            shift: false,
         }
+    }
+
+    pub fn shift(&self) -> bool {
+        self.shift
     }
 
     pub fn page_count(&self) -> usize {
@@ -235,17 +267,33 @@ impl PdfViewer {
         layout::points_to_pixels(self.layout.zoom) * self.device_scale
     }
 
+    /// The tile, or the one from before the page last changed while the
+    /// new one renders.
     pub fn tile(&self, key: &TileKey) -> Option<&Handle> {
-        self.tiles.get(key).map(|(handle, _, _)| handle)
+        self.tiles
+            .get(key)
+            .or_else(|| {
+                let previous = TileKey {
+                    generation: key.generation.checked_sub(1)?,
+                    ..*key
+                };
+                self.tiles.get(&previous)
+            })
+            .map(|(handle, _, _)| handle)
     }
 
     pub fn tile_key(&self, page: usize, tile: &PixelRect) -> TileKey {
         TileKey {
             page,
+            generation: self.generation(page),
             scale: scale_key(self.render_scale()),
             x: tile.x,
             y: tile.y,
         }
+    }
+
+    pub fn generation(&self, page: usize) -> u32 {
+        self.generations.get(&page).copied().unwrap_or(0)
     }
 
     pub fn page_label(&self, page: usize) -> String {
@@ -323,6 +371,15 @@ impl PdfViewer {
                     self.tile_latencies.push_back(requested.elapsed());
                 }
                 if let Some((handle, bytes)) = result {
+                    // The page's previous look is no longer needed here.
+                    if let Some(previous) = key.generation.checked_sub(1)
+                        && let Some((_, old_bytes, _)) = self.tiles.remove(&TileKey {
+                            generation: previous,
+                            ..key
+                        })
+                    {
+                        self.tile_bytes -= old_bytes;
+                    }
                     self.use_clock += 1;
                     self.tile_bytes += bytes;
                     self.tiles.insert(key, (handle, bytes, self.use_clock));
@@ -367,6 +424,23 @@ impl PdfViewer {
                 Task::none()
             }
             PdfMessage::Release { x, y } => self.release(x, y),
+            PdfMessage::Shift(shift) => {
+                self.shift = shift;
+                Task::none()
+            }
+            PdfMessage::MarkupReady(page, markup) => {
+                match markup {
+                    Some(markup) => {
+                        self.markup.insert(page, markup);
+                    }
+                    None => {
+                        self.markup_requested.remove(&page);
+                    }
+                }
+                Task::none()
+            }
+            PdfMessage::Edited(sent, result) => self.edited(sent, result),
+            PdfMessage::Editing(message) => self.editing(message),
             PdfMessage::SearchChanged(query) => self.start_search(query),
             PdfMessage::SearchEvent(generation, event) => {
                 self.search_event(generation, event);
@@ -470,6 +544,7 @@ impl PdfViewer {
 
         for &page in &wanted_pages {
             tasks.push(self.ensure_display(page));
+            tasks.push(self.ensure_markup(page));
             if !self.links.contains_key(&page) && self.links_requested.insert(page) {
                 let receiver = self.handle.links(page);
                 tasks.push(Task::perform(receiver, move |result| {
@@ -566,6 +641,16 @@ impl PdfViewer {
         })
     }
 
+    fn ensure_markup(&mut self, page: usize) -> Task<PdfMessage> {
+        if self.markup.contains_key(&page) || !self.markup_requested.insert(page) {
+            return Task::none();
+        }
+        let receiver = self.handle.markup(page);
+        Task::perform(receiver, move |result| {
+            PdfMessage::MarkupReady(page, result.ok().and_then(Result::ok))
+        })
+    }
+
     /// Requests the parsed page, unless it is loaded or on its way.
     fn ensure_display(&mut self, page: usize) -> Task<PdfMessage> {
         if self.displays.contains_key(&page) || !self.displays_requested.insert(page) {
@@ -622,6 +707,13 @@ impl PdfViewer {
     // Selection and links.
 
     fn press(&mut self, x: f32, y: f32, clicks: u8) -> Task<PdfMessage> {
+        if let Some(task) = self.editing_press(x, y, clicks) {
+            return task;
+        }
+        self.text_press(x, y, clicks)
+    }
+
+    fn text_press(&mut self, x: f32, y: f32, clicks: u8) -> Task<PdfMessage> {
         self.press = Some((x, y));
         self.dragged = false;
         let Some(anchor) = self.layout.hit_nearest(x, y) else {
@@ -641,6 +733,9 @@ impl PdfViewer {
     }
 
     fn drag(&mut self, x: f32, y: f32) {
+        if self.editing_drag(x, y) {
+            return;
+        }
         if let Some((press_x, press_y)) = self.press
             && (x - press_x).abs() + (y - press_y).abs() > 3.0
         {
@@ -657,6 +752,9 @@ impl PdfViewer {
     }
 
     fn release(&mut self, x: f32, y: f32) -> Task<PdfMessage> {
+        if let Some(task) = self.editing_release(x, y) {
+            return task;
+        }
         let was_click = !self.dragged;
         self.press = None;
         if let Some(selection) = self.selection

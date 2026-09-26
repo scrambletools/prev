@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use futures_channel::{mpsc as stream, oneshot};
 
+use crate::annotation::{Annotation, Field, Removed, StampContent};
 use crate::engine::{Bitmap, Document, Engine, Error, Link, OutlineItem, PageDisplay, Result};
 use crate::geometry::{PixelRect, Quad, Size};
 use crate::text::TextLayout;
@@ -199,7 +200,51 @@ pub enum SearchEvent {
     Finished,
 }
 
+/// A change to a page's annotations or form fields.
+#[derive(Debug, Clone)]
+pub enum Edit {
+    Add(Annotation, Option<StampContent>),
+    Update(Annotation, Option<StampContent>),
+    Remove(String),
+    Restore(Removed),
+    SetField { id: i32, value: String },
+}
+
+/// A page after an edit: everything the UI shows of it, rebuilt.
+#[derive(Clone)]
+pub struct Edited {
+    pub page: usize,
+    pub display: Arc<dyn PageDisplay>,
+    pub annotations: Vec<Annotation>,
+    pub fields: Vec<Field>,
+    /// Set when the edit removed an annotation, to undo it with.
+    pub removed: Option<Removed>,
+}
+
+impl std::fmt::Debug for Edited {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Edited(page {})", self.page)
+    }
+}
+
+/// Writes a saved document's bytes to its file.
+pub type Writer = Box<dyn FnOnce(&[u8]) -> std::result::Result<(), String> + Send>;
+
+/// Annotations of every page that has any.
+pub type DocumentAnnotations = Vec<(usize, Vec<Annotation>)>;
+
+/// A page's annotations and form fields.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PageMarkup {
+    pub annotations: Vec<Annotation>,
+    pub fields: Vec<Field>,
+}
+
 enum Request {
+    Markup(usize, oneshot::Sender<Result<PageMarkup>>),
+    AllAnnotations(oneshot::Sender<Result<DocumentAnnotations>>),
+    Edit(usize, Box<Edit>, oneshot::Sender<Result<Edited>>),
+    Save(Writer, oneshot::Sender<Result<()>>),
     Authenticate(String, oneshot::Sender<Result<Option<DocumentInfo>>>),
     Display(usize, oneshot::Sender<Result<Arc<dyn PageDisplay>>>),
     Links(usize, oneshot::Sender<Result<Vec<Link>>>),
@@ -246,7 +291,7 @@ impl DocumentHandle {
                         return;
                     }
                 };
-                let mut thread = DocumentThread::new(document);
+                let mut thread = DocumentThread::new(document, engine, path);
                 let _ = opened_sender.send(if thread.document.needs_password() {
                     Ok(Opened::NeedsPassword)
                 } else {
@@ -284,6 +329,27 @@ impl DocumentHandle {
         self.request(Request::Outline)
     }
 
+    pub fn markup(&self, page: usize) -> oneshot::Receiver<Result<PageMarkup>> {
+        self.request(|sender| Request::Markup(page, sender))
+    }
+
+    /// Annotations on every page that has any.
+    pub fn all_annotations(&self) -> oneshot::Receiver<Result<DocumentAnnotations>> {
+        self.request(Request::AllAnnotations)
+    }
+
+    /// Applies an edit and re-parses the page.
+    pub fn edit(&self, page: usize, edit: Edit) -> oneshot::Receiver<Result<Edited>> {
+        self.request(|sender| Request::Edit(page, Box::new(edit), sender))
+    }
+
+    /// Saves every edit so far: `write` puts the bytes in place, then the
+    /// document is opened again from its file, so later saves build on
+    /// what is on disk.
+    pub fn save(&self, write: Writer) -> oneshot::Receiver<Result<()>> {
+        self.request(|sender| Request::Save(write, sender))
+    }
+
     /// Streams matches page by page from the first page. Cancelling the
     /// ticket stops the search.
     pub fn search(&self, needle: String, ticket: Ticket) -> stream::UnboundedReceiver<SearchEvent> {
@@ -307,15 +373,22 @@ struct ActiveSearch {
 
 struct DocumentThread {
     document: Box<dyn Document>,
+    engine: Arc<dyn Engine>,
+    path: PathBuf,
+    /// The password that unlocked the document, to open it again.
+    password: Option<String>,
     displays: HashMap<usize, Arc<dyn PageDisplay>>,
     recent: VecDeque<usize>,
     search: Option<ActiveSearch>,
 }
 
 impl DocumentThread {
-    fn new(document: Box<dyn Document>) -> Self {
+    fn new(document: Box<dyn Document>, engine: Arc<dyn Engine>, path: PathBuf) -> Self {
         Self {
             document,
+            engine,
+            path,
+            password: None,
             displays: HashMap::new(),
             recent: VecDeque::new(),
             search: None,
@@ -353,6 +426,63 @@ impl DocumentThread {
         Ok(display)
     }
 
+    fn markup(&self, page: usize) -> Result<PageMarkup> {
+        Ok(PageMarkup {
+            annotations: self.document.annotations(page)?,
+            fields: self.document.fields(page)?,
+        })
+    }
+
+    fn edit(&mut self, page: usize, edit: Edit) -> Result<Edited> {
+        let mut removed = None;
+        match &edit {
+            Edit::Add(annotation, content) => {
+                self.document
+                    .add_annotation(page, annotation, content.as_ref())?
+            }
+            Edit::Update(annotation, content) => {
+                self.document
+                    .update_annotation(page, annotation, content.as_ref())?
+            }
+            Edit::Remove(id) => removed = Some(self.document.remove_annotation(page, id)?),
+            Edit::Restore(removed) => self.document.restore_annotation(page, removed)?,
+            Edit::SetField { id, value } => self.document.set_field(page, *id, value)?,
+        }
+        // The cached display shows the page as it was.
+        self.displays.remove(&page);
+        self.recent.retain(|recent| *recent != page);
+        let display = self.display(page)?;
+        let PageMarkup {
+            annotations,
+            fields,
+        } = self.markup(page)?;
+        Ok(Edited {
+            page,
+            display,
+            annotations,
+            fields,
+            removed,
+        })
+    }
+
+    /// MuPDF's incremental saves assume the output is appended to the file
+    /// it opened, so after writing, reopen from that file.
+    fn save(&mut self, write: Writer) -> Result<()> {
+        if !self.document.has_changes() {
+            return Ok(());
+        }
+        let bytes = self.document.save()?;
+        write(&bytes).map_err(Error::Engine)?;
+        let mut reopened = self.engine.open(&self.path)?;
+        if let Some(password) = &self.password
+            && !reopened.authenticate(password)
+        {
+            return Err(Error::Engine("the saved document no longer opens".into()));
+        }
+        self.document = reopened;
+        Ok(())
+    }
+
     fn run(&mut self, requests: mpsc::Receiver<Request>) {
         loop {
             // Serve requests first; search one page whenever the queue is idle.
@@ -379,6 +509,7 @@ impl DocumentThread {
         match request {
             Request::Authenticate(password, reply) => {
                 let result = if self.document.authenticate(&password) {
+                    self.password = Some(password);
                     self.info().map(Some)
                 } else {
                     Ok(None)
@@ -393,6 +524,28 @@ impl DocumentThread {
             }
             Request::Outline(reply) => {
                 let _ = reply.send(self.document.outline());
+            }
+            Request::Markup(page, reply) => {
+                let _ = reply.send(self.markup(page));
+            }
+            Request::AllAnnotations(reply) => {
+                let result = self.document.page_count().and_then(|count| {
+                    let mut pages = Vec::new();
+                    for page in 0..count {
+                        let annotations = self.document.annotations(page)?;
+                        if !annotations.is_empty() {
+                            pages.push((page, annotations));
+                        }
+                    }
+                    Ok(pages)
+                });
+                let _ = reply.send(result);
+            }
+            Request::Edit(page, edit, reply) => {
+                let _ = reply.send(self.edit(page, *edit));
+            }
+            Request::Save(write, reply) => {
+                let _ = reply.send(self.save(write));
             }
             Request::Search {
                 needle,

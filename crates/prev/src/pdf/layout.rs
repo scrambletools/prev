@@ -268,6 +268,14 @@ impl Layout {
             })
     }
 
+    /// Document space to a point on `page`, which may lie off the page, so
+    /// a drag that started on a page keeps its coordinates there.
+    pub fn to_page(&self, page: usize, x: f32, y: f32) -> Option<Point> {
+        let scale = points_to_pixels(self.zoom);
+        let area = self.page_area(page)?;
+        Some(Point::new((x - area.x) / scale, (y - area.y) / scale))
+    }
+
     /// A page-point to document space.
     pub fn to_document(&self, page: usize, point: Point) -> Option<(f32, f32)> {
         let scale = points_to_pixels(self.zoom);

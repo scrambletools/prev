@@ -28,6 +28,75 @@ pub fn toolbar<'a, Message: 'a>(content: impl Into<Element<'a, Message>>) -> Ele
         .into()
 }
 
+/// Width of an icon button in a toolbar, the gap between items, and a
+/// divider with its padding.
+pub const TOOL_WIDTH: f32 = 40.0;
+pub const TOOLBAR_GAP: f32 = 8.0;
+pub const DIVIDER_WIDTH: f32 = 9.0;
+
+/// Which toolbar slots fit in `available` pixels. Each slot is its width
+/// and, for slots that may move into the overflow menu, its place in the
+/// order they go, lowest first. Once anything goes, room is kept for the
+/// "More" button.
+pub fn fitting_slots(available: f32, slots: &[(f32, Option<u8>)]) -> Vec<bool> {
+    let mut shown = vec![true; slots.len()];
+    let used = |shown: &[bool]| -> f32 {
+        slots
+            .iter()
+            .zip(shown)
+            .filter(|(_, shown)| **shown)
+            .map(|((width, _), _)| width + TOOLBAR_GAP)
+            .sum()
+    };
+    let mut order: Vec<(u8, usize)> = slots
+        .iter()
+        .enumerate()
+        .filter_map(|(index, (_, order))| order.map(|order| (order, index)))
+        .collect();
+    order.sort();
+    let mut dropped = false;
+    for (_, index) in order {
+        let more = if dropped {
+            TOOL_WIDTH + TOOLBAR_GAP
+        } else {
+            0.0
+        };
+        if used(&shown) + more <= available {
+            break;
+        }
+        shown[index] = false;
+        dropped = true;
+    }
+    shown
+}
+
+/// The "More" button at the end of a toolbar, with the groups that did not
+/// fit in a menu below it.
+pub fn overflow<'a, Message: Clone + 'a>(
+    hidden: Vec<Element<'a, Message>>,
+    open: bool,
+    on_toggle: Message,
+    on_close: Message,
+) -> Element<'a, Message> {
+    let anchor = tip(
+        button::icon_button(Icon::MoreVert)
+            .selected(open)
+            .on_press(on_toggle),
+        "More",
+    );
+    let content = open.then(|| {
+        super::popover::surface(
+            column(
+                hidden
+                    .into_iter()
+                    .map(|group| container(group).padding([4, 12]).into()),
+            )
+            .spacing(4),
+        )
+    });
+    super::popover::popover(anchor, content, on_close).into()
+}
+
 /// A standard button group: related buttons with a small gap.
 pub fn group<'a, Message: Clone + 'a>(
     buttons: impl IntoIterator<Item = Element<'a, Message>>,
@@ -106,6 +175,8 @@ pub fn toolbar_divider<'a, Message: 'a>() -> Element<'a, Message> {
 
 pub struct Tab<'a, Message> {
     pub label: &'a str,
+    /// Shows the icon instead of the label, which becomes a tooltip.
+    pub icon: Option<Icon>,
     pub selected: bool,
     pub on_press: Message,
 }
@@ -114,7 +185,11 @@ pub struct Tab<'a, Message> {
 pub fn tabs<'a, Message: Clone + 'a>(tabs: Vec<Tab<'a, Message>>) -> Element<'a, Message> {
     let tabs = row(tabs.into_iter().map(|tab| {
         let selected = tab.selected;
-        let label = font::styled(tab.label, Type::TitleSmall);
+        let label: Element<'a, Message> = match tab.icon {
+            Some(glyph) if selected => icon::filled(glyph, 22).into(),
+            Some(glyph) => icon::icon(glyph, 22).into(),
+            None => font::styled(tab.label, Type::TitleSmall).into(),
+        };
         let indicator = container(space().height(3))
             .width(Fill)
             .padding([0, 12])
@@ -136,6 +211,10 @@ pub fn tabs<'a, Message: Clone + 'a>(tabs: Vec<Tab<'a, Message>>) -> Element<'a,
             .height(45.0)
             .width(Fill)
             .on_press(tab.on_press);
+        let body: Element<'a, Message> = match tab.icon {
+            Some(_) => tip(body, tab.label),
+            None => body.into(),
+        };
         column![body, indicator].width(Fill).into()
     }));
     column![tabs, rule::horizontal(1).style(style::divider)].into()
@@ -306,20 +385,19 @@ pub fn text_field<'a, Message: Clone + 'a>(
         .size(Type::BodyLarge.size())
         .font(Type::BodyLarge.font(false))
         .style(style::outlined_field);
-    if value.is_empty() {
-        return container(field)
-            .padding(Padding {
-                top: 8.0,
-                ..Padding::ZERO
+    // The same widgets whether or not there is text, so typing the first
+    // character does not rebuild the field and lose the keyboard focus.
+    let floating: Element<'a, Message> = if value.is_empty() {
+        Space::new().into()
+    } else {
+        container(font::styled(label, Type::BodySmall).style(style::on_surface_variant))
+            .padding([0, 4])
+            .style(move |theme: &Theme| iced::widget::container::Style {
+                background: Some(backdrop.color(&Scheme::of(theme)).into()),
+                ..Default::default()
             })
-            .into();
-    }
-    let floating = container(font::styled(label, Type::BodySmall).style(style::on_surface_variant))
-        .padding([0, 4])
-        .style(move |theme: &Theme| iced::widget::container::Style {
-            background: Some(backdrop.color(&Scheme::of(theme)).into()),
-            ..Default::default()
-        });
+            .into()
+    };
     stack![
         container(field).padding(Padding {
             top: 8.0,
@@ -437,4 +515,24 @@ pub fn empty_state<'a, Message: 'a>(
     )
     .center(Fill)
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slots_go_in_order_and_leave_room_for_more() {
+        let slots = [
+            (100.0, None),
+            (100.0, Some(1)),
+            (100.0, Some(0)),
+            (100.0, None),
+        ];
+        assert_eq!(fitting_slots(1000.0, &slots), [true, true, true, true]);
+        // 4 x 108 = 432 does not fit in 400; slot 2 goes, and the rest plus
+        // "More" (48) take 372.
+        assert_eq!(fitting_slots(400.0, &slots), [true, true, false, true]);
+        assert_eq!(fitting_slots(300.0, &slots), [true, false, false, true]);
+    }
 }

@@ -15,7 +15,10 @@ use iced::{
 };
 
 use super::layout::{Area, visible_tiles};
+use super::markup::{self, Handle, Tool};
+use super::overlay::{self, Mapping};
 use super::viewer::{PdfMessage, PdfViewer, Zoom};
+use prev_pdf::annotation::FieldKind;
 
 const LINE_SCROLL_ZOOM: f32 = 1.1;
 
@@ -56,6 +59,61 @@ fn visible_area(bounds: Rectangle, viewport: &Rectangle) -> Area {
         y: viewport.y - bounds.y,
         width: viewport.width,
         height: viewport.height,
+    }
+}
+
+impl<Message> PageCanvas<'_, Message> {
+    /// The cursor for markup tools, annotations and form fields.
+    fn editing_interaction(&self, x: f32, y: f32) -> Option<mouse::Interaction> {
+        let viewer = self.viewer;
+        if self.backdrop.is_some() {
+            return None;
+        }
+        match viewer.edit.tool {
+            Tool::Select => {}
+            Tool::Highlight(_) => return Some(mouse::Interaction::Text),
+            _ => return Some(mouse::Interaction::Crosshair),
+        }
+        let per_pixel = 1.0 / super::layout::points_to_pixels(viewer.layout.zoom);
+        if let Some((page, annotation)) = viewer.selected_annotation() {
+            let point = viewer.layout.to_page(page, x, y)?;
+            match markup::hit_handle(annotation, point, markup::HANDLE_PIXELS * per_pixel) {
+                Some(Handle::Edge { x: 0, .. }) => {
+                    return Some(mouse::Interaction::ResizingVertically);
+                }
+                Some(Handle::Edge { y: 0, .. }) => {
+                    return Some(mouse::Interaction::ResizingHorizontally);
+                }
+                Some(Handle::Edge { x, y }) if x == y => {
+                    return Some(mouse::Interaction::ResizingDiagonallyDown);
+                }
+                Some(Handle::Edge { .. }) => {
+                    return Some(mouse::Interaction::ResizingDiagonallyUp);
+                }
+                Some(Handle::LineStart | Handle::LineEnd) => {
+                    return Some(mouse::Interaction::Crosshair);
+                }
+                Some(Handle::Body) if markup::movable(annotation) => {
+                    return Some(mouse::Interaction::Grab);
+                }
+                _ => {}
+            }
+        }
+        let (page, point) = viewer.layout.hit(x, y)?;
+        let markup = viewer.markup.get(&page)?;
+        let slop = markup::HIT_SLOP * per_pixel.max(1.0);
+        if markup::hit_annotation(&markup.annotations, point, slop).is_some() {
+            return Some(mouse::Interaction::Pointer);
+        }
+        let field = markup
+            .fields
+            .iter()
+            .find(|field| field.rect.contains(point) && !field.read_only)?;
+        Some(match field.kind {
+            FieldKind::Text { .. } => mouse::Interaction::Text,
+            FieldKind::Button | FieldKind::Signature => return None,
+            _ => mouse::Interaction::Pointer,
+        })
     }
 }
 
@@ -113,6 +171,11 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
         let to_document = |point: iced::Point| (point.x - bounds.x, point.y - bounds.y);
         match event {
             Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) => {
+                // Always sent: this widget's state is new whenever the
+                // layout around it changes, so it cannot tell what changed.
+                if modifiers.shift() != self.viewer.shift() {
+                    shell.publish((self.on_message)(PdfMessage::Shift(modifiers.shift())));
+                }
                 state.modifiers = *modifiers
             }
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
@@ -131,8 +194,13 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 shell.publish((self.on_message)(PdfMessage::Press { x, y, clicks }));
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::CursorMoved { position }) if state.pressed => {
-                let (x, y) = to_document(*position);
+            Event::Mouse(mouse::Event::CursorMoved { .. }) if state.pressed => {
+                // The event has window coordinates; the cursor given to this
+                // widget is already moved by the scroll offset.
+                let Some(position) = cursor.position() else {
+                    return;
+                };
+                let (x, y) = to_document(position);
                 shell.publish((self.on_message)(PdfMessage::Drag { x, y }));
             }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.pressed => {
@@ -176,6 +244,9 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
         };
         let bounds = layout.bounds();
         let (x, y) = (position.x - bounds.x, position.y - bounds.y);
+        if let Some(interaction) = self.editing_interaction(x, y) {
+            return interaction;
+        }
         if self.viewer.link_at(x, y).is_some() {
             mouse::Interaction::Pointer
         } else if self.viewer.is_over_text(x, y) {
@@ -315,6 +386,35 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                         Background::Color(color),
                     );
                 }
+                // Fillable form fields get Preview's light blue tint.
+                if viewer.edit.tool == Tool::Select
+                    && self.backdrop.is_none()
+                    && let Some(markup) = viewer.markup.get(&page)
+                {
+                    for field in markup.fields.iter().filter(|field| {
+                        !field.read_only
+                            && !matches!(field.kind, FieldKind::Button | FieldKind::Signature)
+                    }) {
+                        let bounds = to_screen(field.rect);
+                        // Radio buttons are round, so their tint is too.
+                        let radius = if field.kind == FieldKind::Radio {
+                            bounds.width.min(bounds.height) / 2.0
+                        } else {
+                            0.0
+                        };
+                        renderer.fill_quad(
+                            Quad {
+                                bounds,
+                                border: Border {
+                                    radius: radius.into(),
+                                    ..Border::default()
+                                },
+                                ..Quad::default()
+                            },
+                            Background::Color(Color::from_rgba8(80, 140, 255, 0.12)),
+                        );
+                    }
+                }
                 if let (Some(selection), Some(text)) =
                     (viewer.page_selection(page), viewer.texts.get(&page))
                 {
@@ -329,6 +429,50 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                     }
                 }
             }
+        });
+
+        if self.backdrop.is_some() {
+            return;
+        }
+        // Annotations being made or moved, and the selection, as vector
+        // geometry above everything else.
+        use iced::advanced::graphics::geometry::Renderer as _;
+        let accent = crate::ui::Scheme::of(theme).primary;
+        let mut frame = iced::widget::canvas::Frame::new(renderer, viewport.size());
+        let mapping_for = |page: usize| {
+            let (_, page_rect) = pages.iter().find(|(visible, _)| *visible == page)?;
+            Some(Mapping {
+                origin: iced::Point::new(page_rect.x - viewport.x, page_rect.y - viewport.y),
+                scale: points_to_pixels,
+            })
+        };
+        let preview = viewer.preview();
+        if let Some((page, annotation)) = &preview
+            && let Some(mapping) = mapping_for(*page)
+        {
+            overlay::paint(&mut frame, annotation, &mapping);
+        }
+        if let Some((page, annotation)) = viewer.selected_annotation()
+            && let Some(mapping) = mapping_for(page)
+        {
+            let shown = match &preview {
+                Some((_, moved)) if moved.id == annotation.id => moved,
+                _ => annotation,
+            };
+            if viewer.edit.text.is_none() {
+                overlay::selection(&mut frame, shown, &mapping, accent);
+            }
+        }
+        if let Some((page, area)) = viewer.edit.area
+            && let Some(mapping) = mapping_for(page)
+        {
+            overlay::area(&mut frame, area, &mapping, accent);
+        }
+        let geometry = frame.into_geometry();
+        renderer.with_layer(*viewport, |renderer| {
+            renderer.with_translation(iced::Vector::new(viewport.x, viewport.y), |renderer| {
+                renderer.draw_geometry(geometry);
+            });
         });
     }
 }

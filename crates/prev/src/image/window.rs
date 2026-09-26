@@ -201,6 +201,8 @@ pub enum Message {
     Exported(Result<PathBuf, String>),
     DismissNotice,
     SidebarResized(Drag),
+    ToggleOverflow,
+    CloseOverflow,
 }
 
 /// An export waiting for the user to confirm a name whose extension does
@@ -227,6 +229,8 @@ pub struct ImageWindow {
     current: usize,
     sidebar: bool,
     sidebar_width: Width,
+    /// The toolbar's "More" menu is open.
+    overflow_open: bool,
     fit: Fit,
     view: (f32, f32, f32, f32),
     device_scale: f32,
@@ -364,6 +368,7 @@ impl ImageWindow {
             current: 0,
             sidebar,
             sidebar_width: SIDEBAR_WIDTH,
+            overflow_open: false,
             fit: Fit::Fit,
             view: (0.0, 0.0, 900.0, 700.0),
             device_scale: 1.0,
@@ -726,6 +731,14 @@ impl ImageWindow {
                 self.items[self.current].state = ItemState::Waiting;
                 self.selection = None;
                 Task::batch([self.load_next(), self.refresh_inspector()])
+            }
+            Message::ToggleOverflow => {
+                self.overflow_open = !self.overflow_open;
+                Task::none()
+            }
+            Message::CloseOverflow => {
+                self.overflow_open = false;
+                Task::none()
             }
             Message::SidebarResized(drag) => {
                 self.sidebar_width.drag(drag);
@@ -1371,6 +1384,10 @@ impl ImageWindow {
             Action::AdjustColor => self.update(Message::TogglePanel(Panel::AdjustColor)),
             Action::Inspector => self.update(Message::TogglePanel(Panel::Inspector)),
             Action::Export => self.export(),
+            Action::Escape if self.overflow_open => {
+                self.overflow_open = false;
+                Task::none()
+            }
             Action::Escape if self.selection.is_some() || self.selecting => {
                 self.selection = None;
                 self.selecting = false;
@@ -1496,7 +1513,15 @@ impl ImageWindow {
         )
     }
 
+    /// The toolbar, with groups that do not fit the window's width in a
+    /// "More" menu at its end.
     fn toolbar(&self) -> Element<'_, Message> {
+        component::toolbar(iced::widget::responsive(move |size| {
+            self.toolbar_at(size.width)
+        }))
+    }
+
+    fn toolbar_at<'a>(&'a self, width: f32) -> Element<'a, Message> {
         let item = &self.items[self.current];
         let mut details = item
             .size
@@ -1537,29 +1562,50 @@ impl ImageWindow {
                 Message::TogglePanel(which),
             )
         };
-        let mut bar = row![].spacing(8).align_y(Center);
+        use component::{DIVIDER_WIDTH, TOOL_WIDTH};
+        let tools = |count: f32| count * TOOL_WIDTH + (count - 1.0) * 4.0;
+        // Each slot: its content, its width, when it moves into "More", and
+        // whether a divider goes before it in the bar.
+        let mut slots: Vec<(Element<'_, Message>, f32, Option<u8>, bool)> = Vec::new();
         if self.items.len() > 1 {
-            bar = bar
-                .push(component::toggle_tool(
-                    if self.sidebar {
-                        Icon::LeftPanelClose
-                    } else {
-                        Icon::LeftPanelOpen
-                    },
-                    "Sidebar",
-                    self.sidebar,
-                    Message::ToggleSidebar,
-                ))
-                .push(component::toolbar_divider());
+            slots.push((
+                row![
+                    component::toggle_tool(
+                        if self.sidebar {
+                            Icon::LeftPanelClose
+                        } else {
+                            Icon::LeftPanelOpen
+                        },
+                        "Sidebar",
+                        self.sidebar,
+                        Message::ToggleSidebar,
+                    ),
+                    component::toolbar_divider()
+                ]
+                .spacing(8)
+                .align_y(Center)
+                .into(),
+                TOOL_WIDTH + DIVIDER_WIDTH + 8.0,
+                None,
+                false,
+            ));
         }
-        let bar = bar
-            .push(
+        // The details give way first: they are clipped rather than moved.
+        slots.push((
+            container(
                 ui::styled(details, Type::BodyMedium)
                     .style(style::on_surface_variant)
                     .wrapping(text::Wrapping::None),
             )
-            .push(space::horizontal())
-            .push(component::group([
+            .width(Fill)
+            .clip(true)
+            .into(),
+            80.0,
+            None,
+            false,
+        ));
+        slots.push((
+            component::group([
                 when(
                     Icon::Undo,
                     "Undo",
@@ -1572,9 +1618,13 @@ impl ImageWindow {
                     editor.is_some_and(|editor| editor.stack.can_redo()),
                     Message::Edit(Edit::Redo),
                 ),
-            ]))
-            .push(component::toolbar_divider())
-            .push(component::group([
+            ]),
+            tools(2.0),
+            None,
+            false,
+        ));
+        slots.push((
+            (component::group([
                 when(
                     Icon::RotateLeft,
                     "Rotate left",
@@ -1599,8 +1649,13 @@ impl ImageWindow {
                     editable,
                     Message::Edit(Edit::FlipVertical),
                 ),
-            ]))
-            .push(component::group([
+            ])),
+            DIVIDER_WIDTH + tools(4.0) + 8.0,
+            Some(2),
+            true,
+        ));
+        slots.push((
+            component::group([
                 component::toggle_tool(
                     Icon::HighlightAlt,
                     "Select",
@@ -1613,20 +1668,33 @@ impl ImageWindow {
                     editable && self.selection.is_some(),
                     Message::Edit(Edit::Crop),
                 ),
-            ]))
-            .push(component::toolbar_divider())
-            .push(component::group([
+            ]),
+            tools(2.0),
+            Some(3),
+            false,
+        ));
+        slots.push((
+            (component::group([
                 panel(Icon::Resize, "Adjust size", Panel::AdjustSize),
                 panel(Icon::Tune, "Adjust color", Panel::AdjustColor),
                 panel(Icon::Info, "Inspector", Panel::Inspector),
-            ]))
-            .push(component::tip(
+            ])),
+            DIVIDER_WIDTH + tools(3.0) + 8.0,
+            Some(1),
+            true,
+        ));
+        slots.push((
+            component::tip(
                 ui::with_icon(Kind::Tonal, Icon::FileExport, "Export")
                     .on_press_maybe(editable.then_some(Message::Export)),
                 "Export as another format",
-            ))
-            .push(component::toolbar_divider())
-            .push(component::group([
+            ),
+            112.0,
+            Some(0),
+            false,
+        ));
+        slots.push((
+            (component::group([
                 component::tool(Icon::ZoomOut, "Zoom out", Some(Message::ZoomOut)),
                 ui::styled(format!("{:.0}%", self.zoom() * 100.0), Type::LabelLarge)
                     .width(48)
@@ -1635,8 +1703,38 @@ impl ImageWindow {
                 component::tool(Icon::ZoomIn, "Zoom in", Some(Message::ZoomIn)),
                 component::tool(Icon::FitScreen, "Fit to window", Some(Message::FitToWindow)),
                 component::tool(Icon::OneToOne, "Actual size", Some(Message::ActualSize)),
-            ]));
-        component::toolbar(bar)
+            ])),
+            DIVIDER_WIDTH + tools(4.0) + 48.0 + 12.0,
+            Some(4),
+            true,
+        ));
+        let widths: Vec<(f32, Option<u8>)> = slots
+            .iter()
+            .map(|(_, width, order, _)| (*width, *order))
+            .collect();
+        let shown = component::fitting_slots(width, &widths);
+        let mut bar = row![].spacing(8).align_y(Center);
+        let mut hidden = Vec::new();
+        for ((element, _, _, divider), shown) in slots.into_iter().zip(shown) {
+            if shown {
+                if divider {
+                    bar = bar.push(component::toolbar_divider());
+                }
+                bar = bar.push(element);
+            } else {
+                hidden.push(element);
+            }
+        }
+        if !hidden.is_empty() {
+            bar = bar.push(component::overflow(
+                hidden,
+                self.overflow_open,
+                Message::ToggleOverflow,
+                Message::CloseOverflow,
+            ));
+        }
+        // The bar fills the toolbar's height; keep the buttons in its middle.
+        container(bar).height(Fill).align_y(Center).into()
     }
 
     fn panel_view(&self, panel: Panel) -> Element<'_, Message> {

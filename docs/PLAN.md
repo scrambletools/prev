@@ -58,6 +58,30 @@ design).
   or importing an image; stored for reuse; placed as stamp annotations.
   Cryptographic (PAdES) signing is deferred, but the save path must allow it
   later.
+- **As built (M5):**
+  - Annotations go through `prev-pdf`'s engine-neutral model
+    (`annotation.rs`); `mupdf_annotations.rs` reads and writes them with
+    MuPDF. Each annotation carries a `/NM` id, and prev names its shapes in
+    `/Subj` ("Star", "Signature") so they read back as what was drawn.
+  - Rounded rectangles, stars, polygons and speech bubbles are polygon
+    annotations; arrows are lines with arrow heads. Loupes and masks are
+    stamps with prev's own appearance: a loupe holds a magnified image of
+    the page under it, taken again when it moves; a mask darkens the page
+    except its hole.
+  - Signatures are PNGs in `$XDG_DATA_HOME/prev/signatures/` with an index
+    of descriptions, and become image stamps with transparency. Typed
+    signatures use Dancing Script (OFL). Imported photos and scans have
+    their paper made transparent.
+  - Every edit is undoable: removals keep the object so undo puts back
+    the same annotation.
+  - Saving is incremental. MuPDF assumes an incremental save is appended to
+    the file it opened, so after writing, the document thread reopens it
+    from disk; without that, the second save of a session wrote a broken
+    cross-reference chain.
+  - Rectangular selection copies an image through `wl-copy`, since the
+    window clipboard only carries text. Cropping to it is page editing (M6).
+  - Not done: text inside shapes, shadows, and editing a signature's ink
+    after placing it.
 - **Page editing:** reorder by drag, delete, rotate, insert blank page, insert
   from file, merge by dragging between windows, extract pages to new PDF.
 - **Redaction:** true redaction via MuPDF (removes text, images and vector
@@ -135,7 +159,8 @@ the same windows, tools and panels, drawn as M3 components.
   Text field labels float once there is text rather than on focus. Sheets,
   dialogs and snackbars spring in but do not animate out, and nothing fades,
   as iced cannot draw a layer at partial opacity. Tab focus moves in every
-  window of the process at once.
+  window of the process at once. Toolbars measure their width and move
+  the groups that don't fit into a "More" menu, in a fixed order per bar.
 
 ### Out of scope
 
@@ -272,7 +297,7 @@ Each milestone ends with a usable build.
 | M3 | Images, SVG, Markdown viewing | All image formats including HEIC and RAW, multi-image window with sidebar, animated GIF, SVG via resvg, Markdown with highlighting and live reload |
 | M4 | Image editing | Crop, rotate, flip, Adjust Size, Adjust Color, metadata inspector and edits, export, autosave and version history |
 | M4.1 | Material 3 design | M3 Expressive color scheme from the Omarchy accent, Roboto Flex and the M3 type scale, Material Symbols, M3 components for toolbar, sidebar, panels, dialogs, menus and fields, state layers and focus, spring motion; screenshots and README updated |
-| M5 | PDF markup | All markup tools, notes, form filling, signatures, undo/redo, annotation round-trip tests |
+| M5 | PDF markup | All markup tools, notes, form filling, signatures, undo/redo, annotation round-trip tests (MuPDF and Poppler), highlights and notes sidebar |
 | M6 | PDF page editing | Reorder, delete, rotate, insert, merge between windows, extract, redaction, encryption, reduce file size, export to images |
 | M7 | Image polish | RAW tone curve matched to the camera's embedded JPEG (RawTherapee's auto-matched curve, in Rust), keep EXIF in edited TIFFs, read XMP from TIFF |
 | M8 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 |
@@ -289,7 +314,7 @@ Later: cryptographic signatures, OCR, markup on SVG.
 | iced multi-window or text input gaps on Wayland | Checked on Hyprland 0.56: native Wayland windows, per-window titles and app id, per-window shortcuts, exit on last close. Text input and IME still to be tried by hand; contribute fixes upstream |
 | No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. Page drag between windows (M6) will extend it |
 | Metadata lost or altered by image edits | Saving carries EXIF, ICC and XMP for JPEG, PNG and WebP and resets the EXIF orientation; EXIF edits (orientation, GPS removal, which overwrites the data) are done in place by prev's own code. Not yet: EXIF in edited TIFF files, XMP inside TIFF |
-| Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths |
+| Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths. PDFs are reopened after every incremental save, and a test checks every cross-reference offset after repeated saves |
 | Redaction leaking content | Dedicated test suite; full rewrite only, never incremental |
 | Memory during heavy use, largely MuPDF's store | Keep MuPDF's 256 MB default. If memory becomes a problem, add a store size limit to the `mupdf` crate upstream and remeasure with `PREV_BENCH` |
 | iced lacks M3 components and spring motion | Build them as custom widgets in a `prev/src/ui` module (styles from the scheme, springs driven by `request_redraw_at` as the image canvas already does) |

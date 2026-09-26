@@ -237,3 +237,120 @@ fn open_errors_are_reported() {
     let (_handle, opened) = DocumentHandle::open(engine(), dir.path().join("missing.pdf"));
     assert!(flatten(block_on(opened)).is_err());
 }
+
+/// Every `startxref` and `/Prev` offset points at a cross-reference table
+/// or stream, so readers need no repair.
+fn assert_xref_chain_intact(bytes: &[u8]) {
+    let text = String::from_utf8_lossy(bytes);
+    let mut offsets: Vec<usize> = Vec::new();
+    for (index, _) in text.match_indices("startxref") {
+        let rest = text[index + "startxref".len()..].trim_start();
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+        offsets.push(digits.parse().unwrap());
+    }
+    // Only trailers: outline items have /Prev entries too.
+    for (index, _) in text.match_indices("trailer") {
+        let trailer = &text[index..];
+        let trailer = &trailer[..trailer.find("startxref").unwrap_or(trailer.len())];
+        if let Some(position) = trailer.find("/Prev") {
+            let rest = trailer[position + "/Prev".len()..].trim_start();
+            let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            offsets.push(digits.parse().unwrap());
+        }
+    }
+    assert!(!offsets.is_empty());
+    for offset in offsets {
+        let at = &bytes[offset..(offset + 20).min(bytes.len())];
+        let at = String::from_utf8_lossy(at);
+        assert!(
+            at.starts_with("xref") || at.split_whitespace().nth(2) == Some("obj"),
+            "offset {offset} points at {at:?}"
+        );
+    }
+}
+
+#[test]
+fn repeated_saves_stay_valid_and_keep_every_edit() {
+    use prev_pdf::annotation::{Annotation, Kind, new_id};
+    use prev_pdf::geometry::Rect;
+    use prev_pdf::worker::Edit;
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _) = open_ready(&dir);
+    let path = dir.path().join("fixture.pdf");
+    let mut ids = Vec::new();
+    for round in 0..3 {
+        let annotation = Annotation::new(
+            new_id(),
+            Kind::Square,
+            Rect::new(
+                10.0 + round as f32 * 60.0,
+                10.0,
+                50.0 + round as f32 * 60.0,
+                50.0,
+            ),
+        );
+        ids.push(annotation.id.clone());
+        flatten(block_on(handle.edit(0, Edit::Add(annotation, None)))).unwrap();
+        let target = path.clone();
+        flatten(block_on(handle.save(Box::new(move |bytes| {
+            std::fs::write(&target, bytes).map_err(|error| error.to_string())
+        }))))
+        .unwrap();
+        assert_xref_chain_intact(&std::fs::read(&path).unwrap());
+    }
+    let reopened = MupdfEngine.open(&path).unwrap();
+    let found: Vec<String> = reopened
+        .annotations(0)
+        .unwrap()
+        .into_iter()
+        .map(|annotation| annotation.id)
+        .collect();
+    for id in &ids {
+        assert!(found.contains(id), "{id} lost, found {found:?}");
+    }
+    // Edits after a save still land in the document.
+    let markup = flatten(block_on(handle.markup(0))).unwrap();
+    assert_eq!(
+        markup
+            .annotations
+            .iter()
+            .filter(|annotation| annotation.kind == Kind::Square)
+            .count(),
+        3
+    );
+}
+
+#[test]
+fn removals_undo_after_a_save() {
+    use prev_pdf::annotation::{Annotation, Kind, new_id};
+    use prev_pdf::geometry::Rect;
+    use prev_pdf::worker::Edit;
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _) = open_ready(&dir);
+    let path = dir.path().join("fixture.pdf");
+    let save = |handle: &DocumentHandle| {
+        let target = path.clone();
+        flatten(block_on(handle.save(Box::new(move |bytes| {
+            std::fs::write(&target, bytes).map_err(|error| error.to_string())
+        }))))
+        .unwrap();
+    };
+    let mut note = Annotation::new(new_id(), Kind::Note, Rect::new(20.0, 20.0, 40.0, 40.0));
+    note.contents = "keep".into();
+    flatten(block_on(handle.edit(0, Edit::Add(note.clone(), None)))).unwrap();
+    save(&handle);
+    let removed = flatten(block_on(handle.edit(0, Edit::Remove(note.id.clone()))))
+        .unwrap()
+        .removed
+        .unwrap();
+    save(&handle);
+    let restored = flatten(block_on(handle.edit(0, Edit::Restore(removed)))).unwrap();
+    assert!(
+        restored
+            .annotations
+            .iter()
+            .any(|annotation| annotation.id == note.id && annotation.contents == "keep")
+    );
+    save(&handle);
+    assert_xref_chain_intact(&std::fs::read(&path).unwrap());
+}

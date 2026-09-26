@@ -18,19 +18,35 @@ use prev_store::bookmarks::{self, Bookmark, BookmarkStore};
 use super::bench::{self, Bench, Step};
 use super::canvas::PageCanvas;
 use super::layout::{Fit, ViewMode};
+use super::viewer::editing::EditMessage;
 use super::viewer::{PdfMessage, PdfViewer, Request, Zoom};
+
+mod markup_ui;
+use crate::image::editor::spawn;
 use crate::portal;
 use crate::shortcuts::Action;
 use crate::ui::button::{self, Kind};
 use crate::ui::component::{self, Backdrop};
 use crate::ui::resize::{self, Drag, Width};
 use crate::ui::{self, Icon, Type, icon, style};
+pub use markup_ui::{LoadedSignature, Menu, SignatureTab};
 
 const SIDEBAR_WIDTH: Width = Width::new(264.0, 248.0, 480.0);
 /// Sidebar width not taken by a thumbnail: margins, frame and scrollbar.
 const THUMBNAIL_INSET: f32 = 64.0;
 const THUMBNAIL_SPACING: f32 = 34.0;
 const LINE_SCROLL: f32 = 48.0;
+/// Quiet time after an edit before the document is written.
+const AUTOSAVE_DELAY: std::time::Duration = std::time::Duration::from_millis(1500);
+
+fn write_document(path: &std::path::Path, bytes: &[u8], keep_original: bool) -> Result<(), String> {
+    if keep_original && let Some(store) = prev_store::versions::VersionStore::default_location() {
+        store
+            .keep(path)
+            .map_err(|error| format!("could not keep the original version: {error}"))?;
+    }
+    prev_store::atomic::write(path, bytes).map_err(|error| error.to_string())
+}
 
 fn engine() -> Arc<dyn Engine> {
     static ENGINE: OnceLock<Arc<dyn Engine>> = OnceLock::new();
@@ -43,9 +59,16 @@ fn render_pool() -> Arc<RenderPool> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bar {
+    Main,
+    Markup,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sidebar {
     Thumbnails,
     Contents,
+    Notes,
     Bookmarks,
 }
 
@@ -80,6 +103,29 @@ pub enum Message {
     OpenUriFinished(Result<(), String>),
     DismissNotice,
     SidebarResized(Drag),
+    AutosaveDue(u64),
+    Saved(u64, Result<(), String>),
+    ToggleMarkupBar,
+    Overflow(Option<Bar>),
+    Menu(Option<Menu>),
+    Edit(EditMessage),
+    NotesLoaded(Vec<(usize, Vec<prev_pdf::annotation::Annotation>)>),
+    ShowAnnotation(usize, String),
+    SignaturesLoaded(Vec<LoadedSignature>),
+    PlaceSignature(usize),
+    RemoveSignature(usize),
+    NewSignature,
+    SignatureTab(SignatureTab),
+    SignatureStroke(Vec<(f32, f32)>),
+    ClearSignature,
+    SignatureText(String),
+    SignatureDescription(String),
+    ChooseSignatureImage,
+    SignatureImageChosen(Result<Vec<PathBuf>, String>),
+    SignatureImageMade(Result<Vec<u8>, String>),
+    SaveSignature,
+    SignatureSaved(Result<(), String>),
+    CancelSignature,
 }
 
 /// Changes the app applies to the window itself.
@@ -137,6 +183,18 @@ pub struct PdfWindow {
     bench: Option<Bench>,
     notice: Option<String>,
     effects: Vec<Effect>,
+    save_generation: u64,
+    saved_generation: u64,
+    original_kept: bool,
+    markup_bar: bool,
+    menu: Option<Menu>,
+    /// The toolbar whose "More" menu is open.
+    overflow: Option<Bar>,
+    signatures: Vec<LoadedSignature>,
+    signature_dialog: Option<markup_ui::SignatureDialog>,
+    notes: Vec<(usize, Vec<prev_pdf::annotation::Annotation>)>,
+    text_editor_id: Id,
+    field_input_id: Id,
 }
 
 impl PdfWindow {
@@ -160,6 +218,17 @@ impl PdfWindow {
             bench: Bench::from_env(),
             notice: None,
             effects: Vec::new(),
+            save_generation: 0,
+            saved_generation: 0,
+            original_kept: false,
+            markup_bar: false,
+            menu: None,
+            overflow: None,
+            signatures: Vec::new(),
+            signature_dialog: None,
+            notes: Vec::new(),
+            text_editor_id: Id::unique(),
+            field_input_id: Id::unique(),
         };
         let task = Task::perform(opened, |result| {
             Message::Opened(flatten(result).map_err(|error| error.to_string()))
@@ -221,7 +290,19 @@ impl PdfWindow {
             return Task::none();
         };
         let page_before = viewer.current;
+        let text_before = viewer.edit.text.is_some();
+        let field_before = viewer.edit.field.as_ref().map(|field| field.field.id);
         let task = viewer.update(message).map(Message::Viewer);
+        let mut focus = Vec::new();
+        if !text_before && viewer.edit.text.is_some() {
+            focus.push(operation::focus(self.text_editor_id.clone()));
+        }
+        let field_after = viewer.edit.field.as_ref().map(|field| field.field.id);
+        if field_after.is_some() && field_after != field_before {
+            focus.push(operation::focus(self.field_input_id.clone()));
+            focus.push(operation::select_all(self.field_input_id.clone()));
+        }
+        let task = Task::batch(std::iter::once(task).chain(focus));
         let requests = viewer.take_requests();
         let follow = if viewer.current == page_before {
             Task::none()
@@ -273,7 +354,7 @@ impl PdfWindow {
         )
     }
 
-    fn perform_request(&self, request: Request) -> Task<Message> {
+    fn perform_request(&mut self, request: Request) -> Task<Message> {
         match request {
             Request::ScrollTo { x, y } => operation::scroll_to(
                 self.canvas_id.clone(),
@@ -283,7 +364,56 @@ impl PdfWindow {
                 },
             ),
             Request::OpenUri(uri) => Task::perform(portal::open_uri(uri), Message::OpenUriFinished),
+            Request::Changed => {
+                let notes = self.load_notes();
+                self.save_generation += 1;
+                let generation = self.save_generation;
+                Task::batch([
+                    notes,
+                    Task::perform(
+                        spawn(move || std::thread::sleep(AUTOSAVE_DELAY)),
+                        move |_| Message::AutosaveDue(generation),
+                    ),
+                ])
+            }
+            Request::Notice(notice) => {
+                self.notice = Some(notice);
+                Task::none()
+            }
         }
+    }
+
+    /// Saves edits the autosave has not written yet, for a closing window.
+    pub fn flush(&mut self) -> Option<Task<Message>> {
+        (self.save_generation > self.saved_generation).then(|| {
+            let generation = self.save_generation;
+            self.autosave(generation)
+        })
+    }
+
+    /// Writes the document with its edits in place, keeping the original
+    /// as a version the first time.
+    fn autosave(&mut self, generation: u64) -> Task<Message> {
+        if generation != self.save_generation {
+            return Task::none();
+        }
+        let State::Ready(viewer) = &self.state else {
+            return Task::none();
+        };
+        let path = self.path.clone();
+        let keep_original = !self.original_kept;
+        let receiver = viewer.handle.save(Box::new(move |bytes| {
+            write_document(&path, bytes, keep_original)
+        }));
+        Task::perform(
+            async move {
+                match receiver.await {
+                    Ok(result) => result.map_err(|error| error.to_string()),
+                    Err(_) => Err("the document closed".to_owned()),
+                }
+            },
+            move |result| Message::Saved(generation, result),
+        )
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -339,7 +469,11 @@ impl PdfWindow {
             Message::ShowSidebar(sidebar) => {
                 self.sidebar = sidebar;
                 self.thumbnails_view = (0.0, self.thumbnails_view.1);
-                Task::batch([self.thumbnails_for(0.0, 1000.0), self.follow_thumbnail()])
+                Task::batch([
+                    self.thumbnails_for(0.0, 1000.0),
+                    self.follow_thumbnail(),
+                    self.load_notes(),
+                ])
             }
             Message::ThumbnailsScrolled(viewport) => {
                 let offset = viewport.absolute_offset().y;
@@ -399,6 +533,17 @@ impl PdfWindow {
                     .unwrap_or_default();
                 Task::perform(portal::print(path, title), Message::PrintFinished)
             }
+            Message::AutosaveDue(generation) => self.autosave(generation),
+            Message::Saved(generation, result) => {
+                match result {
+                    Ok(()) => {
+                        self.original_kept = true;
+                        self.saved_generation = self.saved_generation.max(generation);
+                    }
+                    Err(error) => self.notice = Some(format!("Could not save: {error}")),
+                }
+                Task::none()
+            }
             Message::SidebarResized(drag) => {
                 self.sidebar_width.drag(drag);
                 if drag != Drag::Ended {
@@ -412,6 +557,30 @@ impl PdfWindow {
                 self.notice = None;
                 Task::none()
             }
+            Message::Overflow(bar) => {
+                self.overflow = bar;
+                Task::none()
+            }
+            Message::ToggleMarkupBar
+            | Message::Menu(_)
+            | Message::Edit(_)
+            | Message::NotesLoaded(_)
+            | Message::ShowAnnotation(..)
+            | Message::SignaturesLoaded(_)
+            | Message::PlaceSignature(_)
+            | Message::RemoveSignature(_)
+            | Message::NewSignature
+            | Message::SignatureTab(_)
+            | Message::SignatureStroke(_)
+            | Message::ClearSignature
+            | Message::SignatureText(_)
+            | Message::SignatureDescription(_)
+            | Message::ChooseSignatureImage
+            | Message::SignatureImageChosen(_)
+            | Message::SignatureImageMade(_)
+            | Message::SaveSignature
+            | Message::SignatureSaved(_)
+            | Message::CancelSignature => self.markup_update(message),
             Message::PrintFinished(result) | Message::OpenUriFinished(result) => {
                 self.notice = result.err();
                 Task::none()
@@ -482,7 +651,10 @@ impl PdfWindow {
             return None;
         };
         let task = match action {
-            Action::Copy => viewer.copy_selection().map(Message::Viewer),
+            Action::Copy => match viewer.copy_area() {
+                Some(task) => task.map(Message::Viewer),
+                None => viewer.copy_selection().map(Message::Viewer),
+            },
             Action::SelectAll => {
                 viewer.select_all();
                 Task::none()
@@ -498,6 +670,14 @@ impl PdfWindow {
             Action::Thumbnails => self.update(Message::ShowSidebar(Some(Sidebar::Thumbnails))),
             Action::Contents => self.update(Message::ShowSidebar(Some(Sidebar::Contents))),
             Action::BookmarksSidebar => self.update(Message::ShowSidebar(Some(Sidebar::Bookmarks))),
+            Action::NotesSidebar => self.update(Message::ShowSidebar(Some(Sidebar::Notes))),
+            Action::ShowMarkup => self.update(Message::ToggleMarkupBar),
+            Action::Undo if viewer.edit.history.can_undo() && viewer.edit.text.is_none() => {
+                self.update(Message::Edit(EditMessage::Undo))
+            }
+            Action::Redo if viewer.edit.history.can_redo() && viewer.edit.text.is_none() => {
+                self.update(Message::Edit(EditMessage::Redo))
+            }
             Action::ToggleBookmark => {
                 let page = viewer.current;
                 self.update(Message::ToggleBookmark(page))
@@ -525,6 +705,20 @@ impl PdfWindow {
             Action::Print => self.update(Message::Print),
             Action::Slideshow => self.toggle_slideshow(),
             Action::Escape if self.slideshow.is_some() => self.toggle_slideshow(),
+            Action::Escape if self.signature_dialog.is_some() => {
+                self.update(Message::CancelSignature)
+            }
+            Action::Escape if self.menu.is_some() => self.update(Message::Menu(None)),
+            Action::Escape if self.overflow.is_some() => self.update(Message::Overflow(None)),
+            Action::Escape
+                if viewer.edit.text.is_some()
+                    || viewer.edit.field.is_some()
+                    || viewer.edit.choice.is_some()
+                    || viewer.edit.selected.is_some()
+                    || viewer.edit.tool != super::markup::Tool::Select =>
+            {
+                self.update(Message::Edit(EditMessage::Deselect))
+            }
             Action::Escape => {
                 viewer.selection.take()?;
                 Task::none()
@@ -592,6 +786,10 @@ impl PdfWindow {
         };
         if modifiers.control() || modifiers.alt() || modifiers.logo() {
             return None;
+        }
+        let deletes = matches!(key.as_ref(), Key::Named(Named::Delete | Named::Backspace));
+        if deletes && viewer.edit.selected.is_some() && viewer.edit.text.is_none() {
+            return Some(self.update(Message::Edit(EditMessage::Delete)));
         }
         let paged = self.slideshow.is_some() || viewer.mode != ViewMode::Continuous;
         let page_height = viewer.view.height * 0.9;
@@ -663,32 +861,40 @@ impl PdfWindow {
                 self.canvas(viewer, Some(Color::BLACK))
             }
             State::Ready(viewer) => {
-                let content: Element<'_, Message> = match self.sidebar {
-                    Some(sidebar) => row![
-                        ui::enter::from_left(
-                            container(self.sidebar_view(viewer, sidebar))
-                                .clip(true)
-                                .width(self.sidebar_width.value)
-                                .height(Fill)
-                                .style(style::surface_container_low)
+                // Hidden parts leave an empty slot, so the canvas keeps its
+                // place in the widget tree, and with it the scroll position.
+                let (sidebar, handle): (Element<'_, Message>, Element<'_, Message>) =
+                    match self.sidebar {
+                        Some(sidebar) => (
+                            ui::enter::from_left(
+                                container(self.sidebar_view(viewer, sidebar))
+                                    .clip(true)
+                                    .width(self.sidebar_width.value)
+                                    .height(Fill)
+                                    .style(style::surface_container_low),
+                            ),
+                            resize::handle(Message::SidebarResized).into(),
                         ),
-                        resize::handle(Message::SidebarResized),
-                        self.canvas(viewer, None),
-                    ]
-                    .into(),
-                    None => self.canvas(viewer, None),
+                        None => (space().into(), space().into()),
+                    };
+                let content = row![sidebar, handle, self.canvas(viewer, None)];
+                let markup: Element<'_, Message> = if self.markup_bar {
+                    self.markup_toolbar(viewer)
+                } else {
+                    space().into()
                 };
-                column![self.toolbar(viewer), content].into()
+                column![self.toolbar(viewer), markup, content].into()
             }
         };
         let body = container(body)
             .width(Fill)
             .height(Fill)
             .style(style::surface);
-        match &self.notice {
+        let body = match &self.notice {
             Some(notice) => component::snackbar(body, notice, Message::DismissNotice),
             None => body.into(),
-        }
+        };
+        self.signature_dialog_view(body)
     }
 
     fn password_view<'a>(
@@ -738,7 +944,7 @@ impl PdfWindow {
         } else {
             component::thin_scrollbar()
         };
-        scrollable(canvas)
+        let scroll = scrollable(canvas)
             .id(self.canvas_id.clone())
             .direction(Direction::Both {
                 vertical: scrollbar,
@@ -746,11 +952,23 @@ impl PdfWindow {
             })
             .style(style::scrollbar)
             .width(Fill)
-            .height(Fill)
-            .into()
+            .height(Fill);
+        if backdrop.is_some() {
+            return scroll.into();
+        }
+        let editors = self.page_editors(viewer).unwrap_or_else(|| space().into());
+        iced::widget::stack![scroll, editors].into()
     }
 
+    /// The toolbar, with groups that do not fit the window's width in a
+    /// "More" menu at its end.
     fn toolbar<'a>(&'a self, viewer: &'a PdfViewer) -> Element<'a, Message> {
+        component::toolbar(iced::widget::responsive(move |size| {
+            self.toolbar_at(viewer, size.width)
+        }))
+    }
+
+    fn toolbar_at<'a>(&'a self, viewer: &'a PdfViewer, width: f32) -> Element<'a, Message> {
         let sidebar_toggle = component::toggle_tool(
             if self.sidebar.is_some() {
                 Icon::LeftPanelClose
@@ -848,42 +1066,98 @@ impl PdfWindow {
             280.0,
         );
 
-        component::toolbar(
-            row![
-                sidebar_toggle,
-                component::toolbar_divider(),
-                page_box,
-                pages,
-                component::toolbar_divider(),
+        use component::{DIVIDER_WIDTH, TOOL_WIDTH};
+        // Each slot: its content, its width, and when it moves into "More".
+        let slots: Vec<(Element<'a, Message>, f32, Option<u8>)> = vec![
+            (
+                row![sidebar_toggle, component::toolbar_divider()]
+                    .spacing(8)
+                    .align_y(Center)
+                    .into(),
+                TOOL_WIDTH + DIVIDER_WIDTH + 8.0,
+                None,
+            ),
+            (
+                row![page_box, pages, component::toolbar_divider()]
+                    .spacing(8)
+                    .align_y(Center)
+                    .into(),
+                52.0 + 40.0 + DIVIDER_WIDTH + 16.0,
+                None,
+            ),
+            (
                 component::group([
                     zoom(Icon::ZoomOut, "Zoom out", Zoom::Out),
                     percent.into(),
                     zoom(Icon::ZoomIn, "Zoom in", Zoom::In),
                 ]),
+                TOOL_WIDTH * 2.0 + 48.0 + 8.0,
+                Some(2),
+            ),
+            (
                 component::group([
                     fit(Icon::FitPage, "Fit page", Fit::Page, Zoom::FitPage),
                     fit(Icon::FitWidth, "Fit width", Fit::Width, Zoom::FitWidth),
                 ]),
-                component::toolbar_divider(),
-                component::tip(modes, mode_label),
-                space::horizontal(),
-                search_bar,
-            ]
-            .spacing(8)
-            .align_y(Center),
-        )
+                TOOL_WIDTH * 2.0 + 4.0,
+                Some(1),
+            ),
+            (component::tip(modes, mode_label), 3.0 * 32.0 + 4.0, Some(0)),
+            (
+                component::toggle_tool(
+                    Icon::EditDocument,
+                    "Markup",
+                    self.markup_bar,
+                    Message::ToggleMarkupBar,
+                ),
+                TOOL_WIDTH,
+                None,
+            ),
+            (search_bar, 280.0, Some(3)),
+        ];
+        let widths: Vec<(f32, Option<u8>)> = slots
+            .iter()
+            .map(|(_, width, order)| (*width, *order))
+            .collect();
+        let shown = component::fitting_slots(width, &widths);
+        let mut bar = row![].spacing(8).align_y(Center);
+        let mut hidden = Vec::new();
+        for (index, ((element, _, _), shown)) in slots.into_iter().zip(shown).enumerate() {
+            // The markup button and search bar sit on the right.
+            if index == 5 {
+                bar = bar.push(space::horizontal());
+            }
+            if shown {
+                bar = bar.push(element);
+            } else {
+                hidden.push(element);
+            }
+        }
+        if !hidden.is_empty() {
+            let open = self.overflow == Some(Bar::Main);
+            bar = bar.push(component::overflow(
+                hidden,
+                open,
+                Message::Overflow((!open).then_some(Bar::Main)),
+                Message::Overflow(None),
+            ));
+        }
+        // The bar fills the toolbar's height; keep the buttons in its middle.
+        container(bar).height(Fill).align_y(Center).into()
     }
 
     fn sidebar_view<'a>(&'a self, viewer: &'a PdfViewer, sidebar: Sidebar) -> Element<'a, Message> {
-        let tab = |label: &'a str, which: Sidebar| component::Tab {
+        let tab = |label: &'a str, glyph: Icon, which: Sidebar| component::Tab {
             label,
+            icon: Some(glyph),
             selected: sidebar == which,
             on_press: Message::ShowSidebar(Some(which)),
         };
         let tabs = component::tabs(vec![
-            tab("Pages", Sidebar::Thumbnails),
-            tab("Contents", Sidebar::Contents),
-            tab("Bookmarks", Sidebar::Bookmarks),
+            tab("Pages", Icon::GridView, Sidebar::Thumbnails),
+            tab("Contents", Icon::Toc, Sidebar::Contents),
+            tab("Highlights and notes", Icon::StickyNote, Sidebar::Notes),
+            tab("Bookmarks", Icon::Bookmarks, Sidebar::Bookmarks),
         ]);
         let list: Element<'a, Message> = match sidebar {
             Sidebar::Thumbnails => component::scroll(
@@ -911,6 +1185,7 @@ impl PdfWindow {
                 "No table of contents",
                 "This document has no outline.",
             ),
+            Sidebar::Notes => self.notes_view(viewer),
             Sidebar::Bookmarks if self.bookmarks.is_empty() => component::empty_state(
                 Icon::Bookmarks,
                 "No bookmarks",

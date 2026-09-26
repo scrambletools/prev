@@ -13,12 +13,22 @@ pub const TEXT: Font = Font {
 };
 pub const ICONS: Font = Font::with_name("Material Symbols Rounded");
 pub const ICONS_FILLED: Font = Font::with_name("Material Symbols Rounded Filled");
+/// Handwriting, for typed signatures.
+/// The bundled instance is semibold, and iced only picks a named font at
+/// its exact weight.
+pub const SIGNATURE: Font = Font {
+    family: Family::Name("Dancing Script"),
+    weight: Weight::Semibold,
+    ..Font::DEFAULT
+};
+pub const SIGNATURE_FILE: &[u8] = include_bytes!("../../assets/fonts/DancingScript.ttf");
 
 /// Font files to load at startup.
-pub const FILES: [&[u8]; 3] = [
+pub const FILES: [&[u8]; 4] = [
     include_bytes!("../../assets/fonts/RobotoFlex.ttf"),
     include_bytes!("../../assets/fonts/MaterialSymbolsRounded.ttf"),
     include_bytes!("../../assets/fonts/MaterialSymbolsRoundedFilled.ttf"),
+    SIGNATURE_FILE,
 ];
 
 pub fn files() -> impl Iterator<Item = Cow<'static, [u8]>> {

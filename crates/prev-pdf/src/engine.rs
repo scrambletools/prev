@@ -4,6 +4,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::annotation::{Annotation, Field, Removed, StampContent};
 use crate::geometry::{PixelRect, Point, Quad, Rect, Size};
 use crate::text::TextLayout;
 
@@ -55,6 +56,34 @@ pub trait Document {
     fn links(&self, index: usize) -> Result<Vec<Link>>;
     /// A parsed page that can be rendered on any thread, any number of times.
     fn display(&self, index: usize) -> Result<Arc<dyn PageDisplay>>;
+
+    /// Annotations on a page, without links, popups and form widgets.
+    fn annotations(&self, page: usize) -> Result<Vec<Annotation>>;
+    /// Adds `annotation` with its id; stamps take their appearance from
+    /// `content`.
+    fn add_annotation(
+        &mut self,
+        page: usize,
+        annotation: &Annotation,
+        content: Option<&StampContent>,
+    ) -> Result<()>;
+    /// Changes the annotation with `annotation.id` to match it. A stamp's
+    /// appearance is replaced only when `content` is given.
+    fn update_annotation(
+        &mut self,
+        page: usize,
+        annotation: &Annotation,
+        content: Option<&StampContent>,
+    ) -> Result<()>;
+    fn remove_annotation(&mut self, page: usize, id: &str) -> Result<Removed>;
+    /// Puts a removed annotation back, exactly as it was.
+    fn restore_annotation(&mut self, page: usize, removed: &Removed) -> Result<()>;
+    fn fields(&self, page: usize) -> Result<Vec<Field>>;
+    fn set_field(&mut self, page: usize, id: i32, value: &str) -> Result<()>;
+    fn has_changes(&self) -> bool;
+    /// The document with its changes, appended to the original file when
+    /// possible so earlier signatures and revisions stay intact.
+    fn save(&mut self) -> Result<Vec<u8>>;
 }
 
 /// A parsed page, safe to share with render threads.

@@ -4,6 +4,7 @@ Run with: uv run --with fonttools scripts/build-fonts.py
 
 - Roboto Flex: every axis pinned to its default except weight, which
   iced's text stack drives.
+- Dancing Script: a static semibold instance, for typed signatures.
 - Material Symbols Rounded: static outlined and filled instances at 24 px
   optical size, subset to the icons listed in crates/prev/src/ui/icon.rs.
 """
@@ -28,6 +29,10 @@ ROBOTO_FLEX = (
     "RobotoFlex%5BGRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght%5D.ttf"
 )
 ROBOTO_FLEX_LICENSE = f"https://github.com/google/fonts/raw/{FONTS_COMMIT}/ofl/robotoflex/OFL.txt"
+DANCING_SCRIPT = (
+    f"https://github.com/google/fonts/raw/{FONTS_COMMIT}/ofl/dancingscript/DancingScript%5Bwght%5D.ttf"
+)
+DANCING_SCRIPT_LICENSE = f"https://github.com/google/fonts/raw/{FONTS_COMMIT}/ofl/dancingscript/OFL.txt"
 SYMBOLS = (
     f"https://github.com/google/material-design-icons/raw/{ICONS_COMMIT}/variablefont/"
     "MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
@@ -131,12 +136,22 @@ def build_roboto_flex(source: Path, out: Path) -> None:
     font.save(out)
 
 
+def build_dancing_script(source: Path, out: Path) -> None:
+    font = TTFont(source)
+    instantiateVariableFont(font, {"wght": 600}, inplace=True)
+    font.save(out)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as scratch:
         scratch = Path(scratch)
         build_roboto_flex(fetch(ROBOTO_FLEX, scratch), OUT / "RobotoFlex.ttf")
         (OUT / "OFL.txt").write_bytes(fetch(ROBOTO_FLEX_LICENSE, scratch).read_bytes())
+        build_dancing_script(fetch(DANCING_SCRIPT, scratch), OUT / "DancingScript.ttf")
+        (OUT / "OFL-DancingScript.txt").write_bytes(
+            fetch(DANCING_SCRIPT_LICENSE, scratch).read_bytes()
+        )
         symbols = fetch(SYMBOLS, scratch)
         build_symbols(symbols, 0, "Material Symbols Rounded", OUT / "MaterialSymbolsRounded.ttf")
         build_symbols(symbols, 1, "Material Symbols Rounded Filled", OUT / "MaterialSymbolsRoundedFilled.ttf")
