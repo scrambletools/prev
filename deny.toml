@@ -40,6 +40,12 @@ allow = ["AGPL-3.0"]
 crate = "mupdf-sys"
 allow = ["AGPL-3.0"]
 
+# rawler declares the deprecated "LGPL-2.1" id (2.1 only). LGPL-2.1 section 3
+# allows relicensing to GPL-2.0-or-later, which combines with AGPL-3.0.
+[[licenses.exceptions]]
+crate = "rawler"
+allow = ["LGPL-2.1"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"

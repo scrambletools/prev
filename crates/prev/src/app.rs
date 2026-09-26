@@ -9,6 +9,8 @@ use iced::widget::{button, center, checkbox, column, container, radio, rule, tex
 use iced::window::{self, settings::PlatformSpecific};
 use iced::{Border, Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
 use prev::filetype::{self, FileKind};
+use prev::image::window::{self as image_window, ImageWindow, Source};
+use prev::markdown::{self, MarkdownWindow};
 use prev::pdf::window::{self as pdf_window, Effect, PdfWindow};
 use prev::shortcuts::{self, Action};
 use prev::{dialog, omarchy};
@@ -27,6 +29,7 @@ pub struct Prev {
     settings_error: Option<String>,
     omarchy_dir: Option<PathBuf>,
     omarchy: Option<(omarchy::Mode, Theme)>,
+    system_mode: iced::theme::Mode,
 }
 
 struct Window {
@@ -48,6 +51,8 @@ struct Document {
     path: PathBuf,
     kind: Result<Option<FileKind>, String>,
     pdf: Option<Box<PdfWindow>>,
+    images: Option<Box<ImageWindow>>,
+    markdown: Option<Box<MarkdownWindow>>,
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +64,9 @@ pub enum Message {
     ScaleFactor(window::Id, f32),
     Frame(std::time::Instant),
     Pdf(window::Id, pdf_window::Message),
+    Image(window::Id, image_window::Message),
+    Markdown(window::Id, markdown::Message),
+    SystemTheme(iced::theme::Mode),
     Key(window::Id, Key, Modifiers),
     Perform(window::Id, Action),
     DialogFinished(window::Id, Result<Vec<PathBuf>, String>),
@@ -81,10 +89,12 @@ impl Prev {
             settings_error,
             omarchy_dir,
             omarchy: None,
+            system_mode: iced::theme::Mode::None,
         };
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
-        (prev, task)
+        let system = iced::system::theme().map(Message::SystemTheme);
+        (prev, Task::batch([task, system]))
     }
 
     fn reload_omarchy(&mut self) {
@@ -109,12 +119,67 @@ impl Prev {
             .filter(|(_, window)| matches!(window.content, Content::Start))
             .map(|(id, _)| *id)
             .collect();
-        let mut tasks: Vec<Task<Message>> = paths
-            .into_iter()
-            .map(|path| self.open_document(path))
-            .collect();
+        let mut tasks = Vec::new();
+        let mut images = Vec::new();
+        for path in paths {
+            let path = std::fs::canonicalize(&path).unwrap_or(path);
+            if let Some(id) = self.window_showing(&path) {
+                tasks.push(window::gain_focus(id));
+                continue;
+            }
+            match filetype::detect_path(&path) {
+                Ok(Some(FileKind::Image(format))) => images.push((path, Source::Raster(format))),
+                Ok(Some(FileKind::Svg)) => images.push((path, Source::Svg)),
+                _ => tasks.push(self.open_document(path)),
+            }
+        }
+        // Images opened together share one window, as in Preview.
+        if !images.is_empty() {
+            tasks.push(self.open_images(images));
+        }
         tasks.extend(start_windows.into_iter().map(window::close));
         Task::batch(tasks)
+    }
+
+    fn open_images(&mut self, files: Vec<(PathBuf, Source)>) -> Task<Message> {
+        let path = files[0].0.clone();
+        let (images, loading) = ImageWindow::open(files);
+        let (id, opened) = self.open_window_with_id(Content::Document(Document {
+            path,
+            kind: Ok(None),
+            pdf: None,
+            images: Some(Box::new(images)),
+            markdown: None,
+        }));
+        Task::batch([
+            opened,
+            loading.map(move |message| Message::Image(id, message)),
+        ])
+    }
+
+    fn markdown_mut(&mut self, id: window::Id) -> Option<&mut MarkdownWindow> {
+        match &mut self.windows.get_mut(&id)?.content {
+            Content::Document(document) => document.markdown.as_deref_mut(),
+            _ => None,
+        }
+    }
+
+    fn images_mut(&mut self, id: window::Id) -> Option<&mut ImageWindow> {
+        match &mut self.windows.get_mut(&id)?.content {
+            Content::Document(document) => document.images.as_deref_mut(),
+            _ => None,
+        }
+    }
+
+    fn with_images(
+        &mut self,
+        id: window::Id,
+        run: impl FnOnce(&mut ImageWindow) -> Task<image_window::Message>,
+    ) -> Task<Message> {
+        match self.images_mut(id) {
+            Some(images) => run(images).map(move |message| Message::Image(id, message)),
+            None => Task::none(),
+        }
     }
 
     fn open_document(&mut self, path: PathBuf) -> Task<Message> {
@@ -129,16 +194,34 @@ impl Prev {
                 path,
                 kind,
                 pdf: Some(Box::new(pdf)),
+                images: None,
+                markdown: None,
             }));
             return Task::batch([
                 opened,
                 opening.map(move |message| Message::Pdf(id, message)),
             ]);
         }
+        if matches!(kind, Ok(Some(FileKind::Markdown))) {
+            let (document, loading) = MarkdownWindow::open(path.clone());
+            let (id, opened) = self.open_window_with_id(Content::Document(Document {
+                path,
+                kind,
+                pdf: None,
+                images: None,
+                markdown: Some(Box::new(document)),
+            }));
+            return Task::batch([
+                opened,
+                loading.map(move |message| Message::Markdown(id, message)),
+            ]);
+        }
         self.open_window(Content::Document(Document {
             path,
             kind,
             pdf: None,
+            images: None,
+            markdown: None,
         }))
     }
 
@@ -175,7 +258,15 @@ impl Prev {
         self.windows
             .iter()
             .find_map(|(id, window)| match &window.content {
-                Content::Document(document) if document.path == path => Some(*id),
+                Content::Document(document)
+                    if document.path == path
+                        || document
+                            .images
+                            .as_ref()
+                            .is_some_and(|images| images.paths().any(|shown| shown == path)) =>
+                {
+                    Some(*id)
+                }
                 _ => None,
             })
     }
@@ -224,8 +315,30 @@ impl Prev {
                     .map(move |surface| Message::SurfaceKnown(id, surface)),
                 window::scale_factor(id).map(move |scale| Message::ScaleFactor(id, scale)),
             ]),
-            Message::ScaleFactor(id, scale) => self.with_pdf(id, |pdf| pdf.set_device_scale(scale)),
+            Message::ScaleFactor(id, scale) => Task::batch([
+                self.with_pdf(id, |pdf| pdf.set_device_scale(scale)),
+                self.with_images(id, |images| images.set_device_scale(scale)),
+            ]),
             Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
+            Message::Image(id, message) => self.with_images(id, |images| images.update(message)),
+            Message::Markdown(id, message) => {
+                let Some(document) = self.markdown_mut(id) else {
+                    return Task::none();
+                };
+                let task = document
+                    .update(message)
+                    .map(move |message| Message::Markdown(id, message));
+                let paths: Vec<PathBuf> = document
+                    .take_effects()
+                    .into_iter()
+                    .map(|markdown::Effect::OpenPath(path)| path)
+                    .collect();
+                Task::batch([task, self.open_paths_if_any(paths)])
+            }
+            Message::SystemTheme(mode) => {
+                self.system_mode = mode;
+                Task::none()
+            }
             Message::Frame(now) => {
                 let ids: Vec<window::Id> = self.windows.keys().copied().collect();
                 Task::batch(
@@ -253,11 +366,16 @@ impl Prev {
                     Some(action) => pdf.shortcut(action),
                     None => pdf.key(&key, modifiers),
                 });
+                if let Some(task) = handled {
+                    let task = task.map(move |message| Message::Pdf(id, message));
+                    return Task::batch([task, self.with_pdf(id, |_| Task::none())]);
+                }
+                let handled = self.images_mut(id).and_then(|images| match action {
+                    Some(action) => images.shortcut(action),
+                    None => images.key(&key, modifiers),
+                });
                 match (handled, action) {
-                    (Some(task), _) => {
-                        let task = task.map(move |message| Message::Pdf(id, message));
-                        Task::batch([task, self.with_pdf(id, |_| Task::none())])
-                    }
+                    (Some(task), _) => task.map(move |message| Message::Image(id, message)),
                     (None, Some(action)) => self.perform(id, action),
                     (None, None) => Task::none(),
                 }
@@ -376,10 +494,16 @@ impl Prev {
 
     pub fn title(&self, id: window::Id) -> String {
         match self.windows.get(&id).map(|window| &window.content) {
-            Some(Content::Document(document)) => document.path.file_name().map_or_else(
-                || document.path.display().to_string(),
-                |name| name.to_string_lossy().into_owned(),
-            ),
+            Some(Content::Document(document)) => {
+                let path = document
+                    .images
+                    .as_ref()
+                    .map_or(document.path.as_path(), |images| images.current_path());
+                path.file_name().map_or_else(
+                    || path.display().to_string(),
+                    |name| name.to_string_lossy().into_owned(),
+                )
+            }
             Some(Content::Settings) => "prev Settings".to_owned(),
             _ => "prev".to_owned(),
         }
@@ -387,6 +511,14 @@ impl Prev {
 
     pub fn theme(&self, _id: window::Id) -> Option<Theme> {
         resolve_theme(&self.settings, self.omarchy.as_ref())
+    }
+
+    /// The theme in use, with the system's light or dark choice filled in.
+    fn resolved_theme(&self, id: window::Id) -> Theme {
+        self.theme(id).unwrap_or(match self.system_mode {
+            iced::theme::Mode::Dark => Theme::Dark,
+            _ => Theme::Light,
+        })
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -400,6 +532,7 @@ impl Prev {
         };
         Subscription::batch([
             frames,
+            iced::system::theme_changes().map(Message::SystemTheme),
             Subscription::run(crate::external_events).map(Message::External),
             window::close_events().map(Message::WindowClosed),
             event::listen_with(|event, status, id| match (event, status) {
@@ -423,6 +556,21 @@ impl Prev {
             Content::Start => start_view(id),
             Content::Document(Document { pdf: Some(pdf), .. }) => {
                 pdf.view().map(move |message| Message::Pdf(id, message))
+            }
+            Content::Document(Document {
+                images: Some(images),
+                ..
+            }) => images
+                .view()
+                .map(move |message| Message::Image(id, message)),
+            Content::Document(Document {
+                markdown: Some(document),
+                ..
+            }) => {
+                let theme = self.resolved_theme(id);
+                document
+                    .view(&theme)
+                    .map(move |message| Message::Markdown(id, message))
             }
             Content::Document(document) => document_view(document),
             Content::Settings => self.settings_view(),

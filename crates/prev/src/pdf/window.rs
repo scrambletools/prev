@@ -20,6 +20,7 @@ use super::bench::{self, Bench, Step};
 use super::canvas::PageCanvas;
 use super::layout::{Fit, ViewMode};
 use super::viewer::{PdfMessage, PdfViewer, Request, Zoom};
+use crate::portal;
 use crate::shortcuts::Action;
 
 const SIDEBAR_WIDTH: f32 = 236.0;
@@ -108,6 +109,9 @@ pub struct PdfWindow {
     sidebar: Option<Sidebar>,
     canvas_id: Id,
     search_id: Id,
+    thumbnails_id: Id,
+    /// Scroll offset and height of the thumbnail list.
+    thumbnails_view: (f32, f32),
     page_input_id: Id,
     page_input: Option<String>,
     /// View mode and fit to restore after a slideshow.
@@ -129,6 +133,8 @@ impl PdfWindow {
             sidebar: None,
             canvas_id: Id::unique(),
             search_id: Id::unique(),
+            thumbnails_id: Id::unique(),
+            thumbnails_view: (0.0, 600.0),
             page_input_id: Id::unique(),
             page_input: None,
             slideshow: None,
@@ -198,14 +204,52 @@ impl PdfWindow {
         let State::Ready(viewer) = &mut self.state else {
             return Task::none();
         };
+        let page_before = viewer.current;
         let task = viewer.update(message).map(Message::Viewer);
         let requests = viewer.take_requests();
+        let follow = if viewer.current == page_before {
+            Task::none()
+        } else {
+            self.follow_thumbnail()
+        };
         Task::batch(
-            std::iter::once(task).chain(
-                requests
-                    .into_iter()
-                    .map(|request| self.perform_request(request)),
-            ),
+            std::iter::once(task)
+                .chain(
+                    requests
+                        .into_iter()
+                        .map(|request| self.perform_request(request)),
+                )
+                .chain(std::iter::once(follow)),
+        )
+    }
+
+    /// Scrolls the thumbnail list so the current page's thumbnail is in view.
+    fn follow_thumbnail(&mut self) -> Task<Message> {
+        let State::Ready(viewer) = &self.state else {
+            return Task::none();
+        };
+        if self.sidebar != Some(Sidebar::Thumbnails) {
+            return Task::none();
+        }
+        let heights = viewer
+            .info
+            .page_sizes
+            .iter()
+            .map(|size| thumbnail_height(size) + THUMBNAIL_SPACING);
+        let top: f32 = heights.clone().take(viewer.current).sum();
+        let height = heights.clone().nth(viewer.current).unwrap_or(0.0);
+        let (offset, visible) = self.thumbnails_view;
+        if top >= offset && top + height <= offset + visible {
+            return Task::none();
+        }
+        let target = (top - (visible - height) / 2.0).max(0.0);
+        self.thumbnails_view.0 = target;
+        operation::scroll_to(
+            self.thumbnails_id.clone(),
+            scrollable::AbsoluteOffset {
+                x: None,
+                y: Some(target),
+            },
         )
     }
 
@@ -218,7 +262,7 @@ impl PdfWindow {
                     y: Some(y),
                 },
             ),
-            Request::OpenUri(uri) => Task::perform(open_uri(uri), Message::OpenUriFinished),
+            Request::OpenUri(uri) => Task::perform(portal::open_uri(uri), Message::OpenUriFinished),
         }
     }
 
@@ -274,10 +318,12 @@ impl PdfWindow {
             Message::Viewer(message) => self.viewer_update(message),
             Message::ShowSidebar(sidebar) => {
                 self.sidebar = sidebar;
-                self.thumbnails_for(0.0, 1000.0)
+                self.thumbnails_view = (0.0, self.thumbnails_view.1);
+                Task::batch([self.thumbnails_for(0.0, 1000.0), self.follow_thumbnail()])
             }
             Message::ThumbnailsScrolled(viewport) => {
                 let offset = viewport.absolute_offset().y;
+                self.thumbnails_view = (offset, viewport.bounds().height);
                 self.thumbnails_for(offset, viewport.bounds().height)
             }
             Message::PageInputChanged(value) => {
@@ -331,7 +377,7 @@ impl PdfWindow {
                     .file_name()
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                Task::perform(print(path, title), Message::PrintFinished)
+                Task::perform(portal::print(path, title), Message::PrintFinished)
             }
             Message::PrintFinished(result) | Message::OpenUriFinished(result) => {
                 self.notice = result.err();
@@ -749,6 +795,7 @@ impl PdfWindow {
                 .align_x(Center),
             )
             .on_scroll(Message::ThumbnailsScrolled)
+            .id(self.thumbnails_id.clone())
             .height(Fill)
             .into(),
             Sidebar::Contents if !self.outline_loaded => center(text("Loading…").size(13)).into(),
@@ -916,47 +963,4 @@ fn resolve_page(input: &str, viewer: &PdfViewer) -> Option<usize> {
     (1..=viewer.page_count())
         .contains(&number)
         .then(|| number - 1)
-}
-
-async fn open_uri(uri: String) -> Result<(), String> {
-    let parsed = ashpd::Uri::parse(&uri).map_err(|error| format!("Invalid link {uri}: {error}"))?;
-    ashpd::desktop::open_uri::OpenFileRequest::default()
-        .send_uri(&parsed)
-        .await
-        .map(|_| ())
-        .map_err(|error| format!("Could not open {uri}: {error}"))
-}
-
-async fn print(path: PathBuf, title: String) -> Result<(), String> {
-    use ashpd::desktop::print::{PreparePrintOptions, PrintOptions, PrintProxy};
-    use std::os::fd::AsFd;
-
-    let failed = |error: ashpd::Error| format!("Could not print: {error}");
-    let proxy = PrintProxy::new().await.map_err(failed)?;
-    let prepared = proxy
-        .prepare_print(
-            None,
-            &title,
-            Default::default(),
-            Default::default(),
-            PreparePrintOptions::default(),
-        )
-        .await
-        .map_err(failed)?;
-    let prepared = match prepared.response() {
-        Ok(prepared) => prepared,
-        Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => return Ok(()),
-        Err(error) => return Err(failed(error)),
-    };
-    let file = std::fs::File::open(&path).map_err(|error| format!("Could not print: {error}"))?;
-    proxy
-        .print(
-            None,
-            &title,
-            &file.as_fd(),
-            PrintOptions::default().set_token(prepared.token),
-        )
-        .await
-        .map_err(failed)?;
-    Ok(())
 }

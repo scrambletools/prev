@@ -177,7 +177,7 @@ statistics.
 | Open 100-page PDF to first page drawn | < 100 ms | 20 ms (499 pages), 93 ms (7025 pages) |
 | Scroll and zoom | 60 fps, no dropped frames during tile loads | 120 fps, no slow frames |
 | Idle memory, one 100-page PDF open | < 150 MB | 61 MB heap, 179 MB resident with GPU drivers |
-| Release binary (stripped, without HEIC/RAW) | < 30 MB | 22.6 MB |
+| Release binary (stripped, without HEIC/RAW) | < 30 MB | 29.9 MB (36.1 MB with RAW); was 22.6 MB before image, SVG and Markdown support |
 
 Renderer: wgpu with Vulkan. The CPU renderer (tiny-skia) starts in 41 ms but
 drops to about 60 fps scrolling and 30 fps zooming at 108% CPU, against 27%

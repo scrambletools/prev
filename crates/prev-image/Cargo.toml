@@ -10,3 +10,18 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+image = { version = "0.25", default-features = false, features = ["bmp", "exr", "gif", "hdr", "ico", "jpeg", "png", "pnm", "qoi", "tga", "tiff", "webp"] }
+libloading = "0.9"
+rawler = { version = "0.8", optional = true }
+resvg = "0.46"
+tiny-skia = "0.11"
+usvg = "0.46"
+mupdf = { version = "0.8", default-features = false }
+
+[dev-dependencies]
+flate2 = "1"
+
+[features]
+default = ["raw"]
+# Camera RAW decoding with rawler (LGPL-2.1).
+raw = ["dep:rawler"]

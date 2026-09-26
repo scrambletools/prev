@@ -16,25 +16,7 @@ pub enum FileKind {
     Markdown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ImageFormat {
-    Png,
-    Jpeg,
-    Gif,
-    WebP,
-    Avif,
-    Heif,
-    Bmp,
-    Ico,
-    Tiff,
-    Tga,
-    Pnm,
-    Qoi,
-    Hdr,
-    OpenExr,
-    Jpeg2000,
-    Raw,
-}
+pub use prev_image::ImageFormat;
 
 const RAW_EXTENSIONS: &[&str] = &[
     "3fr", "arw", "cr2", "cr3", "crw", "dcr", "dng", "erf", "iiq", "kdc", "mef", "mos", "mrw",

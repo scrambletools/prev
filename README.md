@@ -5,8 +5,8 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 [MuPDF](https://mupdf.com), for Wayland desktops such as Hyprland and
 [Omarchy](https://omarchy.org).
 
-> **Status:** early development. PDF viewing works today; image, SVG and
-> Markdown viewing, markup and page editing are on the way. See the
+> **Status:** early development. PDF, image, SVG and Markdown viewing work
+> today; markup and editing are on the way. See the
 > [development plan](docs/PLAN.md).
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
@@ -31,6 +31,15 @@ public domain.</sub>
   word, triple-click a line.
 - **Links** inside the document and to the web.
 - **Slideshow**, full screen and printing through the system print dialog.
+- **Images:** PNG, JPEG, GIF and animated GIF, WebP, AVIF, HEIC, TIFF, BMP,
+  ICO, TGA, PNM, QOI, JPEG 2000, OpenEXR, Radiance HDR and camera RAW
+  from the cameras [rawler](https://github.com/dnglab/dnglab) supports.
+  - Images opened together share one window with a thumbnail sidebar.
+  - Zoom, fit, actual size, Ctrl+scroll zoom and drag to pan.
+  - HEIC and AVIF use the system's libheif when it is installed.
+- **SVG** drawings, sharp at any zoom.
+- **Markdown** with tables, task lists, syntax highlighted code and images;
+  reloads when the file changes on disk.
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
@@ -38,16 +47,14 @@ public domain.</sub>
 
 ### Planned
 
-- **Images:** PNG, JPEG, HEIC, camera RAW and more, with crop, rotate, resize,
-  color adjustment and metadata editing.
-- **SVG and Markdown** viewing.
+- **Image editing:** crop, rotate, resize, color adjustment and metadata.
 - **PDF markup:** highlights, shapes, notes, text boxes and signatures.
 - **PDF editing:** reorder, insert and delete pages, true redaction,
   encryption and export to images.
 
 ## Building
 
-prev needs Linux, Rust 1.88 or newer, a Vulkan capable GPU driver, and these
+prev needs Linux, Rust 1.89 or newer, a Vulkan capable GPU driver, and these
 build dependencies:
 
 ```sh
