@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["vendor"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/scrambletools/prev"
+
+[workspace.dependencies]
+prev-image = { path = "crates/prev-image", version = "0.1.0" }
+prev-pdf = { path = "crates/prev-pdf", version = "0.1.0" }
+prev-store = { path = "crates/prev-store", version = "0.1.0" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+# Adds file drag and drop to the clipboard's data device; see vendor/PATCHES.md.
+[patch.crates-io]
+smithay-clipboard = { path = "vendor/smithay-clipboard" }

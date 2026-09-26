@@ -1,0 +1,13 @@
+[package]
+name = "prev-pdf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+mupdf = { version = "0.8", default-features = false, features = ["base14-fonts", "brotli", "system-fonts"] }
