@@ -10,12 +10,13 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser"] }
-iced = "0.14"
+ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "open_uri", "print"] }
+iced = { version = "0.14", features = ["advanced", "image-without-codecs"] }
 raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 smithay-clipboard = "0.7"
 toml = "1"
+prev-pdf.workspace = true
 prev-store.workspace = true
 
 [dev-dependencies]

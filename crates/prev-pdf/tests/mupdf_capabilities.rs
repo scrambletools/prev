@@ -1,5 +1,9 @@
 //! Checks that the MuPDF bindings cover the PDF features prev relies on.
 
+mod common;
+
+use common::{assemble_pdf, stream_object};
+
 use mupdf::pdf::document::Encryption;
 use mupdf::pdf::{
     InsertPdfOptions, PdfAnnotationType, PdfDocument, PdfRedactImageMethod, PdfRedactLineArtMethod,
@@ -10,40 +14,6 @@ use mupdf::{
 };
 
 const PAGE_HEIGHT: f32 = 792.0;
-
-/// Assembles a PDF from numbered object bodies, computing the xref table.
-fn assemble_pdf(objects: &[Vec<u8>]) -> Vec<u8> {
-    let mut out = b"%PDF-1.7\n".to_vec();
-    let mut offsets = Vec::with_capacity(objects.len());
-    for (index, body) in objects.iter().enumerate() {
-        offsets.push(out.len());
-        out.extend_from_slice(format!("{} 0 obj\n", index + 1).as_bytes());
-        out.extend_from_slice(body);
-        out.extend_from_slice(b"\nendobj\n");
-    }
-    let xref_offset = out.len();
-    out.extend_from_slice(
-        format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).as_bytes(),
-    );
-    for offset in offsets {
-        out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
-    }
-    out.extend_from_slice(
-        format!(
-            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n",
-            objects.len() + 1
-        )
-        .as_bytes(),
-    );
-    out
-}
-
-fn stream_object(dict: &str, data: &[u8]) -> Vec<u8> {
-    let mut body = format!("<< {dict} /Length {} >>\nstream\n", data.len()).into_bytes();
-    body.extend_from_slice(data);
-    body.extend_from_slice(b"\nendstream");
-    body
-}
 
 /// One letter page with a heading, a secret line, a blue vector rectangle
 /// and a 4x4 red image. In MuPDF (top-left) coordinates:

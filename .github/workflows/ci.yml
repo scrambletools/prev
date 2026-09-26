@@ -26,6 +26,13 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - name: Render regression
+        run: |
+          scripts/fetch-render-corpus.sh "$RUNNER_TEMP/corpus"
+          cargo test -p prev-pdf --test render_regression
+        env:
+          PREV_CORPUS: ${{ runner.temp }}/corpus
+          PREV_CORPUS_REQUIRED: 1
       - run: desktop-file-validate data/*.desktop
 
   msrv:

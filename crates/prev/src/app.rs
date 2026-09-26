@@ -9,6 +9,7 @@ use iced::widget::{button, center, checkbox, column, container, radio, rule, tex
 use iced::window::{self, settings::PlatformSpecific};
 use iced::{Border, Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
 use prev::filetype::{self, FileKind};
+use prev::pdf::window::{self as pdf_window, Effect, PdfWindow};
 use prev::shortcuts::{self, Action};
 use prev::{dialog, omarchy};
 use prev_store::settings::{self, Appearance, Settings};
@@ -46,6 +47,7 @@ enum Content {
 struct Document {
     path: PathBuf,
     kind: Result<Option<FileKind>, String>,
+    pdf: Option<Box<PdfWindow>>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +56,9 @@ pub enum Message {
     WindowOpened(window::Id),
     SurfaceKnown(window::Id, Option<usize>),
     WindowClosed(window::Id),
+    ScaleFactor(window::Id, f32),
+    Frame(std::time::Instant),
+    Pdf(window::Id, pdf_window::Message),
     Key(window::Id, Key, Modifiers),
     Perform(window::Id, Action),
     DialogFinished(window::Id, Result<Vec<PathBuf>, String>),
@@ -118,7 +123,52 @@ impl Prev {
             return window::gain_focus(id);
         }
         let kind = filetype::detect_path(&path).map_err(|error| error.to_string());
-        self.open_window(Content::Document(Document { path, kind }))
+        if matches!(kind, Ok(Some(FileKind::Pdf))) {
+            let (pdf, opening) = PdfWindow::open(path.clone());
+            let (id, opened) = self.open_window_with_id(Content::Document(Document {
+                path,
+                kind,
+                pdf: Some(Box::new(pdf)),
+            }));
+            return Task::batch([
+                opened,
+                opening.map(move |message| Message::Pdf(id, message)),
+            ]);
+        }
+        self.open_window(Content::Document(Document {
+            path,
+            kind,
+            pdf: None,
+        }))
+    }
+
+    fn pdf_mut(&mut self, id: window::Id) -> Option<&mut PdfWindow> {
+        match &mut self.windows.get_mut(&id)?.content {
+            Content::Document(document) => document.pdf.as_deref_mut(),
+            _ => None,
+        }
+    }
+
+    /// Runs a PDF window update and applies the window changes it asks for.
+    fn with_pdf(
+        &mut self,
+        id: window::Id,
+        run: impl FnOnce(&mut PdfWindow) -> Task<pdf_window::Message>,
+    ) -> Task<Message> {
+        let Some(pdf) = self.pdf_mut(id) else {
+            return Task::none();
+        };
+        let task = run(pdf).map(move |message| Message::Pdf(id, message));
+        let effects = pdf.take_effects();
+        let effect_tasks: Vec<Task<Message>> = effects
+            .into_iter()
+            .map(|effect| match effect {
+                Effect::EnterFullscreen => self.set_fullscreen(id, Some(true)),
+                Effect::LeaveFullscreen => self.set_fullscreen(id, Some(false)),
+                Effect::Quit => iced::exit(),
+            })
+            .collect();
+        Task::batch(std::iter::once(task).chain(effect_tasks))
     }
 
     fn window_showing(&self, path: &Path) -> Option<window::Id> {
@@ -131,6 +181,10 @@ impl Prev {
     }
 
     fn open_window(&mut self, content: Content) -> Task<Message> {
+        self.open_window_with_id(content).1
+    }
+
+    fn open_window_with_id(&mut self, content: Content) -> (window::Id, Task<Message>) {
         let size = match content {
             Content::Settings => Size::new(520.0, 360.0),
             Content::Start => Size::new(640.0, 480.0),
@@ -154,7 +208,7 @@ impl Prev {
                 drag_hover: false,
             },
         );
-        opened.map(Message::WindowOpened)
+        (id, opened.map(Message::WindowOpened))
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -165,8 +219,20 @@ impl Prev {
                 Task::none()
             }
             Message::External(External::Drag(event)) => self.handle_drag(event),
-            Message::WindowOpened(id) => window::run(id, wayland_surface)
-                .map(move |surface| Message::SurfaceKnown(id, surface)),
+            Message::WindowOpened(id) => Task::batch([
+                window::run(id, wayland_surface)
+                    .map(move |surface| Message::SurfaceKnown(id, surface)),
+                window::scale_factor(id).map(move |scale| Message::ScaleFactor(id, scale)),
+            ]),
+            Message::ScaleFactor(id, scale) => self.with_pdf(id, |pdf| pdf.set_device_scale(scale)),
+            Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
+            Message::Frame(now) => {
+                let ids: Vec<window::Id> = self.windows.keys().copied().collect();
+                Task::batch(
+                    ids.into_iter()
+                        .map(|id| self.with_pdf(id, |pdf| pdf.bench_frame(now))),
+                )
+            }
             Message::SurfaceKnown(id, surface) => {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.surface = surface;
@@ -181,10 +247,21 @@ impl Prev {
                     Task::none()
                 }
             }
-            Message::Key(id, key, modifiers) => match shortcuts::lookup(&key, modifiers) {
-                Some(action) => self.perform(id, action),
-                None => Task::none(),
-            },
+            Message::Key(id, key, modifiers) => {
+                let action = shortcuts::lookup(&key, modifiers);
+                let handled = self.pdf_mut(id).and_then(|pdf| match action {
+                    Some(action) => pdf.shortcut(action),
+                    None => pdf.key(&key, modifiers),
+                });
+                match (handled, action) {
+                    (Some(task), _) => {
+                        let task = task.map(move |message| Message::Pdf(id, message));
+                        Task::batch([task, self.with_pdf(id, |_| Task::none())])
+                    }
+                    (None, Some(action)) => self.perform(id, action),
+                    (None, None) => Task::none(),
+                }
+            }
             Message::Perform(id, action) => self.perform(id, action),
             Message::DialogFinished(id, result) => match result {
                 Ok(paths) => self.open_paths_if_any(paths),
@@ -262,7 +339,8 @@ impl Prev {
                 None => self.open_window(Content::Settings),
             },
             Action::ToggleFullscreen => self.set_fullscreen(id, None),
-            Action::ExitFullscreen => self.set_fullscreen(id, Some(false)),
+            Action::Escape => self.set_fullscreen(id, Some(false)),
+            _ => Task::none(),
         }
     }
 
@@ -312,7 +390,16 @@ impl Prev {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
+        let benchmarking = self.windows.values().any(|window| {
+            matches!(&window.content, Content::Document(Document { pdf: Some(pdf), .. }) if pdf.wants_frames())
+        });
+        let frames = if benchmarking {
+            window::frames().map(Message::Frame)
+        } else {
+            Subscription::none()
+        };
         Subscription::batch([
+            frames,
             Subscription::run(crate::external_events).map(Message::External),
             window::close_events().map(Message::WindowClosed),
             event::listen_with(|event, status, id| match (event, status) {
@@ -320,6 +407,9 @@ impl Prev {
                     Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }),
                     event::Status::Ignored,
                 ) => Some(Message::Key(id, key, modifiers)),
+                (Event::Window(window::Event::Rescaled(scale)), _) => {
+                    Some(Message::ScaleFactor(id, scale))
+                }
                 _ => None,
             }),
         ])
@@ -331,6 +421,9 @@ impl Prev {
         };
         let body = match &window.content {
             Content::Start => start_view(id),
+            Content::Document(Document { pdf: Some(pdf), .. }) => {
+                pdf.view().map(move |message| Message::Pdf(id, message))
+            }
             Content::Document(document) => document_view(document),
             Content::Settings => self.settings_view(),
         };
@@ -468,11 +561,8 @@ fn wayland_surface(window: &dyn window::Window) -> Option<usize> {
 fn action_name(action: Action) -> &'static str {
     match action {
         Action::Open => "Open",
-        Action::CloseWindow => "Close window",
-        Action::Quit => "Quit",
         Action::Settings => "Settings",
-        Action::ToggleFullscreen => "Full screen",
-        Action::ExitFullscreen => "Leave full screen",
+        _ => "",
     }
 }
 

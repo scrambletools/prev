@@ -10,4 +10,9 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+futures-channel = "0.3"
 mupdf = { version = "0.8", default-features = false, features = ["base14-fonts", "brotli", "system-fonts"] }
+
+[dev-dependencies]
+futures = "0.3"
+tempfile = "3"

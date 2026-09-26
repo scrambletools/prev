@@ -165,15 +165,27 @@ touching the UI.
 
 ## Performance targets
 
-Measured on the development machine, with a benchmark suite from the start.
+Measured on the development machine (RTX 4080 SUPER plus AMD iGPU, 3840x1080
+at 120 Hz, scale 1.25), release build. `cargo run --release -p prev-pdf
+--example open_bench -- <file>` times opening; `PREV_BENCH=<seconds> prev
+<file>` runs a scripted scroll and zoom and prints frame, CPU, memory and tile
+statistics.
 
-| Metric | Target |
-|---|---|
-| Cold start to window | < 150 ms |
-| Open 100-page PDF to first page drawn | < 100 ms |
-| Scroll and zoom | 60 fps, no dropped frames during tile loads |
-| Idle memory, one 100-page PDF open | < 150 MB |
-| Release binary (stripped, without HEIC/RAW) | < 30 MB |
+| Metric | Target | Measured (2026-09-26) |
+|---|---|---|
+| Cold start to window | < 150 ms | ~230 ms; wgpu Vulkan setup is ~200 ms of it |
+| Open 100-page PDF to first page drawn | < 100 ms | 20 ms (499 pages), 93 ms (7025 pages) |
+| Scroll and zoom | 60 fps, no dropped frames during tile loads | 120 fps, no slow frames |
+| Idle memory, one 100-page PDF open | < 150 MB | 61 MB heap, 179 MB resident with GPU drivers |
+| Release binary (stripped, without HEIC/RAW) | < 30 MB | 22.6 MB |
+
+Renderer: wgpu with Vulkan. The CPU renderer (tiny-skia) starts in 41 ms but
+drops to about 60 fps scrolling and 30 fps zooming at 108% CPU, against 27%
+for Vulkan. wgpu's OpenGL backend cannot draw to iced's Wayland windows. Peak
+memory during heavy scrolling is ~430 MB with the 128 MB tile cache. Most of
+the rest is MuPDF's resource store (fonts, images, glyphs; 256 MB default,
+not configurable through the `mupdf` crate) and GPU driver mappings. A
+smaller tile cache saved little memory and cost CPU in re-rendering.
 
 ## Testing
 
@@ -226,4 +238,5 @@ Later: cryptographic signatures, OCR, markup on SVG.
 | No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. Page drag between windows (M6) will extend it |
 | Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths |
 | Redaction leaking content | Dedicated test suite; full rewrite only, never incremental |
+| Memory during heavy use, largely MuPDF's store | Keep MuPDF's 256 MB default. If memory becomes a problem, add a store size limit to the `mupdf` crate upstream and remeasure with `PREV_BENCH` |
 | Footprint growth from fonts and codecs | Feature flags, fontconfig for CJK, binary size tracked in CI |
