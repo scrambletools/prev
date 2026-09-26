@@ -1,5 +1,5 @@
-//! Draws one image inside a scrollable, zooms with Ctrl+scroll, pans by
-//! dragging, and wakes up for the next animation frame.
+//! Draws one image inside a scrollable, zooms with Ctrl+scroll, pans or
+//! selects by dragging, and wakes up for the next animation frame.
 
 use std::time::Instant;
 
@@ -11,13 +11,16 @@ use iced::advanced::{Clipboard, Shell};
 use iced::keyboard::{self, Modifiers};
 use iced::mouse::{self, Cursor, ScrollDelta};
 use iced::widget::image::Handle;
-use iced::{Element, Event, Length, Rectangle, Size, Theme, window};
+use iced::{Background, Border, Color, Element, Event, Length, Rectangle, Size, Theme, window};
 
 use super::view::Placement;
 
 const LINE_SCROLL_ZOOM: f32 = 1.1;
 /// Zoom at or above which pixels are shown sharp instead of smoothed.
 const PIXEL_ZOOM: f32 = 3.0;
+
+/// Two corners in image pixels.
+pub type Selection = (f32, f32, f32, f32);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CanvasEvent {
@@ -37,6 +40,8 @@ pub enum CanvasEvent {
         dy: f32,
     },
     Tick(Instant),
+    /// A selection being drawn; `None` when a new drag starts.
+    Selection(Option<Selection>),
 }
 
 pub struct ImageCanvas<'a, Message> {
@@ -44,6 +49,9 @@ pub struct ImageCanvas<'a, Message> {
     placement: Placement,
     /// When the next animation frame is due.
     next_frame: Option<Instant>,
+    /// Dragging draws a selection instead of panning.
+    selecting: bool,
+    selection: Option<Selection>,
     on_event: Box<dyn Fn(CanvasEvent) -> Message + 'a>,
 }
 
@@ -58,14 +66,34 @@ impl<'a, Message> ImageCanvas<'a, Message> {
             handle,
             placement,
             next_frame,
+            selecting: false,
+            selection: None,
             on_event: Box::new(on_event),
         }
+    }
+
+    pub fn selection(mut self, selecting: bool, selection: Option<Selection>) -> Self {
+        self.selecting = selecting;
+        self.selection = selection;
+        self
+    }
+
+    /// A position in the window to image pixels.
+    fn to_image(&self, bounds: Rectangle, position: iced::Point) -> (f32, f32) {
+        let image = self.placement.image;
+        let zoom = self.placement.zoom.max(f32::EPSILON);
+        (
+            (position.x - bounds.x - image.x) / zoom,
+            (position.y - bounds.y - image.y) / zoom,
+        )
     }
 }
 
 #[derive(Default)]
 struct State {
     drag_from: Option<iced::Point>,
+    /// Image pixel where a selection drag started.
+    select_from: Option<(f32, f32)>,
     modifiers: Modifiers,
     reported: Option<(f32, f32, f32, f32)>,
 }
@@ -145,12 +173,22 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
             }
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
                 if let Some(position) = cursor.position_over(*viewport) {
-                    state.drag_from = Some(position);
+                    if self.selecting {
+                        state.select_from = Some(self.to_image(bounds, position));
+                        shell.publish((self.on_event)(CanvasEvent::Selection(None)));
+                    } else {
+                        state.drag_from = Some(position);
+                    }
                     shell.capture_event();
                 }
             }
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
-                if let Some(from) = state.drag_from {
+                if let Some((x0, y0)) = state.select_from {
+                    let (x1, y1) = self.to_image(bounds, *position);
+                    shell.publish((self.on_event)(CanvasEvent::Selection(Some((
+                        x0, y0, x1, y1,
+                    )))));
+                } else if let Some(from) = state.drag_from {
                     // The content moves under the cursor, so pan against it.
                     let (dx, dy) = (from.x - position.x, from.y - position.y);
                     state.drag_from = Some(*position);
@@ -160,7 +198,8 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
                 }
             }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
-                state.drag_from = None
+                state.drag_from = None;
+                state.select_from = None;
             }
             Event::Mouse(mouse::Event::WheelScrolled { delta }) if state.modifiers.command() => {
                 let Some(position) = cursor.position_over(*viewport) else {
@@ -190,6 +229,9 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
         let state = tree.state.downcast_ref::<State>();
+        if self.selecting && cursor.is_over(*viewport) {
+            return mouse::Interaction::Crosshair;
+        }
         let (content_width, content_height) = self.placement.content;
         let scrolls =
             content_width > viewport.width + 0.5 || content_height > viewport.height + 0.5;
@@ -210,6 +252,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
         _cursor: Cursor,
         viewport: &Rectangle,
     ) {
+        use iced::advanced::Renderer as _;
         use iced::advanced::image::Renderer as _;
         let Some(handle) = self.handle else { return };
         let bounds = layout.bounds();
@@ -228,6 +271,47 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
             rect,
             *viewport,
         );
+
+        let Some((x0, y0, x1, y1)) = self.selection else {
+            return;
+        };
+        let zoom = self.placement.zoom;
+        let clamp_x = |value: f32| (rect.x + value * zoom).clamp(rect.x, rect.x + rect.width);
+        let clamp_y = |value: f32| (rect.y + value * zoom).clamp(rect.y, rect.y + rect.height);
+        let (left, right) = (clamp_x(x0.min(x1)), clamp_x(x0.max(x1)));
+        let (top, bottom) = (clamp_y(y0.min(y1)), clamp_y(y0.max(y1)));
+        let area = |x: f32, y: f32, width: f32, height: f32| renderer::Quad {
+            bounds: Rectangle::new(
+                iced::Point::new(x, y),
+                Size::new(width.max(0.0), height.max(0.0)),
+            ),
+            ..renderer::Quad::default()
+        };
+        // Quads draw before images within a layer, so the overlay gets its own.
+        renderer.with_layer(*viewport, |renderer| {
+            let shade = Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.5));
+            renderer.fill_quad(area(rect.x, rect.y, rect.width, top - rect.y), shade);
+            renderer.fill_quad(
+                area(rect.x, bottom, rect.width, rect.y + rect.height - bottom),
+                shade,
+            );
+            renderer.fill_quad(area(rect.x, top, left - rect.x, bottom - top), shade);
+            renderer.fill_quad(
+                area(right, top, rect.x + rect.width - right, bottom - top),
+                shade,
+            );
+            renderer.fill_quad(
+                renderer::Quad {
+                    border: Border {
+                        color: Color::WHITE,
+                        width: 1.0,
+                        radius: 0.0.into(),
+                    },
+                    ..area(left, top, right - left, bottom - top)
+                },
+                Background::Color(Color::TRANSPARENT),
+            );
+        });
     }
 }
 

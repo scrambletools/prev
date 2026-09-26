@@ -236,6 +236,7 @@ Later: cryptographic signatures, OCR, markup on SVG.
 | MuPDF license change by Artifex | Engine trait; pin versions; released AGPL versions remain usable |
 | iced multi-window or text input gaps on Wayland | Checked on Hyprland 0.56: native Wayland windows, per-window titles and app id, per-window shortcuts, exit on last close. Text input and IME still to be tried by hand; contribute fixes upstream |
 | No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. Page drag between windows (M6) will extend it |
+| Metadata lost or altered by image edits | Saving carries EXIF, ICC and XMP for JPEG, PNG and WebP and resets the EXIF orientation; EXIF edits (orientation, GPS removal, which overwrites the data) are done in place by prev's own code. Not yet: EXIF in edited TIFF files, XMP inside TIFF |
 | Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths |
 | Redaction leaking content | Dedicated test suite; full rewrite only, never incremental |
 | Memory during heavy use, largely MuPDF's store | Keep MuPDF's 256 MB default. If memory becomes a problem, add a store size limit to the `mupdf` crate upstream and remeasure with `PREV_BENCH` |

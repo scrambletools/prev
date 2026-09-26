@@ -13,6 +13,7 @@ workspace = true
 ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "open_uri", "print"] }
 bytes = "1"
 iced = { version = "0.14", features = ["advanced", "highlighter", "image-without-codecs", "markdown"] }
+iced_runtime = "0.14"
 image = { version = "0.25", default-features = false }
 raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }

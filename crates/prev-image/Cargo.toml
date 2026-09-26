@@ -11,9 +11,13 @@ workspace = true
 
 [dependencies]
 image = { version = "0.25", default-features = false, features = ["bmp", "exr", "gif", "hdr", "ico", "jpeg", "png", "pnm", "qoi", "tga", "tiff", "webp"] }
+bytes = "1"
+img-parts = "0.4"
 libloading = "0.9"
+kamadak-exif = "0.6"
 rawler = { version = "0.8", optional = true }
 resvg = "0.46"
+roxmltree = "0.20"
 tiny-skia = "0.11"
 usvg = "0.46"
 mupdf = { version = "0.8", default-features = false }

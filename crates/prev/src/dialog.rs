@@ -4,7 +4,7 @@ use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 use std::path::PathBuf;
 
-use ashpd::desktop::file_chooser::{FileFilter, SelectedFiles};
+use ashpd::desktop::file_chooser::{Choice, FileFilter, SelectedFiles};
 
 use crate::filetype;
 
@@ -38,6 +38,69 @@ pub async fn open_files() -> Result<Vec<PathBuf>, String> {
             .filter_map(|uri| file_uri_to_path(uri.as_str()))
             .collect()),
         Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(Vec::new()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Asks where to save a file, suggesting `name`. Cancelling yields `None`.
+pub async fn save_file(title: String, name: String) -> Result<Option<PathBuf>, String> {
+    let request = SelectedFiles::save_file()
+        .title(title.as_str())
+        .current_name(name.as_str())
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+    match request.response() {
+        Ok(selected) => Ok(selected
+            .uris()
+            .first()
+            .and_then(|uri| file_uri_to_path(uri.as_str()))),
+        Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// A drop-down menu in a file dialog: id, label, initial option id, and
+/// (option id, option label) pairs.
+pub struct Menu {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub initial: String,
+    pub options: Vec<(&'static str, &'static str)>,
+}
+
+/// A chosen path and the selected option of each menu, as (menu id, option id).
+pub type SavedWithMenus = (PathBuf, Vec<(String, String)>);
+
+/// Asks where to save, with extra drop-down menus. `None` when cancelled.
+pub async fn save_file_with_menus(
+    title: String,
+    name: String,
+    folder: Option<PathBuf>,
+    menus: Vec<Menu>,
+) -> Result<Option<SavedWithMenus>, String> {
+    let choices = menus.iter().map(|menu| {
+        menu.options.iter().fold(
+            Choice::new(menu.id, menu.label, &menu.initial),
+            |choice, (id, label)| choice.insert(id, label),
+        )
+    });
+    let request = SelectedFiles::save_file()
+        .title(title.as_str())
+        .current_name(name.as_str())
+        .current_folder::<&std::path::Path>(folder.as_deref())
+        .map_err(|error| error.to_string())?
+        .choices(choices)
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+    match request.response() {
+        Ok(selected) => Ok(selected
+            .uris()
+            .first()
+            .and_then(|uri| file_uri_to_path(uri.as_str()))
+            .map(|path| (path, selected.choices().to_vec()))),
+        Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(None),
         Err(error) => Err(error.to_string()),
     }
 }

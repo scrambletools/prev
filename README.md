@@ -5,8 +5,8 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 [MuPDF](https://mupdf.com), for Wayland desktops such as Hyprland and
 [Omarchy](https://omarchy.org).
 
-> **Status:** early development. PDF, image, SVG and Markdown viewing work
-> today; markup and editing are on the way. See the
+> **Status:** early development. PDF, image, SVG and Markdown viewing and
+> image editing work today; PDF markup and page editing are on the way. See the
 > [development plan](docs/PLAN.md).
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
@@ -37,6 +37,14 @@ public domain.</sub>
   - Images opened together share one window with a thumbnail sidebar.
   - Zoom, fit, actual size, Ctrl+scroll zoom and drag to pan.
   - HEIC and AVIF use the system's libheif when it is installed.
+- **Image editing:** rotate, flip, crop, resize and Adjust Color (exposure,
+  contrast, saturation, temperature, tint, sepia, sharpness and levels),
+  with undo.
+  - Edits save automatically, keeping EXIF, color profiles and XMP; the
+    original is kept for Revert To.
+  - Inspector with camera details, Remove Location Info, keywords and
+    description.
+  - Export to PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR.
 - **SVG** drawings, sharp at any zoom.
 - **Markdown** with tables, task lists, syntax highlighted code and images;
   reloads when the file changes on disk.
@@ -47,7 +55,6 @@ public domain.</sub>
 
 ### Planned
 
-- **Image editing:** crop, rotate, resize, color adjustment and metadata.
 - **PDF markup:** highlights, shapes, notes, text boxes and signatures.
 - **PDF editing:** reorder, insert and delete pages, true redaction,
   encryption and export to images.
@@ -85,6 +92,11 @@ MuPDF is compiled from source as part of the build.
 | Sidebar: hide, thumbnails, contents, bookmarks | Ctrl+Alt+1, 2, 3, 5 |
 | Slideshow | Ctrl+Shift+F |
 | Full screen | F11 |
+| Rotate left, right | Ctrl+L, Ctrl+R |
+| Crop to selection | Ctrl+K |
+| Undo, redo | Ctrl+Z, Ctrl+Shift+Z |
+| Adjust Color, Inspector | Ctrl+Shift+C, Ctrl+I |
+| Export | Ctrl+Shift+S |
 | Print | Ctrl+P |
 | Settings | Ctrl+, |
 

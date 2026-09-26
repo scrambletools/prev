@@ -4,3 +4,4 @@ pub mod atomic;
 pub mod bookmarks;
 pub mod paths;
 pub mod settings;
+pub mod versions;
