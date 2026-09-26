@@ -11,7 +11,9 @@ redaction, export), views and lightly edits images, and views SVG and Markdown.
 3. Small footprint: minimal dependencies, lean binary and memory use.
 
 Where this plan says "Preview parity", the macOS Preview behaviour is the
-reference unless it is technically infeasible on Linux.
+reference unless it is technically infeasible on Linux. Preview parity covers
+features and behaviour; the look follows Material Design 3 (see Interface
+design).
 
 ## Decisions
 
@@ -30,7 +32,9 @@ reference unless it is technically infeasible on Linux.
 | Camera RAW | View and export via rawler (LGPL-2.1, pure Rust) |
 | Windows | One window per document; opening several images groups them in one window with a thumbnail sidebar |
 | Saving | Autosave in place with local version history ("Revert To"), Duplicate, Export As |
-| Theming | System light/dark (freedesktop portal), plus Omarchy palette when an Omarchy theme is active |
+| Design system | Material Design 3 Expressive, drawn with custom iced styles and widgets |
+| Theming | M3 dynamic color: tonal palettes from a seed color, which is the Omarchy accent when an Omarchy theme is active and a fixed prev color otherwise; light or dark follows the system (freedesktop portal) |
+| Fonts | Roboto Flex (OFL-1.1) for the interface and Material Symbols Rounded (Apache-2.0) for icons, both bundled |
 | Packaging | AUR (`prev`, `prev-git`), Flatpak, AppImage, .deb, .rpm |
 
 ## Feature scope
@@ -86,6 +90,44 @@ reference unless it is technically infeasible on Linux.
   strikethrough, images (relative paths), links (opened externally), syntax
   highlighted code. View only; reloads when the file changes on disk.
 - Not in scope: math, Mermaid, raw HTML blocks (rendered as text).
+
+### Interface design
+
+Material Design 3 Expressive (m3.material.io) applied to Preview's layout:
+the same windows, tools and panels, drawn as M3 components.
+
+- **Color:** `material-colors` (MIT OR Apache-2.0, a port of Google's
+  material-color-utilities) builds the scheme from the seed color. All
+  surfaces use the M3 roles (surface containers, on-surface, outline,
+  primary and tertiary containers); nothing uses hard-coded colors. The
+  Omarchy colors setting becomes "Use Omarchy accent"; the scheme changes
+  live when the Omarchy theme or system mode changes.
+- **Type:** the M3 Expressive type scale (display, headline, title, body,
+  label, with emphasized variants) as named styles, used everywhere
+  instead of ad hoc sizes.
+- **Shape and elevation:** the M3 corner scale and tonal elevation;
+  shadows only where M3 uses them (menus, dialogs, floating toolbars).
+- **Components:**
+  - Toolbar: M3 docked toolbar with icon buttons and button groups
+    (zoom, rotate, markup tools); segmented buttons for view modes.
+  - Sidebar: standard side sheet with M3 tabs; thumbnails and list items
+    use M3 list and selection states.
+  - Panels (Adjust Color, Adjust Size, Inspector): M3 side sheets or
+    dialogs with M3 sliders, text fields, switches and menus.
+  - Prompts (export mismatch, errors, unsaved changes): M3 basic dialogs
+    over a scrim; short notices as snackbars.
+  - Menus and tooltips: M3 menus and plain tooltips.
+  - Search: M3 search bar; page box as an M3 outlined text field.
+- **State layers:** hover, focus, pressed and dragged states on every
+  interactive element, with visible keyboard focus rings.
+- **Motion:** M3 Expressive spring motion (standard and expressive
+  schemes, fast/default/slow) for sheets, dialogs, menus and button shape
+  changes; respects reduced-motion settings.
+- **Icons:** Material Symbols Rounded, subset to the icons prev uses.
+- **Density and targets:** 48 px minimum touch targets where layout
+  allows; compact density for toolbars as M3 permits for desktop.
+- File dialogs, print dialogs and the window frame stay native (portal
+  and compositor); M3 applies inside prev's windows only.
 
 ### Out of scope
 
@@ -221,9 +263,11 @@ Each milestone ends with a usable build.
 | M2 | PDF viewing | Engine trait and MuPDF implementation, tile pipeline, view modes, zoom, sidebar (thumbnails, TOC, bookmarks), search, text selection and copy, links, full screen, slideshow, print |
 | M3 | Images, SVG, Markdown viewing | All image formats including HEIC and RAW, multi-image window with sidebar, animated GIF, SVG via resvg, Markdown with highlighting and live reload |
 | M4 | Image editing | Crop, rotate, flip, Adjust Size, Adjust Color, metadata inspector and edits, export, autosave and version history |
+| M4.1 | Material 3 design | M3 Expressive color scheme from the Omarchy accent, Roboto Flex and the M3 type scale, Material Symbols, M3 components for toolbar, sidebar, panels, dialogs, menus and fields, state layers and focus, spring motion; screenshots and README updated |
 | M5 | PDF markup | All markup tools, notes, form filling, signatures, undo/redo, annotation round-trip tests |
 | M6 | PDF page editing | Reorder, delete, rotate, insert, merge between windows, extract, redaction, encryption, reduce file size, export to images |
-| M7 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 |
+| M7 | Image polish | RAW tone curve matched to the camera's embedded JPEG (RawTherapee's auto-matched curve, in Rust), keep EXIF in edited TIFFs, read XMP from TIFF |
+| M8 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 |
 
 Later: cryptographic signatures, OCR, markup on SVG.
 
@@ -240,4 +284,7 @@ Later: cryptographic signatures, OCR, markup on SVG.
 | Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths |
 | Redaction leaking content | Dedicated test suite; full rewrite only, never incremental |
 | Memory during heavy use, largely MuPDF's store | Keep MuPDF's 256 MB default. If memory becomes a problem, add a store size limit to the `mupdf` crate upstream and remeasure with `PREV_BENCH` |
+| iced lacks M3 components and spring motion | Build them as custom widgets in a `prev/src/ui` module (styles from the scheme, springs driven by `request_redraw_at` as the image canvas already does) |
+| Variable fonts (Roboto Flex, Material Symbols) not fully supported by iced's text stack | Check weight axes in cosmic-text first; if unsupported, bundle static instances cut from the variable fonts with fonttools |
+| Seed-derived schemes drift from the Omarchy theme's look | The seed is the Omarchy accent, so hue matches; the M3 scheme variant (tonal spot, fidelity, vibrant) is chosen once by comparing against several Omarchy themes |
 | Footprint growth from fonts and codecs | Feature flags, fontconfig for CJK, binary size tracked in CI |
