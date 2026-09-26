@@ -266,8 +266,8 @@ fn markup_annotations_round_trip_with_incremental_save() {
 fn image_stamp_with_hand_built_appearance_survives_save() {
     let mut doc = PdfDocument::from_bytes(&fixture_pdf()).unwrap();
     let mut green = Pixmap::new_with_w_h(&Colorspace::device_rgb(), 8, 8, false).unwrap();
-    for chunk in green.samples_mut().chunks_mut(3) {
-        chunk.copy_from_slice(&[0x00, 0xc0, 0x00]);
+    for pixel in green.samples_mut().as_chunks_mut::<3>().0 {
+        *pixel = [0x00, 0xc0, 0x00];
     }
     let image = Image::from_pixmap(&green).unwrap();
     let image_ref = doc.add_image(&image).unwrap();

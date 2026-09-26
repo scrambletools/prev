@@ -123,7 +123,9 @@ fn tiles_match_the_full_page_render() {
     assert_eq!(&full.pixels[..4], &[255, 255, 255, 255], "white background");
     let dark = full
         .pixels
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .filter(|pixel| pixel[0] < 100)
         .count();
     assert!(dark > 1000, "text is drawn ({dark} dark pixels)");

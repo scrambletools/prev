@@ -57,7 +57,9 @@ fn render_first_page(path: &Path) -> Gray {
         .unwrap();
     let pixels = bitmap
         .pixels
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|rgba| {
             ((u32::from(rgba[0]) * 299 + u32::from(rgba[1]) * 587 + u32::from(rgba[2]) * 114)
                 / 1000) as u8

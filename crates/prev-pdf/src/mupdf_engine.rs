@@ -318,8 +318,9 @@ fn rgb_to_rgba(pixmap: &Pixmap, width: u32, height: u32) -> Bitmap {
     let mut pixels = Vec::with_capacity(width as usize * height as usize * 4);
     for row in 0..height as usize {
         let start = row * stride;
-        for rgb in samples[start..start + width as usize * 3].chunks_exact(3) {
-            pixels.extend_from_slice(&[rgb[0], rgb[1], rgb[2], 0xff]);
+        let (row_pixels, _) = samples[start..start + width as usize * 3].as_chunks::<3>();
+        for [red, green, blue] in row_pixels {
+            pixels.extend_from_slice(&[*red, *green, *blue, 0xff]);
         }
     }
     Bitmap {
