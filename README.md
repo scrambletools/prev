@@ -25,7 +25,8 @@ public domain.</sub>
   - Zoom, fit to page or width, actual size, Ctrl+scroll zoom.
   - Sharp at any zoom: pages render in tiles on background threads.
   - Password protected documents.
-- **Sidebar:** page thumbnails, table of contents and bookmarks.
+- **Sidebar:** page thumbnails, table of contents and bookmarks, resizable
+  by dragging its edge.
 - **Search** with every match highlighted and next/previous navigation.
 - **Text selection and copy**, including across pages; double-click selects a
   word, triple-click a line.
@@ -48,10 +49,15 @@ public domain.</sub>
 - **SVG** drawings, sharp at any zoom.
 - **Markdown** with tables, task lists, syntax highlighted code and images;
   reloads when the file changes on disk.
+- **Material Design 3 interface:** an
+  [M3 Expressive](https://m3.material.io) look with Roboto Flex, Material
+  Symbols icons, spring motion and keyboard focus (Tab and Shift+Tab).
+  - Colors are generated from the active Omarchy theme's accent, or from
+    prev's own blue, in light or dark.
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
-  - Follows the system light or dark setting, or the active Omarchy theme.
+  - Follows the system light or dark setting and reduced motion setting.
 
 ### Planned
 
@@ -104,3 +110,8 @@ MuPDF is compiled from source as part of the build.
 
 prev is licensed under the [GNU Affero General Public License v3.0 or
 later](LICENSE), as required by MuPDF.
+
+The bundled fonts keep their own licenses: Roboto Flex under the
+[SIL Open Font License 1.1](crates/prev/assets/fonts/OFL.txt) and Material
+Symbols under the [Apache License 2.0](crates/prev/assets/fonts/LICENSE-MaterialSymbols.txt).
+`scripts/build-fonts.py` rebuilds them from pinned upstream sources.

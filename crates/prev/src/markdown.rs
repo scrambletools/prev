@@ -8,11 +8,12 @@ use std::time::Duration;
 
 use iced::futures::channel::{mpsc, oneshot};
 use iced::widget::image::Handle;
-use iced::widget::{center, column, container, image, markdown, rich_text, scrollable, text};
-use iced::{Center, ContentFit, Element, Fill, Task, Theme};
+use iced::widget::{container, image, markdown, rich_text};
+use iced::{ContentFit, Element, Fill, Task, Theme};
 
 use crate::filetype::{self, FileKind};
 use crate::portal;
+use crate::ui::{self, Icon, component, style};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(700);
 const MAX_WIDTH: f32 = 860.0;
@@ -24,6 +25,7 @@ pub enum Message {
     LinkClicked(String),
     ImageLoaded(String, Option<Handle>),
     UriOpened(Result<(), String>),
+    DismissNotice,
 }
 
 /// Changes the app applies on the window's behalf.
@@ -197,6 +199,10 @@ impl MarkdownWindow {
                 None if url.starts_with('#') => Task::none(),
                 None => Task::perform(portal::open_uri(url), Message::UriOpened),
             },
+            Message::DismissNotice => {
+                self.notice = None;
+                Task::none()
+            }
             Message::UriOpened(result) => {
                 self.notice = result.err();
                 Task::none()
@@ -222,29 +228,46 @@ impl MarkdownWindow {
 
     pub fn view(&self, theme: &Theme) -> Element<'_, Message> {
         if let Some(error) = &self.error {
-            return center(
-                column![
-                    text("prev can't read this file.").size(18),
-                    text(error).size(13)
-                ]
-                .spacing(8)
-                .align_x(Center),
-            )
+            return container(component::empty_state(
+                Icon::Error,
+                "prev can't read this file",
+                error.as_str(),
+            ))
+            .style(style::surface)
             .into();
         }
         let viewer = Viewer {
             images: &self.images,
         };
-        let document = markdown::view_with(&self.items, markdown::Settings::from(theme), &viewer);
-        let page = container(document).max_width(MAX_WIDTH).padding([24, 32]);
-        let body = scrollable(container(page).center_x(Fill))
-            .width(Fill)
-            .height(Fill);
+        let document = markdown::view_with(&self.items, settings(theme), &viewer);
+        let page = container(document).max_width(MAX_WIDTH).padding([32, 40]);
+        let body = container(
+            component::scroll(container(page).center_x(Fill))
+                .width(Fill)
+                .height(Fill),
+        )
+        .style(style::surface);
         match &self.notice {
-            Some(notice) => column![body, container(text(notice).size(13)).padding(6)].into(),
+            Some(notice) => component::snackbar(body, notice, Message::DismissNotice),
             None => body.into(),
         }
     }
+}
+
+/// Markdown in the M3 type and color roles.
+fn settings(theme: &Theme) -> markdown::Settings {
+    let scheme = ui::Scheme::of(theme);
+    let style = markdown::Style {
+        font: ui::font::TEXT,
+        inline_code_highlight: iced::advanced::text::Highlight {
+            background: scheme.surface_container_highest.into(),
+            border: iced::border::rounded(ui::shape::EXTRA_SMALL),
+        },
+        inline_code_color: scheme.on_surface,
+        link_color: scheme.primary,
+        ..markdown::Style::from(theme)
+    };
+    markdown::Settings::with_style(style)
 }
 
 struct Viewer<'a> {

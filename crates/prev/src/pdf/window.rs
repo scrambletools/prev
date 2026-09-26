@@ -7,8 +7,7 @@ use std::sync::{Arc, OnceLock};
 use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::scrollable::{Direction, Scrollbar, Viewport};
 use iced::widget::{
-    Id, button, center, column, container, image, mouse_area, operation, pick_list, row, rule,
-    scrollable, space, text, text_input,
+    Id, column, container, image, mouse_area, operation, row, scrollable, space, text, text_input,
 };
 use iced::{Center, Color, Element, Fill, Length, Task};
 use prev_pdf::engine::{Engine, LinkTarget, OutlineItem};
@@ -22,10 +21,15 @@ use super::layout::{Fit, ViewMode};
 use super::viewer::{PdfMessage, PdfViewer, Request, Zoom};
 use crate::portal;
 use crate::shortcuts::Action;
+use crate::ui::button::{self, Kind};
+use crate::ui::component::{self, Backdrop};
+use crate::ui::resize::{self, Drag, Width};
+use crate::ui::{self, Icon, Type, icon, style};
 
-const SIDEBAR_WIDTH: f32 = 236.0;
-const THUMBNAIL_WIDTH: f32 = 120.0;
-const THUMBNAIL_SPACING: f32 = 28.0;
+const SIDEBAR_WIDTH: Width = Width::new(264.0, 248.0, 480.0);
+/// Sidebar width not taken by a thumbnail: margins, frame and scrollbar.
+const THUMBNAIL_INSET: f32 = 64.0;
+const THUMBNAIL_SPACING: f32 = 34.0;
 const LINE_SCROLL: f32 = 48.0;
 
 fn engine() -> Arc<dyn Engine> {
@@ -74,6 +78,8 @@ pub enum Message {
     Print,
     PrintFinished(Result<(), String>),
     OpenUriFinished(Result<(), String>),
+    DismissNotice,
+    SidebarResized(Drag),
 }
 
 /// Changes the app applies to the window itself.
@@ -87,13 +93,21 @@ pub enum Effect {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModeChoice(pub ViewMode);
 
-impl std::fmt::Display for ModeChoice {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(match self.0 {
-            ViewMode::Continuous => "Continuous",
+impl ModeChoice {
+    fn label(self) -> &'static str {
+        match self.0 {
+            ViewMode::Continuous => "Continuous scroll",
             ViewMode::SinglePage => "Single page",
             ViewMode::TwoPages => "Two pages",
-        })
+        }
+    }
+
+    fn icon(self) -> Icon {
+        match self.0 {
+            ViewMode::Continuous => Icon::ViewDay,
+            ViewMode::SinglePage => Icon::Draft,
+            ViewMode::TwoPages => Icon::TwoPager,
+        }
     }
 }
 
@@ -107,6 +121,7 @@ pub struct PdfWindow {
     pub path: PathBuf,
     state: State,
     sidebar: Option<Sidebar>,
+    sidebar_width: Width,
     canvas_id: Id,
     search_id: Id,
     thumbnails_id: Id,
@@ -131,6 +146,7 @@ impl PdfWindow {
             path,
             state: State::Opening(handle),
             sidebar: None,
+            sidebar_width: SIDEBAR_WIDTH,
             canvas_id: Id::unique(),
             search_id: Id::unique(),
             thumbnails_id: Id::unique(),
@@ -223,6 +239,10 @@ impl PdfWindow {
         )
     }
 
+    fn thumbnail_width(&self) -> f32 {
+        (self.sidebar_width.value - THUMBNAIL_INSET).max(1.0)
+    }
+
     /// Scrolls the thumbnail list so the current page's thumbnail is in view.
     fn follow_thumbnail(&mut self) -> Task<Message> {
         let State::Ready(viewer) = &self.state else {
@@ -235,7 +255,7 @@ impl PdfWindow {
             .info
             .page_sizes
             .iter()
-            .map(|size| thumbnail_height(size) + THUMBNAIL_SPACING);
+            .map(|size| thumbnail_height(size, self.thumbnail_width()) + THUMBNAIL_SPACING);
         let top: f32 = heights.clone().take(viewer.current).sum();
         let height = heights.clone().nth(viewer.current).unwrap_or(0.0);
         let (offset, visible) = self.thumbnails_view;
@@ -379,6 +399,19 @@ impl PdfWindow {
                     .unwrap_or_default();
                 Task::perform(portal::print(path, title), Message::PrintFinished)
             }
+            Message::SidebarResized(drag) => {
+                self.sidebar_width.drag(drag);
+                if drag != Drag::Ended {
+                    return Task::none();
+                }
+                // Thumbnail heights follow the width, so the list moved.
+                let (offset, height) = self.thumbnails_view;
+                Task::batch([self.follow_thumbnail(), self.thumbnails_for(offset, height)])
+            }
+            Message::DismissNotice => {
+                self.notice = None;
+                Task::none()
+            }
             Message::PrintFinished(result) | Message::OpenUriFinished(result) => {
                 self.notice = result.err();
                 Task::none()
@@ -428,11 +461,12 @@ impl PdfWindow {
         let State::Ready(viewer) = &mut self.state else {
             return Task::none();
         };
+        let width = (self.sidebar_width.value - THUMBNAIL_INSET).max(1.0);
         let sizes = viewer.info.page_sizes.clone();
         let mut y = 0.0;
         let mut pages = Vec::new();
         for (index, size) in sizes.iter().enumerate() {
-            let item_height = thumbnail_height(size) + THUMBNAIL_SPACING;
+            let item_height = thumbnail_height(size, width) + THUMBNAIL_SPACING;
             if y + item_height >= offset - 200.0 && y <= offset + height + 200.0 {
                 pages.push(index);
             }
@@ -612,65 +646,82 @@ impl PdfWindow {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
+        let name = self
+            .path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let body: Element<'_, Message> = match &self.state {
-            State::Opening(_) => center(text("Opening…")).into(),
-            State::Failed(error) => center(
-                column![
-                    text("prev can't open this document.").size(18),
-                    text(error).size(13)
-                ]
-                .spacing(8)
-                .align_x(Center),
-            )
-            .into(),
+            State::Opening(_) => component::empty_state(Icon::Draft, "Opening…", name),
+            State::Failed(error) => {
+                component::empty_state(Icon::Error, "prev can't open this document", error.as_str())
+            }
             State::Locked {
                 password, wrong, ..
-            } => self.password_view(password, *wrong),
+            } => self.password_view(name, password, *wrong),
             State::Ready(viewer) if self.slideshow.is_some() => {
                 self.canvas(viewer, Some(Color::BLACK))
             }
             State::Ready(viewer) => {
                 let content: Element<'_, Message> = match self.sidebar {
                     Some(sidebar) => row![
-                        container(self.sidebar_view(viewer, sidebar))
-                            .width(SIDEBAR_WIDTH)
-                            .height(Fill),
-                        rule::vertical(1),
+                        ui::enter::from_left(
+                            container(self.sidebar_view(viewer, sidebar))
+                                .clip(true)
+                                .width(self.sidebar_width.value)
+                                .height(Fill)
+                                .style(style::surface_container_low)
+                        ),
+                        resize::handle(Message::SidebarResized),
                         self.canvas(viewer, None),
                     ]
                     .into(),
                     None => self.canvas(viewer, None),
                 };
-                column![self.toolbar(viewer), rule::horizontal(1), content].into()
+                column![self.toolbar(viewer), content].into()
             }
         };
+        let body = container(body)
+            .width(Fill)
+            .height(Fill)
+            .style(style::surface);
         match &self.notice {
-            Some(notice) => column![body, container(text(notice).size(13)).padding(6)].into(),
-            None => body,
+            Some(notice) => component::snackbar(body, notice, Message::DismissNotice),
+            None => body.into(),
         }
     }
 
-    fn password_view<'a>(&'a self, password: &'a str, wrong: bool) -> Element<'a, Message> {
-        let name = self
-            .path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
+    fn password_view<'a>(
+        &'a self,
+        name: String,
+        password: &'a str,
+        wrong: bool,
+    ) -> Element<'a, Message> {
         let mut content = column![
-            text(format!("“{name}” is password protected.")).size(18),
-            text_input("Password", password)
-                .secure(true)
-                .on_input(Message::PasswordChanged)
-                .on_submit(Message::SubmitPassword)
-                .width(280),
-            button("Unlock").on_press(Message::SubmitPassword),
+            icon::icon(Icon::Lock, 48).style(style::on_surface_variant),
+            ui::styled(format!("“{name}” is password protected"), Type::TitleLarge),
+            container(component::text_field(
+                "Password",
+                password,
+                Backdrop::Surface,
+                |input| input
+                    .secure(true)
+                    .on_input(Message::PasswordChanged)
+                    .on_submit(Message::SubmitPassword),
+            ))
+            .width(320),
         ]
-        .spacing(12)
+        .spacing(16)
         .align_x(Center);
         if wrong {
-            content = content.push(text("Incorrect password. Try again.").size(13));
+            content = content.push(
+                ui::styled("Incorrect password. Try again.", Type::BodyMedium)
+                    .style(style::error_text),
+            );
         }
-        center(content).into()
+        content =
+            content.push(ui::button(Kind::Filled, "Unlock").on_press(Message::SubmitPassword));
+        container(content).center(Fill).into()
     }
 
     fn canvas<'a>(
@@ -685,7 +736,7 @@ impl PdfWindow {
         let scrollbar = if backdrop.is_some() {
             Scrollbar::hidden()
         } else {
-            Scrollbar::default()
+            component::thin_scrollbar()
         };
         scrollable(canvas)
             .id(self.canvas_id.clone())
@@ -693,34 +744,72 @@ impl PdfWindow {
                 vertical: scrollbar,
                 horizontal: scrollbar,
             })
+            .style(style::scrollbar)
             .width(Fill)
             .height(Fill)
             .into()
     }
 
     fn toolbar<'a>(&'a self, viewer: &'a PdfViewer) -> Element<'a, Message> {
-        let sidebar_button =
-            button(text("Sidebar").size(13)).on_press(Message::ShowSidebar(match self.sidebar {
+        let sidebar_toggle = component::toggle_tool(
+            if self.sidebar.is_some() {
+                Icon::LeftPanelClose
+            } else {
+                Icon::LeftPanelOpen
+            },
+            "Sidebar",
+            self.sidebar.is_some(),
+            Message::ShowSidebar(match self.sidebar {
                 Some(_) => None,
                 None => Some(Sidebar::Thumbnails),
-            }));
+            }),
+        );
         let page_label = viewer.page_label(viewer.current);
-        let page_box = text_input("", self.page_input.as_deref().unwrap_or(&page_label))
-            .id(self.page_input_id.clone())
-            .on_input(Message::PageInputChanged)
-            .on_submit(Message::PageInputSubmitted)
-            .size(13)
-            .width(56);
-        let pages = text(format!("of {}", viewer.page_count())).size(13);
-        let zoom = |label: &'static str, zoom: Zoom| {
-            button(text(label).size(13)).on_press(Message::Viewer(PdfMessage::Zoom(zoom)))
+        let page_box = container(
+            text_input("", self.page_input.as_deref().unwrap_or(&page_label))
+                .id(self.page_input_id.clone())
+                .on_input(Message::PageInputChanged)
+                .on_submit(Message::PageInputSubmitted)
+                .style(style::outlined_field)
+                .align_x(Center)
+                .padding([6, 4])
+                .width(52),
+        );
+        let pages = ui::styled(format!("of {}", viewer.page_count()), Type::BodyMedium)
+            .style(style::on_surface_variant);
+        let zoom = |glyph: Icon, label: &'static str, zoom: Zoom| {
+            component::tool(glyph, label, Some(Message::Viewer(PdfMessage::Zoom(zoom))))
         };
-        let percent = text(format!("{:.0}%", viewer.layout.zoom * 100.0))
-            .size(13)
-            .width(48)
-            .align_x(Center);
-        let mode =
-            pick_list(MODES, Some(ModeChoice(viewer.mode)), Message::ModeSelected).text_size(13);
+        let percent = ui::styled(
+            format!("{:.0}%", viewer.layout.zoom * 100.0),
+            Type::LabelLarge,
+        )
+        .width(48)
+        .align_x(Center);
+        let fit = |glyph: Icon, label: &'static str, fit: Fit, zoom: Zoom| {
+            component::tip(
+                ui::icon_button(glyph)
+                    .selected(viewer.fit == fit)
+                    .on_press(Message::Viewer(PdfMessage::Zoom(zoom))),
+                label,
+            )
+        };
+        let modes = component::connected(
+            MODES
+                .iter()
+                .map(|mode| {
+                    ui::icon_button(mode.icon())
+                        .kind(Kind::Tonal)
+                        .size(button::Size::ExtraSmall)
+                        .selected(viewer.mode == mode.0)
+                        .on_press(Message::ModeSelected(*mode))
+                })
+                .collect(),
+        );
+        let mode_label = MODES
+            .iter()
+            .find(|mode| mode.0 == viewer.mode)
+            .map_or("", |mode| mode.label());
 
         let search = &viewer.search;
         let matches = if search.query.trim().is_empty() {
@@ -734,61 +823,77 @@ impl PdfWindow {
             let more = if search.finished { "" } else { "+" };
             format!("{current} of {}{more}", search.matches.len())
         };
-        let search_box = text_input("Search", &search.query)
-            .id(self.search_id.clone())
-            .on_input(|query| Message::Viewer(PdfMessage::SearchChanged(query)))
-            .on_submit(Message::Viewer(PdfMessage::NextMatch))
-            .size(13)
-            .width(180);
+        let has_matches = !search.matches.is_empty();
+        let search_bar = component::search_bar(
+            text_input("Search", &search.query)
+                .id(self.search_id.clone())
+                .on_input(|query| Message::Viewer(PdfMessage::SearchChanged(query)))
+                .on_submit(Message::Viewer(PdfMessage::NextMatch)),
+            vec![
+                ui::styled(matches, Type::LabelMedium)
+                    .style(style::on_surface_variant)
+                    .wrapping(text::Wrapping::None)
+                    .into(),
+                ui::icon_button(Icon::KeyboardArrowUp)
+                    .size(button::Size::ExtraSmall)
+                    .on_press_maybe(
+                        has_matches.then_some(Message::Viewer(PdfMessage::PreviousMatch)),
+                    )
+                    .into(),
+                ui::icon_button(Icon::KeyboardArrowDown)
+                    .size(button::Size::ExtraSmall)
+                    .on_press_maybe(has_matches.then_some(Message::Viewer(PdfMessage::NextMatch)))
+                    .into(),
+            ],
+            280.0,
+        );
 
-        row![
-            sidebar_button,
-            page_box,
-            pages,
-            space::horizontal().width(8),
-            zoom("−", Zoom::Out),
-            percent,
-            zoom("+", Zoom::In),
-            zoom("Fit", Zoom::FitPage),
-            zoom("Width", Zoom::FitWidth),
-            mode,
-            space::horizontal(),
-            text(matches).size(12),
-            button(text("‹").size(13)).on_press(Message::Viewer(PdfMessage::PreviousMatch)),
-            button(text("›").size(13)).on_press(Message::Viewer(PdfMessage::NextMatch)),
-            search_box,
-        ]
-        .spacing(6)
-        .padding(6)
-        .align_y(Center)
-        .into()
+        component::toolbar(
+            row![
+                sidebar_toggle,
+                component::toolbar_divider(),
+                page_box,
+                pages,
+                component::toolbar_divider(),
+                component::group([
+                    zoom(Icon::ZoomOut, "Zoom out", Zoom::Out),
+                    percent.into(),
+                    zoom(Icon::ZoomIn, "Zoom in", Zoom::In),
+                ]),
+                component::group([
+                    fit(Icon::FitPage, "Fit page", Fit::Page, Zoom::FitPage),
+                    fit(Icon::FitWidth, "Fit width", Fit::Width, Zoom::FitWidth),
+                ]),
+                component::toolbar_divider(),
+                component::tip(modes, mode_label),
+                space::horizontal(),
+                search_bar,
+            ]
+            .spacing(8)
+            .align_y(Center),
+        )
     }
 
     fn sidebar_view<'a>(&'a self, viewer: &'a PdfViewer, sidebar: Sidebar) -> Element<'a, Message> {
-        let tabs = row![
-            tab_button(
-                "Thumbnails",
-                sidebar == Sidebar::Thumbnails,
-                Sidebar::Thumbnails
-            ),
-            tab_button("Contents", sidebar == Sidebar::Contents, Sidebar::Contents),
-            tab_button(
-                "Bookmarks",
-                sidebar == Sidebar::Bookmarks,
-                Sidebar::Bookmarks
-            ),
-        ]
-        .spacing(4)
-        .padding(6);
+        let tab = |label: &'a str, which: Sidebar| component::Tab {
+            label,
+            selected: sidebar == which,
+            on_press: Message::ShowSidebar(Some(which)),
+        };
+        let tabs = component::tabs(vec![
+            tab("Pages", Sidebar::Thumbnails),
+            tab("Contents", Sidebar::Contents),
+            tab("Bookmarks", Sidebar::Bookmarks),
+        ]);
         let list: Element<'a, Message> = match sidebar {
-            Sidebar::Thumbnails => scrollable(
+            Sidebar::Thumbnails => component::scroll(
                 column(
                     viewer
                         .info
                         .page_sizes
                         .iter()
                         .enumerate()
-                        .map(|(page, size)| thumbnail(viewer, page, *size)),
+                        .map(|(page, size)| thumbnail(viewer, page, *size, self.thumbnail_width())),
                 )
                 .spacing(0)
                 .width(Fill)
@@ -798,46 +903,54 @@ impl PdfWindow {
             .id(self.thumbnails_id.clone())
             .height(Fill)
             .into(),
-            Sidebar::Contents if !self.outline_loaded => center(text("Loading…").size(13)).into(),
-            Sidebar::Contents if viewer.info.outline.is_empty() => {
-                center(text("No table of contents").size(13)).into()
+            Sidebar::Contents if !self.outline_loaded => {
+                component::empty_state(Icon::Toc, "Loading…", "")
             }
-            Sidebar::Bookmarks if self.bookmarks.is_empty() => center(
-                text("No bookmarks. Press Ctrl+D to bookmark a page.")
-                    .size(13)
-                    .align_x(Center),
-            )
-            .padding(8)
-            .into(),
-            Sidebar::Bookmarks => scrollable(
+            Sidebar::Contents if viewer.info.outline.is_empty() => component::empty_state(
+                Icon::Toc,
+                "No table of contents",
+                "This document has no outline.",
+            ),
+            Sidebar::Bookmarks if self.bookmarks.is_empty() => component::empty_state(
+                Icon::Bookmarks,
+                "No bookmarks",
+                "Press Ctrl+D to bookmark a page.",
+            ),
+            Sidebar::Bookmarks => component::scroll(
                 column(self.bookmarks.iter().map(|bookmark| {
                     let label = format!("{}  {}", viewer.page_label(bookmark.page), bookmark.title);
                     row![
-                        button(text(label).size(13))
-                            .style(button::text)
-                            .padding([2, 4])
-                            .width(Fill)
-                            .on_press(Message::Viewer(PdfMessage::GoTo {
+                        component::list_row(
+                            Some(Icon::Bookmark),
+                            label,
+                            0.0,
+                            bookmark.page == viewer.current,
+                            Some(Message::Viewer(PdfMessage::GoTo {
                                 page: bookmark.page,
                                 point: None
                             })),
-                        button(text("×").size(13))
-                            .style(button::text)
-                            .on_press(Message::ToggleBookmark(bookmark.page)),
+                        ),
+                        component::tip(
+                            ui::icon_button(Icon::Close)
+                                .size(button::Size::ExtraSmall)
+                                .on_press(Message::ToggleBookmark(bookmark.page)),
+                            "Remove bookmark"
+                        ),
                     ]
+                    .spacing(4)
                     .align_y(Center)
                     .into()
                 }))
                 .spacing(2)
-                .padding(6)
+                .padding(12)
                 .width(Fill),
             )
             .height(Fill)
             .into(),
             Sidebar::Contents => {
                 let mut entries = Vec::new();
-                outline_entries(&viewer.info.outline, 0, &mut entries);
-                scrollable(column(entries).spacing(2).padding(6).width(Fill))
+                outline_entries(&viewer.info.outline, 0, viewer.current, &mut entries);
+                component::scroll(column(entries).spacing(2).padding(12).width(Fill))
                     .height(Fill)
                     .into()
             }
@@ -846,83 +959,78 @@ impl PdfWindow {
     }
 }
 
-fn tab_button(label: &str, selected: bool, sidebar: Sidebar) -> Element<'_, Message> {
-    let style = if selected {
-        button::primary
-    } else {
-        button::text
-    };
-    button(text(label).size(12))
-        .style(style)
-        .on_press(Message::ShowSidebar(Some(sidebar)))
-        .into()
-}
-
-fn thumbnail_height(size: &prev_pdf::geometry::Size) -> f32 {
-    THUMBNAIL_WIDTH * size.height / size.width.max(1.0)
+fn thumbnail_height(size: &prev_pdf::geometry::Size, width: f32) -> f32 {
+    width * size.height / size.width.max(1.0)
 }
 
 fn thumbnail<'a>(
     viewer: &'a PdfViewer,
     page: usize,
     size: prev_pdf::geometry::Size,
+    width: f32,
 ) -> Element<'a, Message> {
-    let height = thumbnail_height(&size);
+    let height = thumbnail_height(&size, width);
     let picture: Element<'a, Message> = match viewer.previews.get(&page) {
         Some(handle) => image(handle.clone())
-            .width(THUMBNAIL_WIDTH)
+            .width(width)
             .height(height)
+            .border_radius(style::THUMBNAIL_RADIUS)
             .into(),
         None => container(space::horizontal())
-            .width(THUMBNAIL_WIDTH)
+            .width(width)
             .height(height)
-            .style(|_| container::Style::default().background(Color::WHITE))
+            .style(|_| container::Style {
+                background: Some(Color::WHITE.into()),
+                border: iced::border::rounded(style::THUMBNAIL_RADIUS),
+                ..container::Style::default()
+            })
             .into(),
     };
     let selected = page == viewer.current;
     let framed = container(picture)
-        .padding(2)
-        .style(move |theme: &iced::Theme| {
-            let color = if selected {
-                theme.palette().primary
-            } else {
-                Color::TRANSPARENT
-            };
-            container::Style::default().border(iced::Border {
-                color,
-                width: 2.0,
-                radius: 2.0.into(),
-            })
-        });
+        .padding(style::THUMBNAIL_RING)
+        .style(move |theme: &iced::Theme| style::thumbnail(theme, selected));
+    let label = ui::styled(viewer.page_label(page), Type::LabelMedium);
+    let label = if selected {
+        label.style(style::primary_text)
+    } else {
+        label.style(style::on_surface_variant)
+    };
     mouse_area(
-        column![framed, text(viewer.page_label(page)).size(11)]
+        column![framed, label]
             .align_x(Center)
-            .spacing(2)
+            .spacing(4)
             .height(Length::Fixed(height + THUMBNAIL_SPACING)),
     )
     .on_press(Message::Viewer(PdfMessage::GoTo { page, point: None }))
+    .interaction(iced::mouse::Interaction::Pointer)
     .into()
 }
 
 fn outline_entries<'a>(
     items: &'a [OutlineItem],
     depth: usize,
+    current: usize,
     entries: &mut Vec<Element<'a, Message>>,
 ) {
     for item in items {
-        let label = text(&item.title).size(13);
-        let entry = match &item.target {
-            Some(LinkTarget::Page { index, point }) => button(label)
-                .style(button::text)
-                .padding([2, 4])
-                .on_press(Message::Viewer(PdfMessage::GoTo {
-                    page: *index,
-                    point: *point,
-                })),
-            Some(LinkTarget::Uri(_)) | None => button(label).style(button::text).padding([2, 4]),
+        let target = match &item.target {
+            Some(LinkTarget::Page { index, point }) => Some((*index, *point)),
+            Some(LinkTarget::Uri(_)) | None => None,
         };
-        entries.push(row![space::horizontal().width(depth as f32 * 12.0), entry].into());
-        outline_entries(&item.children, depth + 1, entries);
+        let selected = target.is_some_and(|(index, _)| index == current);
+        let message = target.map(|(page, point)| Message::Viewer(PdfMessage::GoTo { page, point }));
+        entries.push(
+            component::list_row(
+                None,
+                item.title.as_str(),
+                depth as f32 * 12.0,
+                selected,
+                message,
+            )
+            .into(),
+        );
+        outline_entries(&item.children, depth + 1, current, entries);
     }
 }
 

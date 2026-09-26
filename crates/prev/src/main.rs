@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use iced::futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use prev::instance::{self, Role};
-use prev::omarchy;
+use prev::{omarchy, ui};
 
 /// Events from background threads, delivered through a subscription.
 #[derive(Debug, Clone)]
@@ -50,6 +50,13 @@ fn main() -> iced::Result {
         app::Prev::update,
         app::Prev::view,
     )
+    .settings(iced::Settings {
+        fonts: ui::font::files().collect(),
+        default_font: ui::font::TEXT,
+        default_text_size: ui::font::DEFAULT_SIZE.into(),
+        antialiasing: true,
+        ..iced::Settings::default()
+    })
     .title(app::Prev::title)
     .theme(app::Prev::theme)
     .subscription(app::Prev::subscription)

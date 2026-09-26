@@ -1,4 +1,4 @@
-//! Desktop portal requests: opening links and printing.
+//! Desktop portal requests: opening links, printing and settings.
 
 use std::path::PathBuf;
 
@@ -9,6 +9,16 @@ pub async fn open_uri(uri: String) -> Result<(), String> {
         .await
         .map(|_| ())
         .map_err(|error| format!("Could not open {uri}: {error}"))
+}
+
+/// Whether the desktop wants animations, from the GNOME interface setting
+/// the settings portal passes on. `None` when the portal cannot tell.
+pub async fn animations_enabled() -> Option<bool> {
+    let settings = ashpd::desktop::settings::Settings::new().await.ok()?;
+    settings
+        .read::<bool>("org.gnome.desktop.interface", "enable-animations")
+        .await
+        .ok()
 }
 
 pub async fn print(path: PathBuf, title: String) -> Result<(), String> {

@@ -10,12 +10,12 @@ use bytes::Bytes;
 use iced::advanced::image::Allocation;
 use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::image::Handle;
-use iced::widget::scrollable::{self, Direction, Scrollbar};
+use iced::widget::scrollable::{self, Direction};
 use iced::widget::{
-    Id, button, center, checkbox, column, container, image, mouse_area, opaque, operation, row,
-    rule, scrollable as scroll, slider, space, stack, text, text_input,
+    Id, column, container, image, mouse_area, operation, row, scrollable as scroll, slider, space,
+    text, toggler,
 };
-use iced::{Center, Color, Element, Fill, Length, Task};
+use iced::{Center, Element, Fill, Length, Padding, Task};
 use prev_image::ImageFormat;
 use prev_image::decode::{Frame, decode_file};
 use prev_image::edit::{ColorAdjust, Operation};
@@ -29,11 +29,16 @@ use super::editor::{self, Editor, spawn};
 use super::view::{self, Fit, Placement, ZOOM_STEP};
 use crate::dialog;
 use crate::shortcuts::Action;
+use crate::ui::button::Kind;
+use crate::ui::component::{self, Backdrop};
+use crate::ui::resize::{self, Drag, Width};
+use crate::ui::{self, Icon, Type, icon, style};
 
-const THUMBNAIL_SIZE: u32 = 240;
-const SIDEBAR_WIDTH: f32 = 180.0;
-const SIDEBAR_THUMBNAIL: f32 = 120.0;
-const PANEL_WIDTH: f32 = 300.0;
+const THUMBNAIL_SIZE: u32 = 480;
+const SIDEBAR_WIDTH: Width = Width::new(184.0, 140.0, 400.0);
+/// Space around a sidebar thumbnail: list padding and the frame.
+const SIDEBAR_THUMBNAIL_MARGIN: f32 =
+    2.0 * 12.0 + 2.0 * style::THUMBNAIL_RING + resize::HANDLE_WIDTH;
 /// Full images kept in memory around the current one, in each direction.
 const KEEP_AROUND: usize = 1;
 /// Quiet time after an edit before it is written to disk.
@@ -194,6 +199,8 @@ pub enum Message {
     ExportChooseAgain,
     ExportTarget(Result<Option<dialog::SavedWithMenus>, String>),
     Exported(Result<PathBuf, String>),
+    DismissNotice,
+    SidebarResized(Drag),
 }
 
 /// An export waiting for the user to confirm a name whose extension does
@@ -219,6 +226,7 @@ pub struct ImageWindow {
     items: Vec<Item>,
     current: usize,
     sidebar: bool,
+    sidebar_width: Width,
     fit: Fit,
     view: (f32, f32, f32, f32),
     device_scale: f32,
@@ -355,6 +363,7 @@ impl ImageWindow {
             items,
             current: 0,
             sidebar,
+            sidebar_width: SIDEBAR_WIDTH,
             fit: Fit::Fit,
             view: (0.0, 0.0, 900.0, 700.0),
             device_scale: 1.0,
@@ -717,6 +726,14 @@ impl ImageWindow {
                 self.items[self.current].state = ItemState::Waiting;
                 self.selection = None;
                 Task::batch([self.load_next(), self.refresh_inspector()])
+            }
+            Message::SidebarResized(drag) => {
+                self.sidebar_width.drag(drag);
+                Task::none()
+            }
+            Message::DismissNotice => {
+                self.notice = None;
+                Task::none()
             }
             Message::Export => self.export(),
             Message::ExportTarget(Ok(Some((chosen, choices)))) => {
@@ -1388,15 +1405,11 @@ impl ImageWindow {
 
     pub fn view(&self) -> Element<'_, Message> {
         let canvas: Element<'_, Message> = match &self.items[self.current].state {
-            ItemState::Failed(error) => center(
-                column![
-                    text("prev can't open this image.").size(18),
-                    text(error).size(13)
-                ]
-                .spacing(8)
-                .align_x(Center),
-            )
-            .into(),
+            ItemState::Failed(error) => component::empty_state(
+                Icon::BrokenImage,
+                "prev can't open this image",
+                error.as_str(),
+            ),
             _ => match self.placement() {
                 Some(placement) => scroll(
                     ImageCanvas::new(
@@ -1409,44 +1422,51 @@ impl ImageWindow {
                 )
                 .id(self.canvas_id.clone())
                 .direction(Direction::Both {
-                    vertical: Scrollbar::default(),
-                    horizontal: Scrollbar::default(),
+                    vertical: component::thin_scrollbar(),
+                    horizontal: component::thin_scrollbar(),
                 })
+                .style(style::scrollbar)
                 .width(Fill)
                 .height(Fill)
                 .into(),
-                None => center(text("Opening…")).into(),
+                None => component::empty_state(Icon::Image, "Opening…", ""),
             },
         };
         let mut content = row![].height(Fill);
         if self.sidebar && self.items.len() > 1 {
             content = content
-                .push(
+                .push(ui::enter::from_left(
                     container(self.sidebar_view())
-                        .width(SIDEBAR_WIDTH)
-                        .height(Fill),
-                )
-                .push(rule::vertical(1));
+                        .clip(true)
+                        .width(self.sidebar_width.value)
+                        .height(Fill)
+                        .style(style::surface_container_low),
+                ))
+                .push(resize::handle(Message::SidebarResized));
         }
         content = content.push(canvas);
         if let Some(panel) = self.panel {
-            content = content.push(rule::vertical(1)).push(
-                container(scroll(container(self.panel_view(panel)).padding(12)).height(Fill))
-                    .width(PANEL_WIDTH)
-                    .height(Fill),
-            );
+            content = content.push(self.panel_view(panel));
         }
-        let mut page = column![self.toolbar(), rule::horizontal(1), content];
-        if let Some(notice) = &self.notice {
-            page = page.push(container(text(notice).size(13)).padding(6));
-        }
-        match &self.pending_export {
-            Some(pending) => stack![page, opaque(self.export_prompt(pending))].into(),
+        let page = container(column![self.toolbar(), content])
+            .width(Fill)
+            .height(Fill)
+            .style(style::surface);
+        let page: Element<'_, Message> = match &self.notice {
+            Some(notice) => component::snackbar(page, notice, Message::DismissNotice),
             None => page.into(),
+        };
+        match &self.pending_export {
+            Some(pending) => self.export_prompt(page, pending),
+            None => page,
         }
     }
 
-    fn export_prompt<'a>(&'a self, pending: &'a PendingExport) -> Element<'a, Message> {
+    fn export_prompt<'a>(
+        &'a self,
+        page: Element<'a, Message>,
+        pending: &'a PendingExport,
+    ) -> Element<'a, Message> {
         let name = pending
             .path
             .file_name()
@@ -1457,31 +1477,23 @@ impl ImageWindow {
             .extension()
             .map(|extension| format!("ends in .{}", extension.to_string_lossy()))
             .unwrap_or_else(|| "has no extension".into());
-        let card = container(
-            column![
-                text("The name doesn't match the format").size(16),
-                text(format!(
-                    "“{name}” will be saved as a {} file, but its name {extension}. Other apps may not open it.",
-                    editor::format_label(&pending.format_choice)
-                ))
-                .size(13),
-                row![
-                    space::horizontal(),
-                    button(text("Choose Again").size(13)).style(button::secondary).on_press(Message::ExportChooseAgain),
-                    button(text("Save as Is").size(13)).on_press(Message::ExportAsIs),
-                ]
-                .spacing(8),
-            ]
-            .spacing(12)
-            .width(420),
+        component::dialog(
+            page,
+            Some(Icon::Warning),
+            "The name doesn't match the format",
+            format!(
+                "“{name}” will be saved as a {} file, but its name {extension}. Other apps may not open it.",
+                editor::format_label(&pending.format_choice)
+            ),
+            vec![
+                ui::button(Kind::Text, "Choose Again")
+                    .on_press(Message::ExportChooseAgain)
+                    .into(),
+                ui::button(Kind::Text, "Save as Is")
+                    .on_press(Message::ExportAsIs)
+                    .into(),
+            ],
         )
-        .padding(20)
-        .style(container::bordered_box);
-        center(card)
-            .style(|_| {
-                container::Style::default().background(Color::from_rgba(0.0, 0.0, 0.0, 0.45))
-            })
-            .into()
     }
 
     fn toolbar(&self) -> Element<'_, Message> {
@@ -1514,94 +1526,126 @@ impl ImageWindow {
         }
         let editable = shown.is_some_and(Shown::is_editable);
         let editor = shown.and_then(|shown| shown.editor.as_ref());
-        let small =
-            |label: &'static str, message: Message| button(text(label).size(13)).on_press(message);
-        let when = |label: &'static str, enabled: bool, message: Message| {
-            button(text(label).size(13)).on_press_maybe(enabled.then_some(message))
+        let when = |glyph: Icon, label: &'static str, enabled: bool, message: Message| {
+            component::tool(glyph, label, enabled.then_some(message))
         };
-        let toggled = |label: &'static str, on: bool, message: Message| {
-            let style = if on {
-                button::primary
-            } else {
-                button::secondary
-            };
-            button(text(label).size(13)).style(style).on_press(message)
-        };
-        let mut bar = row![].spacing(6).padding(6).align_y(Center);
-        if self.items.len() > 1 {
-            bar = bar.push(small("Sidebar", Message::ToggleSidebar));
-        }
-        bar.push(text(details).size(13))
-            .push(space::horizontal())
-            .push(when(
-                "Rotate Left",
-                editable,
-                Message::Edit(Edit::RotateLeft),
-            ))
-            .push(when(
-                "Rotate Right",
-                editable,
-                Message::Edit(Edit::RotateRight),
-            ))
-            .push(when(
-                "Flip ↔",
-                editable,
-                Message::Edit(Edit::FlipHorizontal),
-            ))
-            .push(when("Flip ↕", editable, Message::Edit(Edit::FlipVertical)))
-            .push(toggled("Select", self.selecting, Message::ToggleSelecting))
-            .push(when(
-                "Crop",
-                editable && self.selection.is_some(),
-                Message::Edit(Edit::Crop),
-            ))
-            .push(when(
-                "Undo",
-                editor.is_some_and(|editor| editor.stack.can_undo()),
-                Message::Edit(Edit::Undo),
-            ))
-            .push(when(
-                "Redo",
-                editor.is_some_and(|editor| editor.stack.can_redo()),
-                Message::Edit(Edit::Redo),
-            ))
-            .push(space::horizontal().width(10))
-            .push(toggled(
-                "Size",
-                self.panel == Some(Panel::AdjustSize),
-                Message::TogglePanel(Panel::AdjustSize),
-            ))
-            .push(toggled(
-                "Color",
-                self.panel == Some(Panel::AdjustColor),
-                Message::TogglePanel(Panel::AdjustColor),
-            ))
-            .push(toggled(
-                "Info",
-                self.panel == Some(Panel::Inspector),
-                Message::TogglePanel(Panel::Inspector),
-            ))
-            .push(when("Export…", editable, Message::Export))
-            .push(space::horizontal().width(10))
-            .push(small("−", Message::ZoomOut))
-            .push(
-                text(format!("{:.0}%", self.zoom() * 100.0))
-                    .size(13)
-                    .width(52)
-                    .align_x(Center),
+        let panel = |glyph: Icon, label: &'static str, which: Panel| {
+            component::toggle_tool(
+                glyph,
+                label,
+                self.panel == Some(which),
+                Message::TogglePanel(which),
             )
-            .push(small("+", Message::ZoomIn))
-            .push(small("Fit", Message::FitToWindow))
-            .push(small("1:1", Message::ActualSize))
-            .into()
+        };
+        let mut bar = row![].spacing(8).align_y(Center);
+        if self.items.len() > 1 {
+            bar = bar
+                .push(component::toggle_tool(
+                    if self.sidebar {
+                        Icon::LeftPanelClose
+                    } else {
+                        Icon::LeftPanelOpen
+                    },
+                    "Sidebar",
+                    self.sidebar,
+                    Message::ToggleSidebar,
+                ))
+                .push(component::toolbar_divider());
+        }
+        let bar = bar
+            .push(
+                ui::styled(details, Type::BodyMedium)
+                    .style(style::on_surface_variant)
+                    .wrapping(text::Wrapping::None),
+            )
+            .push(space::horizontal())
+            .push(component::group([
+                when(
+                    Icon::Undo,
+                    "Undo",
+                    editor.is_some_and(|editor| editor.stack.can_undo()),
+                    Message::Edit(Edit::Undo),
+                ),
+                when(
+                    Icon::Redo,
+                    "Redo",
+                    editor.is_some_and(|editor| editor.stack.can_redo()),
+                    Message::Edit(Edit::Redo),
+                ),
+            ]))
+            .push(component::toolbar_divider())
+            .push(component::group([
+                when(
+                    Icon::RotateLeft,
+                    "Rotate left",
+                    editable,
+                    Message::Edit(Edit::RotateLeft),
+                ),
+                when(
+                    Icon::RotateRight,
+                    "Rotate right",
+                    editable,
+                    Message::Edit(Edit::RotateRight),
+                ),
+                when(
+                    Icon::Flip,
+                    "Flip horizontal",
+                    editable,
+                    Message::Edit(Edit::FlipHorizontal),
+                ),
+                when(
+                    Icon::FlipVertical,
+                    "Flip vertical",
+                    editable,
+                    Message::Edit(Edit::FlipVertical),
+                ),
+            ]))
+            .push(component::group([
+                component::toggle_tool(
+                    Icon::HighlightAlt,
+                    "Select",
+                    self.selecting,
+                    Message::ToggleSelecting,
+                ),
+                when(
+                    Icon::Crop,
+                    "Crop to selection",
+                    editable && self.selection.is_some(),
+                    Message::Edit(Edit::Crop),
+                ),
+            ]))
+            .push(component::toolbar_divider())
+            .push(component::group([
+                panel(Icon::Resize, "Adjust size", Panel::AdjustSize),
+                panel(Icon::Tune, "Adjust color", Panel::AdjustColor),
+                panel(Icon::Info, "Inspector", Panel::Inspector),
+            ]))
+            .push(component::tip(
+                ui::with_icon(Kind::Tonal, Icon::FileExport, "Export")
+                    .on_press_maybe(editable.then_some(Message::Export)),
+                "Export as another format",
+            ))
+            .push(component::toolbar_divider())
+            .push(component::group([
+                component::tool(Icon::ZoomOut, "Zoom out", Some(Message::ZoomOut)),
+                ui::styled(format!("{:.0}%", self.zoom() * 100.0), Type::LabelLarge)
+                    .width(48)
+                    .align_x(Center)
+                    .into(),
+                component::tool(Icon::ZoomIn, "Zoom in", Some(Message::ZoomIn)),
+                component::tool(Icon::FitScreen, "Fit to window", Some(Message::FitToWindow)),
+                component::tool(Icon::OneToOne, "Actual size", Some(Message::ActualSize)),
+            ]));
+        component::toolbar(bar)
     }
 
     fn panel_view(&self, panel: Panel) -> Element<'_, Message> {
-        match panel {
-            Panel::AdjustColor => self.color_panel(),
-            Panel::AdjustSize => self.size_panel(),
-            Panel::Inspector => self.inspector_panel(),
-        }
+        let (title, content) = match panel {
+            Panel::AdjustColor => ("Adjust Color", self.color_panel()),
+            Panel::AdjustSize => ("Adjust Size", self.size_panel()),
+            Panel::Inspector => ("Inspector", self.inspector_panel()),
+        };
+        component::side_sheet(title, Message::TogglePanel(panel), content)
     }
 
     fn color_panel(&self) -> Element<'_, Message> {
@@ -1610,18 +1654,27 @@ impl ImageWindow {
                        range: std::ops::RangeInclusive<f32>,
                        value: f32,
                        set: fn(ColorAdjust, f32) -> ColorAdjust| {
+            let backdrop = move |theme: &iced::Theme, status| {
+                let scheme = ui::Scheme::of(theme);
+                style::slider(Backdrop::ContainerLow.color(&scheme))(theme, status)
+            };
             column![
-                text(label).size(12),
+                row![
+                    ui::styled(label, Type::BodyMedium).width(Fill),
+                    ui::styled(format!("{value:+.2}"), Type::LabelMedium)
+                        .style(style::on_surface_variant),
+                ],
                 slider(range, value, move |value| Message::Edit(Edit::Color(set(
                     adjust, value
                 ))))
                 .step(0.01_f32)
+                .height(style::SLIDER_HEIGHT)
+                .style(backdrop)
                 .on_release(Message::Edit(Edit::ColorCommitted)),
             ]
-            .spacing(2)
+            .spacing(0)
         };
         column![
-            text("Adjust Color").size(16),
             control("Exposure", -2.0..=2.0, adjust.exposure, |a, v| {
                 ColorAdjust { exposure: v, ..a }
             }),
@@ -1648,7 +1701,7 @@ impl ImageWindow {
             control("Sharpness", 0.0..=1.0, adjust.sharpness, |a, v| {
                 ColorAdjust { sharpness: v, ..a }
             }),
-            text("Levels").size(14),
+            component::section("Levels"),
             control("Black point", 0.0..=0.9, adjust.black, |a, v| ColorAdjust {
                 black: v.min(a.white - 0.05),
                 ..a
@@ -1667,41 +1720,50 @@ impl ImageWindow {
                 white: v.max(a.black + 0.05),
                 ..a
             }),
-            button(text("Reset All").size(13)).on_press(Message::Edit(Edit::ResetColor)),
+            container(
+                ui::with_icon(Kind::Outlined, Icon::ResetAll, "Reset All")
+                    .on_press(Message::Edit(Edit::ResetColor))
+            )
+            .padding(Padding {
+                top: 12.0,
+                ..Padding::ZERO
+            }),
         ]
-        .spacing(10)
+        .spacing(4)
         .into()
     }
 
     fn size_panel(&self) -> Element<'_, Message> {
         let current = self.items[self.current].size.unwrap_or((0, 0));
         column![
-            text("Adjust Size").size(16),
-            text(format!(
-                "Current size: {} × {} pixels",
-                current.0, current.1
-            ))
-            .size(12),
+            ui::styled(
+                format!("Current size: {} × {} pixels", current.0, current.1),
+                Type::BodyMedium
+            )
+            .style(style::on_surface_variant),
+            component::text_field(
+                "Width",
+                &self.size_input.0,
+                Backdrop::ContainerLow,
+                |input| input.on_input(Message::SizeWidth),
+            ),
+            component::text_field(
+                "Height",
+                &self.size_input.1,
+                Backdrop::ContainerLow,
+                |input| input.on_input(Message::SizeHeight),
+            ),
             row![
-                text("Width").size(13).width(60),
-                text_input("", &self.size_input.0)
-                    .on_input(Message::SizeWidth)
-                    .size(13)
+                ui::styled("Scale proportionally", Type::BodyLarge).width(Fill),
+                toggler(self.keep_proportions)
+                    .on_toggle(Message::KeepProportions)
+                    .size(28)
+                    .style(style::switch),
             ]
             .align_y(Center),
-            row![
-                text("Height").size(13).width(60),
-                text_input("", &self.size_input.1)
-                    .on_input(Message::SizeHeight)
-                    .size(13)
-            ]
-            .align_y(Center),
-            checkbox(self.keep_proportions)
-                .label("Scale proportionally")
-                .on_toggle(Message::KeepProportions),
-            button(text("Resize").size(13)).on_press(Message::Edit(Edit::ApplySize)),
+            ui::button(Kind::Filled, "Resize").on_press(Message::Edit(Edit::ApplySize)),
         ]
-        .spacing(10)
+        .spacing(16)
         .into()
     }
 
@@ -1711,72 +1773,106 @@ impl ImageWindow {
             .as_ref()
             .filter(|inspector| inspector.index == self.current)
         else {
-            return text("Loading…").size(13).into();
+            return ui::styled("Loading…", Type::BodyMedium)
+                .style(style::on_surface_variant)
+                .into();
         };
-        let mut content = column![text("Inspector").size(16)].spacing(8);
+        let mut content = column![].spacing(6);
         let mut section = "";
         for (group, label, value) in &inspector.details.fields {
             if group != section {
                 section = group;
-                content = content.push(text(group).size(13));
+                content = content.push(component::section(group));
             }
-            content = content
-                .push(row![text(label).size(12).width(110), text(value).size(12)].spacing(6));
+            content = content.push(
+                row![
+                    ui::styled(label, Type::BodySmall)
+                        .style(style::on_surface_variant)
+                        .width(104),
+                    ui::styled(value, Type::BodyMedium).width(Fill),
+                ]
+                .spacing(8),
+            );
         }
         if inspector.details.fields.is_empty() {
-            content = content.push(text("No camera information.").size(12));
+            content = content.push(
+                ui::styled("No camera information.", Type::BodyMedium)
+                    .style(style::on_surface_variant),
+            );
         }
-        content = content
-            .push(rule::horizontal(1))
-            .push(text("Location").size(13));
+        content = content.push(component::section("Location"));
         content = match inspector.details.location {
             Some((latitude, longitude)) => content
-                .push(text(format!("{latitude:.5}, {longitude:.5}")).size(12))
                 .push(
-                    button(text("Remove Location Info").size(13)).on_press(Message::RemoveLocation),
+                    row![
+                        icon::icon(Icon::LocationOn, 20).style(style::on_surface_variant),
+                        ui::styled(format!("{latitude:.5}, {longitude:.5}"), Type::BodyMedium),
+                    ]
+                    .spacing(8)
+                    .align_y(Center),
+                )
+                .push(
+                    ui::with_icon(Kind::Outlined, Icon::LocationOff, "Remove Location Info")
+                        .on_press(Message::RemoveLocation),
                 ),
-            None => content.push(text("No location information.").size(12)),
+            None => content.push(
+                ui::styled("No location information.", Type::BodyMedium)
+                    .style(style::on_surface_variant),
+            ),
         };
         content = content
-            .push(rule::horizontal(1))
-            .push(text("Keywords (comma separated)").size(13))
+            .push(component::section("Keywords and Description"))
+            .push(component::text_field(
+                "Keywords, separated by commas",
+                &inspector.keywords,
+                Backdrop::ContainerLow,
+                |input| input.on_input(Message::KeywordsChanged),
+            ))
+            .push(component::text_field(
+                "Description",
+                &inspector.description,
+                Backdrop::ContainerLow,
+                |input| input.on_input(Message::DescriptionChanged),
+            ))
             .push(
-                text_input("", &inspector.keywords)
-                    .on_input(Message::KeywordsChanged)
-                    .size(12),
-            )
-            .push(text("Description").size(13))
-            .push(
-                text_input("", &inspector.description)
-                    .on_input(Message::DescriptionChanged)
-                    .size(12),
-            )
-            .push(
-                button(text("Save Keywords and Description").size(13))
-                    .on_press_maybe(inspector.writable_xmp.then_some(Message::SaveMetadata)),
+                container(
+                    ui::button(Kind::Tonal, "Save")
+                        .on_press_maybe(inspector.writable_xmp.then_some(Message::SaveMetadata)),
+                )
+                .padding(Padding {
+                    top: 4.0,
+                    ..Padding::ZERO
+                }),
             );
         if !inspector.writable_xmp {
-            content =
-                content.push(text("Keywords can be saved in JPEG, PNG and WebP files.").size(11));
+            content = content.push(
+                ui::styled(
+                    "Keywords can be saved in JPEG, PNG and WebP files.",
+                    Type::BodySmall,
+                )
+                .style(style::on_surface_variant),
+            );
         }
-        content = content
-            .push(rule::horizontal(1))
-            .push(text("Revert To").size(13));
+        content = content.push(component::section("Revert To"));
         if inspector.versions.is_empty() {
-            content = content.push(text("No earlier versions.").size(12));
+            content = content.push(
+                ui::styled("No earlier versions.", Type::BodyMedium)
+                    .style(style::on_surface_variant),
+            );
         }
         for version in &inspector.versions {
             content = content.push(
                 row![
-                    text(format!(
-                        "{}, {}",
-                        versions::describe_age(version.saved_at),
-                        format_bytes(version.size)
-                    ))
-                    .size(12)
+                    icon::icon(Icon::History, 20).style(style::on_surface_variant),
+                    column![
+                        ui::styled(versions::describe_age(version.saved_at), Type::BodyMedium),
+                        ui::styled(format_bytes(version.size), Type::BodySmall)
+                            .style(style::on_surface_variant),
+                    ]
                     .width(Fill),
-                    button(text("Revert").size(12)).on_press(Message::Revert(version.clone())),
+                    ui::button(Kind::Text, "Revert").on_press(Message::Revert(version.clone())),
                 ]
+                .spacing(12)
                 .align_y(Center),
             );
         }
@@ -1784,47 +1880,58 @@ impl ImageWindow {
     }
 
     fn sidebar_view(&self) -> Element<'_, Message> {
+        let side = self.sidebar_width.value - SIDEBAR_THUMBNAIL_MARGIN;
         let entries = self.items.iter().enumerate().map(|(index, item)| {
+            // Fit the thumbnail in a square, so the ring hugs the image.
+            let (width, height) = match item.size {
+                Some((width, height)) if width > 0 && height > 0 => {
+                    let scale = side / width.max(height) as f32;
+                    (width as f32 * scale, height as f32 * scale)
+                }
+                _ => (side, side),
+            };
             let picture: Element<'_, Message> = match &item.thumbnail {
                 Some(handle) => image(handle.clone())
-                    .width(SIDEBAR_THUMBNAIL)
-                    .height(SIDEBAR_THUMBNAIL)
+                    .width(width)
+                    .height(height)
+                    .border_radius(style::THUMBNAIL_RADIUS)
                     .into(),
                 None => container(space::horizontal())
-                    .width(SIDEBAR_THUMBNAIL)
-                    .height(SIDEBAR_THUMBNAIL)
+                    .width(width)
+                    .height(height)
                     .into(),
             };
             let selected = index == self.current;
             let framed = container(picture)
-                .padding(3)
-                .style(move |theme: &iced::Theme| {
-                    let color = if selected {
-                        theme.palette().primary
-                    } else {
-                        Color::TRANSPARENT
-                    };
-                    container::Style::default().border(iced::Border {
-                        color,
-                        width: 2.0,
-                        radius: 3.0.into(),
-                    })
-                });
+                .padding(style::THUMBNAIL_RING)
+                .style(move |theme: &iced::Theme| style::thumbnail(theme, selected));
             let name = item
                 .path
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
+            let label = ui::styled(name, Type::LabelMedium).wrapping(text::Wrapping::None);
+            let label = if selected {
+                label.style(style::primary_text)
+            } else {
+                label.style(style::on_surface_variant)
+            };
+            // Every entry takes the same square, which scrolling relies on;
+            // the image sits at its bottom, just above the name.
+            let framed = container(framed)
+                .center_x(side + 2.0 * style::THUMBNAIL_RING)
+                .align_bottom(side + 2.0 * style::THUMBNAIL_RING);
             mouse_area(
-                column![framed, text(name).size(11)]
-                    .spacing(2)
+                column![framed, label]
+                    .spacing(4)
                     .align_x(Center)
                     .width(Length::Fill),
             )
             .on_press(Message::Select(index))
+            .interaction(iced::mouse::Interaction::Pointer)
             .into()
         });
-        scroll(column(entries).spacing(10).padding(8).width(Fill))
+        component::scroll(column(entries).spacing(12).padding(12).width(Fill))
             .id(self.sidebar_id.clone())
             .height(Fill)
             .into()

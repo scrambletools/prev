@@ -5,15 +5,17 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use iced::keyboard::{self, Key, Modifiers};
-use iced::widget::{button, center, checkbox, column, container, radio, rule, text};
+use iced::widget::{column, container, row, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
-use iced::{Border, Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
+use iced::{Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
 use prev::filetype::{self, FileKind};
 use prev::image::window::{self as image_window, ImageWindow, Source};
 use prev::markdown::{self, MarkdownWindow};
 use prev::pdf::window::{self as pdf_window, Effect, PdfWindow};
 use prev::shortcuts::{self, Action};
-use prev::{dialog, omarchy};
+use prev::ui::button::{self, Kind};
+use prev::ui::{Icon, Type, component, icon, style};
+use prev::{dialog, omarchy, portal, ui};
 use prev_store::settings::{self, Appearance, Settings};
 use raw_window_handle::RawWindowHandle;
 use smithay_clipboard::dnd::DragEvent;
@@ -28,8 +30,9 @@ pub struct Prev {
     settings_path: Option<PathBuf>,
     settings_error: Option<String>,
     omarchy_dir: Option<PathBuf>,
-    omarchy: Option<(omarchy::Mode, Theme)>,
+    omarchy: Option<omarchy::Palette>,
     system_mode: iced::theme::Mode,
+    theme: Theme,
 }
 
 struct Window {
@@ -72,6 +75,8 @@ pub enum Message {
     DialogFinished(window::Id, Result<Vec<PathBuf>, String>),
     AppearanceSelected(Appearance),
     OmarchyPaletteToggled(bool),
+    DismissNotice(window::Id),
+    AnimationsEnabled(Option<bool>),
 }
 
 impl Prev {
@@ -90,22 +95,33 @@ impl Prev {
             omarchy_dir,
             omarchy: None,
             system_mode: iced::theme::Mode::None,
+            theme: Theme::Light,
         };
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
         let system = iced::system::theme().map(Message::SystemTheme);
-        (prev, Task::batch([task, system]))
+        let motion = Task::perform(portal::animations_enabled(), Message::AnimationsEnabled);
+        (prev, Task::batch([task, system, motion]))
     }
 
     fn reload_omarchy(&mut self) {
-        self.omarchy = self
-            .omarchy_dir
-            .as_deref()
-            .and_then(omarchy::load)
-            .map(|palette| {
-                let theme = Theme::custom(palette.name.clone(), iced_palette(&palette));
-                (palette.mode, theme)
-            });
+        self.omarchy = self.omarchy_dir.as_deref().and_then(omarchy::load);
+        self.refresh_theme();
+    }
+
+    /// Rebuilds the M3 scheme after a setting, the system mode or the
+    /// Omarchy theme changed.
+    fn refresh_theme(&mut self) {
+        let (seed, dark) = theme_choice(
+            &self.settings,
+            self.omarchy.as_ref(),
+            self.system_mode == iced::theme::Mode::Dark,
+        );
+        let name = match (&self.omarchy, self.settings.omarchy_palette) {
+            (Some(palette), true) => format!("prev ({})", palette.name),
+            _ => "prev".to_owned(),
+        };
+        self.theme = ui::scheme::theme(name, seed, dark);
     }
 
     /// Opens a window per path; an empty list opens a start window.
@@ -337,6 +353,7 @@ impl Prev {
             }
             Message::SystemTheme(mode) => {
                 self.system_mode = mode;
+                self.refresh_theme();
                 Task::none()
             }
             Message::Frame(now) => {
@@ -358,6 +375,15 @@ impl Prev {
                     iced::exit()
                 } else {
                     Task::none()
+                }
+            }
+            Message::Key(_, Key::Named(keyboard::key::Named::Tab), modifiers)
+                if !modifiers.command() && !modifiers.alt() =>
+            {
+                if modifiers.shift() {
+                    iced::widget::operation::focus_previous()
+                } else {
+                    iced::widget::operation::focus_next()
                 }
             }
             Message::Key(id, key, modifiers) => {
@@ -393,11 +419,23 @@ impl Prev {
             Message::AppearanceSelected(appearance) => {
                 self.settings.appearance = appearance;
                 self.save_settings();
+                self.refresh_theme();
+                Task::none()
+            }
+            Message::AnimationsEnabled(enabled) => {
+                ui::motion::set_reduced(enabled == Some(false));
+                Task::none()
+            }
+            Message::DismissNotice(id) => {
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.notice = None;
+                }
                 Task::none()
             }
             Message::OmarchyPaletteToggled(enabled) => {
                 self.settings.omarchy_palette = enabled;
                 self.save_settings();
+                self.refresh_theme();
                 Task::none()
             }
         }
@@ -510,15 +548,7 @@ impl Prev {
     }
 
     pub fn theme(&self, _id: window::Id) -> Option<Theme> {
-        resolve_theme(&self.settings, self.omarchy.as_ref())
-    }
-
-    /// The theme in use, with the system's light or dark choice filled in.
-    fn resolved_theme(&self, id: window::Id) -> Theme {
-        self.theme(id).unwrap_or(match self.system_mode {
-            iced::theme::Mode::Dark => Theme::Dark,
-            _ => Theme::Light,
-        })
+        Some(self.theme.clone())
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -566,17 +596,14 @@ impl Prev {
             Content::Document(Document {
                 markdown: Some(document),
                 ..
-            }) => {
-                let theme = self.resolved_theme(id);
-                document
-                    .view(&theme)
-                    .map(move |message| Message::Markdown(id, message))
-            }
+            }) => document
+                .view(&self.theme)
+                .map(move |message| Message::Markdown(id, message)),
             Content::Document(document) => document_view(document),
             Content::Settings => self.settings_view(),
         };
         let body = match &window.notice {
-            Some(notice) => column![body, container(text(notice).size(13)).padding(8)].into(),
+            Some(notice) => component::snackbar(body, notice, Message::DismissNotice(id)),
             None => body,
         };
         if window.drag_hover {
@@ -587,61 +614,73 @@ impl Prev {
     }
 
     fn settings_view(&self) -> Element<'_, Message> {
-        let selected = Some(self.settings.appearance);
-        let appearance = column![
-            text("Appearance").size(16),
-            radio(
-                "Follow system",
-                Appearance::System,
-                selected,
-                Message::AppearanceSelected
-            ),
-            radio(
-                "Light",
-                Appearance::Light,
-                selected,
-                Message::AppearanceSelected
-            ),
-            radio(
-                "Dark",
-                Appearance::Dark,
-                selected,
-                Message::AppearanceSelected
-            ),
-        ]
-        .spacing(8);
-        let omarchy_label = match &self.omarchy {
-            Some((_, theme)) => format!("Use Omarchy theme colors ({theme})"),
-            None => "Use Omarchy theme colors (no Omarchy theme active)".to_owned(),
+        let appearance = self.settings.appearance;
+        let choice = |glyph: Icon, label: &'static str, value: Appearance| {
+            ui::with_icon(Kind::Tonal, glyph, label)
+                .selected(appearance == value)
+                .on_press(Message::AppearanceSelected(value))
+        };
+        let omarchy_note = match &self.omarchy {
+            Some(palette) => format!("Colors are built from the accent of “{}”.", palette.name),
+            None => "No Omarchy theme is active.".to_owned(),
         };
         let mut content = column![
-            appearance,
-            rule::horizontal(1),
-            checkbox(self.settings.omarchy_palette)
-                .label(omarchy_label)
-                .on_toggle(Message::OmarchyPaletteToggled),
+            ui::styled("Settings", Type::HeadlineSmall),
+            component::section("Appearance"),
+            component::connected(vec![
+                choice(Icon::Settings, "System", Appearance::System),
+                choice(Icon::LightMode, "Light", Appearance::Light),
+                choice(Icon::DarkMode, "Dark", Appearance::Dark),
+            ]),
+            component::section("Colors"),
+            row![
+                column![
+                    ui::styled("Use Omarchy accent color", Type::BodyLarge),
+                    ui::styled(omarchy_note, Type::BodyMedium).style(style::on_surface_variant),
+                ]
+                .spacing(2)
+                .width(Fill),
+                toggler(self.settings.omarchy_palette)
+                    .on_toggle(Message::OmarchyPaletteToggled)
+                    .size(28)
+                    .style(style::switch),
+            ]
+            .spacing(16)
+            .align_y(Center),
         ]
-        .spacing(16)
+        .spacing(12)
         .padding(24);
         if let Some(error) = &self.settings_error {
-            content = content.push(text(error).size(13));
+            content = content.push(ui::styled(error, Type::BodyMedium).style(style::error_text));
         }
-        content.into()
+        container(content)
+            .width(Fill)
+            .height(Fill)
+            .style(style::surface)
+            .into()
     }
 }
 
-/// `None` follows the system light or dark preference. The Omarchy palette
-/// wins unless the user forced the opposite mode.
-fn resolve_theme(settings: &Settings, omarchy: Option<&(omarchy::Mode, Theme)>) -> Option<Theme> {
+/// The seed color and whether the scheme is dark. The Omarchy accent is
+/// the seed when enabled; in "Follow system" the Omarchy theme's own mode
+/// wins over the system's.
+fn theme_choice(
+    settings: &Settings,
+    omarchy: Option<&omarchy::Palette>,
+    system_dark: bool,
+) -> (Color, bool) {
     let omarchy = omarchy.filter(|_| settings.omarchy_palette);
-    match (settings.appearance, omarchy) {
-        (Appearance::System, Some((_, theme))) => Some(theme.clone()),
-        (Appearance::System, None) => None,
-        (Appearance::Light, Some((omarchy::Mode::Light, theme))) => Some(theme.clone()),
-        (Appearance::Dark, Some((omarchy::Mode::Dark, theme))) => Some(theme.clone()),
-        (Appearance::Light, _) => Some(Theme::Light),
-        (Appearance::Dark, _) => Some(Theme::Dark),
-    }
+    let dark = match (settings.appearance, omarchy) {
+        (Appearance::System, Some(palette)) => palette.mode == omarchy::Mode::Dark,
+        (Appearance::System, None) => system_dark,
+        (Appearance::Light, _) => false,
+        (Appearance::Dark, _) => true,
+    };
+    let seed = omarchy.map_or(ui::scheme::PREV_SEED, |palette| {
+        let accent = palette.accent;
+        Color::from_rgb8(accent.red, accent.green, accent.blue)
+    });
+    (seed, dark)
 }
 
 fn start_view(id: window::Id) -> Element<'static, Message> {
@@ -649,53 +688,59 @@ fn start_view(id: window::Id) -> Element<'static, Message> {
         .iter()
         .filter(|(action, _)| matches!(action, Action::Open | Action::Settings))
         .map(|(action, label)| {
-            text(format!("{label}  {}", action_name(*action)))
-                .size(13)
-                .into()
+            row![
+                ui::styled(action_name(*action), Type::BodyMedium).style(style::on_surface_variant),
+                ui::styled(*label, Type::LabelLarge),
+            ]
+            .spacing(8)
+            .into()
         });
-    center(
+    container(
         column![
-            text("prev").size(32),
-            text("Open or drop a PDF, image, SVG or Markdown file."),
-            button("Open…").on_press(Message::Perform(id, Action::Open)),
-            column(hints).spacing(4).align_x(Center),
+            icon::filled(Icon::Draft, 64).style(style::primary_text),
+            ui::styled("prev", Type::DisplaySmall),
+            ui::styled(
+                "Open or drop a PDF, image, SVG or Markdown file.",
+                Type::BodyLarge
+            )
+            .style(style::on_surface_variant),
+            ui::with_icon(Kind::Filled, Icon::FolderOpen, "Open…")
+                .size(button::Size::Medium)
+                .on_press(Message::Perform(id, Action::Open)),
+            row(hints).spacing(24),
         ]
         .spacing(16)
         .align_x(Center),
     )
+    .center(Fill)
+    .style(style::surface)
     .into()
 }
 
 fn document_view(document: &Document) -> Element<'_, Message> {
     let status = match &document.kind {
-        Ok(Some(kind)) => format!("{} — viewer not built yet", kind_name(*kind)),
+        Ok(Some(kind)) => format!("{}: this viewer is not built yet.", kind_name(*kind)),
         Ok(None) => "prev can't open this kind of file.".to_owned(),
         Err(error) => format!("prev can't read this file: {error}"),
     };
-    center(
-        column![
-            text(document.path.display().to_string()).size(18),
-            text(status)
-        ]
-        .spacing(12)
-        .align_x(Center),
-    )
-    .into()
+    let name = document.path.file_name().map_or_else(
+        || document.path.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    );
+    container(component::empty_state(Icon::BrokenImage, name, status))
+        .style(style::surface)
+        .into()
 }
 
 fn drop_highlight(body: Element<'_, Message>) -> Element<'_, Message> {
-    container(body)
-        .width(Fill)
-        .height(Fill)
-        .style(|theme: &Theme| container::Style {
-            border: Border {
-                color: theme.palette().primary,
-                width: 3.0,
-                radius: 6.0.into(),
-            },
-            ..container::Style::default()
-        })
-        .into()
+    stack![
+        body,
+        container(space())
+            .width(Fill)
+            .height(Fill)
+            .style(style::drop_target)
+    ]
+    .into()
 }
 
 /// The window's `wl_surface` pointer; `None` off Wayland.
@@ -723,80 +768,73 @@ fn kind_name(kind: FileKind) -> String {
     }
 }
 
-fn iced_palette(palette: &omarchy::Palette) -> iced::theme::Palette {
-    let color = |rgb: omarchy::Rgb| Color::from_rgb8(rgb.red, rgb.green, rgb.blue);
-    iced::theme::Palette {
-        background: color(palette.background),
-        text: color(palette.foreground),
-        primary: color(palette.accent),
-        success: color(palette.success),
-        warning: color(palette.warning),
-        danger: color(palette.danger),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn omarchy_dark() -> (omarchy::Mode, Theme) {
-        (
-            omarchy::Mode::Dark,
-            Theme::custom("hackerman", Theme::Dark.palette()),
-        )
+    fn omarchy_dark() -> omarchy::Palette {
+        let rgb = |red, green, blue| omarchy::Rgb { red, green, blue };
+        omarchy::Palette {
+            name: "hackerman".into(),
+            mode: omarchy::Mode::Dark,
+            background: rgb(0, 0, 0),
+            foreground: rgb(255, 255, 255),
+            accent: rgb(0x82, 0xfb, 0x9c),
+            success: rgb(0, 255, 0),
+            warning: rgb(255, 255, 0),
+            danger: rgb(255, 0, 0),
+        }
     }
 
-    fn resolved_name(
+    fn choice(
         appearance: Appearance,
         omarchy_palette: bool,
-        omarchy: Option<&(omarchy::Mode, Theme)>,
-    ) -> Option<String> {
-        resolve_theme(
+        omarchy: Option<&omarchy::Palette>,
+        system_dark: bool,
+    ) -> (Color, bool) {
+        theme_choice(
             &Settings {
                 appearance,
                 omarchy_palette,
             },
             omarchy,
+            system_dark,
         )
-        .map(|theme| theme.to_string())
     }
 
     #[test]
     fn follows_system_without_omarchy() {
-        assert_eq!(resolved_name(Appearance::System, true, None), None);
         assert_eq!(
-            resolved_name(Appearance::Light, true, None),
-            Some(Theme::Light.to_string())
+            choice(Appearance::System, true, None, true),
+            (ui::scheme::PREV_SEED, true)
+        );
+        assert_eq!(
+            choice(Appearance::Light, true, None, true),
+            (ui::scheme::PREV_SEED, false)
         );
     }
 
     #[test]
-    fn omarchy_palette_applies_when_mode_matches() {
+    fn omarchy_accent_seeds_the_scheme() {
         let omarchy = omarchy_dark();
+        let accent = Color::from_rgb8(0x82, 0xfb, 0x9c);
         assert_eq!(
-            resolved_name(Appearance::System, true, Some(&omarchy)).as_deref(),
-            Some("hackerman")
+            choice(Appearance::System, true, Some(&omarchy), false),
+            (accent, true),
+            "the Omarchy mode wins when following the system"
         );
         assert_eq!(
-            resolved_name(Appearance::Dark, true, Some(&omarchy)).as_deref(),
-            Some("hackerman")
-        );
-        assert_eq!(
-            resolved_name(Appearance::Light, true, Some(&omarchy)),
-            Some(Theme::Light.to_string())
+            choice(Appearance::Light, true, Some(&omarchy), true),
+            (accent, false)
         );
     }
 
     #[test]
-    fn omarchy_palette_can_be_turned_off() {
+    fn omarchy_accent_can_be_turned_off() {
         let omarchy = omarchy_dark();
         assert_eq!(
-            resolved_name(Appearance::System, false, Some(&omarchy)),
-            None
-        );
-        assert_eq!(
-            resolved_name(Appearance::Dark, false, Some(&omarchy)),
-            Some(Theme::Dark.to_string())
+            choice(Appearance::System, false, Some(&omarchy), false),
+            (ui::scheme::PREV_SEED, false)
         );
     }
 }

@@ -128,6 +128,14 @@ the same windows, tools and panels, drawn as M3 components.
   allows; compact density for toolbars as M3 permits for desktop.
 - File dialogs, print dialogs and the window frame stay native (portal
   and compositor); M3 applies inside prev's windows only.
+- **As built (M4.1):** components live in `crates/prev/src/ui`. Left
+  sidebars resize by dragging (PDF 248 to 480 px, images 140 to 400 px)
+  and their thumbnails follow the width. Desktop density changes from the
+  spec: 56 px toolbar instead of 64, 32 px slider handles instead of 44.
+  Text field labels float once there is text rather than on focus. Sheets,
+  dialogs and snackbars spring in but do not animate out, and nothing fades,
+  as iced cannot draw a layer at partial opacity. Tab focus moves in every
+  window of the process at once.
 
 ### Out of scope
 

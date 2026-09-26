@@ -11,8 +11,7 @@ use iced::advanced::{Clipboard, Shell};
 use iced::keyboard::{self, Modifiers};
 use iced::mouse::{self, Cursor, ScrollDelta};
 use iced::{
-    Background, Border, Color, Element, Event, Length, Rectangle, Shadow, Size, Theme, Vector,
-    window,
+    Background, Border, Color, Element, Event, Length, Rectangle, Shadow, Size, Theme, window,
 };
 
 use super::layout::{Area, visible_tiles};
@@ -239,11 +238,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             let shadow = if self.backdrop.is_some() {
                 Shadow::default()
             } else {
-                Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                    offset: Vector::new(0.0, 1.0),
-                    blur_radius: 6.0,
-                }
+                crate::ui::elevation::shadow(&crate::ui::Scheme::of(theme), 2)
             };
             renderer.fill_quad(
                 Quad {

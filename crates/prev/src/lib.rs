@@ -9,3 +9,4 @@ pub mod omarchy;
 pub mod pdf;
 pub mod portal;
 pub mod shortcuts;
+pub mod ui;
