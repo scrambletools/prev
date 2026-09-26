@@ -1,5 +1,6 @@
 //! Saved versions of documents, for "Revert To". Each document gets a
-//! folder under `$XDG_DATA_HOME/prev/versions/`, named by a hash of its
+//! folder in the version history folder the settings name
+//! (`$XDG_DATA_HOME/prev/versions/` by default), named by a hash of its
 //! path, holding copies of earlier contents and an index.
 
 use std::io;
@@ -51,7 +52,7 @@ impl VersionStore {
     }
 
     pub fn default_location() -> Option<Self> {
-        paths::data_dir().map(|dir| Self::new(dir.join("versions")))
+        paths::locations().map(|locations| Self::new(locations.versions))
     }
 
     fn folder(&self, document: &Path) -> PathBuf {

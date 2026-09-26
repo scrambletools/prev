@@ -1,5 +1,6 @@
-//! Per-document page bookmarks, in `$XDG_DATA_HOME/prev/bookmarks.toml`,
-//! keyed by the document's canonical path.
+//! Per-document page bookmarks, keyed by the document's canonical path,
+//! in the file the settings name (`$XDG_DATA_HOME/prev/bookmarks.toml` by
+//! default).
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -7,8 +8,6 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::{atomic, paths};
-
-const FILE_NAME: &str = "bookmarks.toml";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bookmark {
@@ -30,7 +29,7 @@ pub struct BookmarkStore {
 }
 
 pub fn default_path() -> Option<PathBuf> {
-    paths::data_dir().map(|dir| dir.join(FILE_NAME))
+    paths::locations().map(|locations| locations.bookmarks)
 }
 
 impl BookmarkStore {

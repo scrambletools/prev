@@ -102,6 +102,13 @@ For a walkthrough of every feature with more screenshots, see
   - Colors are generated from the active Omarchy theme's accent, or from
     prev's own blue, in light or dark.
   - In narrow windows, toolbar groups that don't fit move into a More menu.
+  - Optionally, the toolbar floats over the document as an M3 floating
+    toolbar, with the markup bar along the bottom, and hides while the
+    pointer is outside the window.
+- **Settings** (the gear button or Ctrl+,): appearance, Omarchy colors,
+  the floating toolbar, animations, corner radius, and where signatures,
+  version history and bookmarks are kept. They are saved in
+  `~/.config/prev.toml`.
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
@@ -141,9 +148,11 @@ launcher and "Open With":
 ./scripts/install.sh
 ```
 
-This puts the binary in `~/.local/bin`. Builds made with plain `cargo build`
-or `cargo run` are development builds: they keep their own settings and
-history under `prev-dev`, show "(dev)" in window titles, and run alongside
+This puts the binary in `~/.local/bin`. Settings are in
+`~/.config/prev.toml`, which also says where signatures, version history
+and bookmarks are kept. Builds made with plain `cargo build` or
+`cargo run` are development builds: they keep their own settings
+(`~/.config/prev-dev.toml`) and data under `prev-dev`, show "(dev)" in window titles, and run alongside
 the installed copy without handing files to it.
 
 ## Keyboard shortcuts

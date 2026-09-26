@@ -166,13 +166,62 @@ changes on disk.
 
 There is no Save command: edits to PDFs and images are written in place
 a moment after you stop, and when a window closes. Before the first
-write, prev keeps the original as a version under
-`~/.local/share/prev/versions`. For images, the inspector's Revert To
+write, prev keeps the original as a version in the version history
+folder (`~/.local/share/prev/versions` unless the settings say
+otherwise). For images, the inspector's Revert To
 list puts an earlier version back; Revert To for PDFs is still to come.
+
+## Settings
+
+![The Settings dialog](screenshots/settings.png)
+
+Settings opens over the current window, from the gear button at the end
+of the toolbar or Ctrl+,. Close it with its close button, Escape or a
+click outside it. Changes apply to every window at once:
+
+- **Appearance**: follow the system's light or dark setting, or choose
+  one.
+- **Use Omarchy accent color**: on Omarchy, colors come from the active
+  theme's accent; off, prev uses its own blue.
+- **Hide the toolbar when the pointer leaves**: see below.
+- **Animations**: off, bars, panels and dialogs appear at once. prev also
+  stops moving things when the system asks for reduced motion.
+- **Corner radius**: rounds dialogs and the floating toolbar, from
+  square corners at 0 to a full pill at 32; the default, 28, is
+  Material 3's.
+- **Storage**: where prev keeps signatures, version history and
+  bookmarks.
+
+### The floating toolbar
+
+![The toolbar and markup bar floating over the document](screenshots/floating-toolbar.png)
+
+With "Hide the toolbar when the pointer leaves" on (or the top-panel
+button at the end of the toolbar), the toolbar floats over the document
+as a rounded bar, and the markup bar floats along the bottom. They slide
+in while the pointer is over the window and go away when it leaves, so
+the whole window shows the page. Sidebars and panels stay clear of them.
+
+### Where files go
+
+Settings are kept in `~/.config/prev.toml`, which lists every setting,
+including where prev keeps your files:
+
+```toml
+signatures = "~/.local/share/prev/signatures"
+versions = "~/.local/share/prev/versions"
+bookmarks = "~/.local/share/prev/bookmarks.toml"
+```
+
+Change them in the Storage section: type a path (`~` works) and press
+Enter or Apply, or pick a folder with Choose. prev checks that the folder
+exists and can be written, uses the new place at once and saves it to
+the file. Files already at the old place stay there; move them over to
+keep using them. The paths are filled in when the file is first made and
+then stay as they are.
 
 ## Looks
 
 prev follows the system's light or dark setting and reduced motion
-setting. On Omarchy its colors come from the active theme's accent;
-Settings (Ctrl+,) switches to prev's own blue. In narrow windows, toolbar
-groups that don't fit move into a More menu.
+setting, and on Omarchy the active theme's accent. In narrow windows,
+toolbar groups that don't fit move into a More menu.

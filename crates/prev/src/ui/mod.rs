@@ -27,6 +27,20 @@ pub mod state_layer {
 
 /// The M3 corner radius scale.
 pub mod shape {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// Corner radius of dialogs and floating toolbars, from the settings;
+    /// M3's extra large by default.
+    static SURFACE: AtomicU32 = AtomicU32::new(EXTRA_LARGE.to_bits());
+
+    pub fn set_surface(radius: f32) {
+        SURFACE.store(radius.clamp(0.0, 32.0).to_bits(), Ordering::Relaxed);
+    }
+
+    pub fn surface() -> f32 {
+        f32::from_bits(SURFACE.load(Ordering::Relaxed))
+    }
+
     pub const EXTRA_SMALL: f32 = 4.0;
     pub const SMALL: f32 = 8.0;
     pub const MEDIUM: f32 = 12.0;

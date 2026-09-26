@@ -162,6 +162,10 @@ pub enum Edit {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    /// Turns floating, auto-hiding toolbars on or off; the app handles it.
+    ToggleFloatingBars,
+    /// Opens the settings window; the app handles it.
+    OpenSettings,
     Loaded(usize, Result<LoadedImage, String>),
     LevelReady(usize, u32, Option<Handle>),
     LevelAllocated(usize, u32, Option<Allocation>),
@@ -231,6 +235,8 @@ pub struct ImageWindow {
     sidebar_width: Width,
     /// The toolbar's "More" menu is open.
     overflow_open: bool,
+    /// Whether the pointer is over the window, for floating toolbars.
+    pointer_inside: bool,
     fit: Fit,
     view: (f32, f32, f32, f32),
     device_scale: f32,
@@ -369,6 +375,7 @@ impl ImageWindow {
             sidebar,
             sidebar_width: SIDEBAR_WIDTH,
             overflow_open: false,
+            pointer_inside: true,
             fit: Fit::Fit,
             view: (0.0, 0.0, 900.0, 700.0),
             device_scale: 1.0,
@@ -471,6 +478,7 @@ impl ImageWindow {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
             Message::Loaded(index, result) => {
                 let near = index.abs_diff(self.current) <= KEEP_AROUND;
                 let Some(item) = self.items.get_mut(index) else {
@@ -1420,6 +1428,10 @@ impl ImageWindow {
 
     // Views.
 
+    pub fn set_pointer_inside(&mut self, inside: bool) {
+        self.pointer_inside = inside;
+    }
+
     pub fn view(&self) -> Element<'_, Message> {
         let canvas: Element<'_, Message> = match &self.items[self.current].state {
             ItemState::Failed(error) => component::empty_state(
@@ -1452,23 +1464,29 @@ impl ImageWindow {
         let mut content = row![].height(Fill);
         if self.sidebar && self.items.len() > 1 {
             content = content
-                .push(ui::enter::from_left(
+                .push(below_bars(ui::enter::from_left(
                     container(self.sidebar_view())
                         .clip(true)
                         .width(self.sidebar_width.value)
                         .height(Fill)
                         .style(style::surface_container_low),
-                ))
-                .push(resize::handle(Message::SidebarResized));
+                )))
+                .push(below_bars(resize::handle(Message::SidebarResized).into()));
         }
         content = content.push(canvas);
         if let Some(panel) = self.panel {
-            content = content.push(self.panel_view(panel));
+            content = content.push(below_bars(self.panel_view(panel)));
         }
-        let page = container(column![self.toolbar(), content])
-            .width(Fill)
-            .height(Fill)
-            .style(style::surface);
+        let shown = self.pointer_inside || self.overflow_open || self.pending_export.is_some();
+        let page = container(component::window_bars(
+            self.toolbar(),
+            None,
+            content.into(),
+            shown,
+        ))
+        .width(Fill)
+        .height(Fill)
+        .style(style::surface);
         let page: Element<'_, Message> = match &self.notice {
             Some(notice) => component::snackbar(page, notice, Message::DismissNotice),
             None => page.into(),
@@ -1707,6 +1725,15 @@ impl ImageWindow {
             DIVIDER_WIDTH + tools(4.0) + 48.0 + 12.0,
             Some(4),
             true,
+        ));
+        slots.push((
+            component::group([
+                component::floating_bars_toggle(Message::ToggleFloatingBars),
+                component::tool(Icon::Settings, "Settings", Some(Message::OpenSettings)),
+            ]),
+            TOOL_WIDTH * 2.0 + 4.0,
+            None,
+            false,
         ));
         let widths: Vec<(f32, Option<u8>)> = slots
             .iter()
@@ -2034,4 +2061,9 @@ impl ImageWindow {
             .height(Fill)
             .into()
     }
+}
+
+/// Room above sidebars and panels for the toolbar when it floats.
+fn below_bars(element: Element<'_, Message>) -> Element<'_, Message> {
+    component::between_bars(element, component::floating_room(true), 0.0)
 }

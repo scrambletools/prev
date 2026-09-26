@@ -1,6 +1,7 @@
 //! The signature library: images of the user's signatures, kept for reuse
-//! in `$XDG_DATA_HOME/prev/signatures/`, one PNG each plus an index with
-//! their descriptions, in the order they were made.
+//! in the folder the settings name (`$XDG_DATA_HOME/prev/signatures/` by
+//! default), one PNG each plus an index with their descriptions, in the
+//! order they were made.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -38,7 +39,7 @@ impl SignatureStore {
     }
 
     pub fn default_location() -> Option<Self> {
-        paths::data_dir().map(|dir| Self::new(dir.join("signatures")))
+        paths::locations().map(|locations| Self::new(locations.signatures))
     }
 
     fn index(&self) -> Index {

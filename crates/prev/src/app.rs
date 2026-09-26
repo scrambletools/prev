@@ -5,15 +5,16 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use iced::keyboard::{self, Key, Modifiers};
-use iced::widget::{column, container, row, space, stack, text, toggler};
+use iced::widget::{column, container, mouse_area, opaque, row, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
-use iced::{Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
+use iced::{Center, Color, Element, Event, Fill, Length, Size, Subscription, Task, Theme, event};
 use prev::filetype::{self, FileKind};
 use prev::image::window::{self as image_window, ImageWindow, Source};
 use prev::markdown::{self, MarkdownWindow};
 use prev::pdf::window::{self as pdf_window, Effect, PdfWindow};
 use prev::shortcuts::{self, Action};
 use prev::ui::button::{self, Kind};
+use prev::ui::component::Backdrop;
 use prev::ui::{Icon, Type, component, icon, style};
 use prev::{dialog, omarchy, portal, ui};
 use prev_store::settings::{self, Appearance, Settings};
@@ -39,6 +40,90 @@ pub struct Prev {
     theme: Theme,
     /// Documents still being written after their windows closed.
     pending_saves: usize,
+    /// Whether the system allows animations (its reduced motion setting).
+    system_animations: bool,
+    /// Storage paths as typed in the settings dialog, before applying.
+    storage_drafts: [String; 3],
+    /// Why a typed or chosen path was refused, per storage row.
+    storage_errors: [Option<String>; 3],
+}
+
+/// The files and folders prev keeps, whose places the settings choose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Storage {
+    Signatures,
+    Versions,
+    Bookmarks,
+}
+
+impl Storage {
+    const ALL: [Storage; 3] = [Storage::Signatures, Storage::Versions, Storage::Bookmarks];
+
+    fn index(self) -> usize {
+        self as usize
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Storage::Signatures => "Signatures folder",
+            Storage::Versions => "Version history folder",
+            Storage::Bookmarks => "Bookmarks file",
+        }
+    }
+
+    fn path(self, settings: &Settings) -> &std::path::Path {
+        match self {
+            Storage::Signatures => &settings.signatures,
+            Storage::Versions => &settings.versions,
+            Storage::Bookmarks => &settings.bookmarks,
+        }
+    }
+}
+
+/// Whether prev can keep `storage` at `path`: a full path to an existing
+/// folder it can write in (for bookmarks, a file in one).
+fn check_storage(storage: Storage, path: &std::path::Path) -> Result<(), String> {
+    let shown = shown_path(path);
+    if !path.is_absolute() {
+        return Err("Use a full path, such as ~/Documents/prev.".to_owned());
+    }
+    let folder = match storage {
+        Storage::Bookmarks => {
+            if path.is_dir() {
+                return Err(format!("{shown} is a folder, not a file."));
+            }
+            path.parent().unwrap_or(path)
+        }
+        _ => path,
+    };
+    if !folder.exists() {
+        return Err(format!(
+            "There is no folder {}. Create it first, or choose one.",
+            shown_path(folder)
+        ));
+    }
+    if !folder.is_dir() {
+        return Err(format!("{} is a file, not a folder.", shown_path(folder)));
+    }
+    // Writing a file is the only sure test of permission.
+    let probe = folder.join(format!(".prev-write-test-{}", std::process::id()));
+    match std::fs::write(&probe, b"") {
+        Ok(()) => {
+            let _ = std::fs::remove_file(&probe);
+            Ok(())
+        }
+        Err(error) => Err(format!(
+            "prev can't write in {}: {error}.",
+            shown_path(folder)
+        )),
+    }
+}
+
+/// A path as the settings dialog shows it, with `~` for the home folder.
+fn shown_path(path: &std::path::Path) -> String {
+    prev_store::paths::abbreviate_home(path)
+        .to_string_lossy()
+        .into_owned()
 }
 
 struct Window {
@@ -48,12 +133,13 @@ struct Window {
     /// The `wl_surface` pointer, used to match drag events to windows.
     surface: Option<usize>,
     drag_hover: bool,
+    /// The settings dialog, shown over this window.
+    settings_open: bool,
 }
 
 enum Content {
     Start,
     Document(Document),
-    Settings,
 }
 
 struct Document {
@@ -79,6 +165,17 @@ pub enum Message {
     Key(window::Id, Key, Modifiers),
     Modifiers(window::Id, Modifiers),
     MouseReleased(window::Id),
+    /// The pointer entered (`true`) or left a window.
+    Pointer(window::Id, bool),
+    CloseSettings(window::Id),
+    CornerRadius(f32),
+    AnimationsToggled(bool),
+    CornerRadiusSaved,
+    StorageDraft(Storage, String),
+    StorageApply(Storage),
+    StorageChoose(Storage),
+    StorageChosen(Storage, Result<Option<PathBuf>, String>),
+    AutoHideToolbarToggled(bool),
     Perform(window::Id, Action),
     DialogFinished(window::Id, Result<Vec<PathBuf>, String>),
     AppearanceSelected(Appearance),
@@ -91,11 +188,17 @@ pub enum Message {
 impl Prev {
     pub fn boot(paths: Vec<PathBuf>, omarchy_dir: Option<PathBuf>) -> (Self, Task<Message>) {
         let settings_path = settings::default_path();
-        let (settings, settings_error) = match settings_path.as_deref().map(Settings::load_from) {
+        let legacy = settings::legacy_path();
+        let loaded = settings_path
+            .as_deref()
+            .map(|path| Settings::load_or_create(path, legacy.as_deref()));
+        let (settings, settings_error) = match loaded {
             Some(Ok(settings)) => (settings, None),
             Some(Err(error)) => (Settings::default(), Some(error.to_string())),
             None => (Settings::default(), None),
         };
+        // Signatures, versions and bookmarks live where the settings say.
+        prev_store::paths::set_locations(settings.locations());
         let mut prev = Self {
             windows: BTreeMap::new(),
             settings,
@@ -106,7 +209,13 @@ impl Prev {
             system_mode: iced::theme::Mode::None,
             theme: Theme::Light,
             pending_saves: 0,
+            storage_drafts: Default::default(),
+            storage_errors: Default::default(),
+            system_animations: true,
         };
+        ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
+        ui::shape::set_surface(prev.settings.corner_radius);
+        prev.apply_motion();
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
         let system = iced::system::theme().map(Message::SystemTheme);
@@ -303,7 +412,6 @@ impl Prev {
 
     fn open_window_with_id(&mut self, content: Content) -> (window::Id, Task<Message>) {
         let size = match content {
-            Content::Settings => Size::new(520.0, 360.0),
             Content::Start => Size::new(640.0, 480.0),
             Content::Document(_) => Size::new(900.0, 700.0),
         };
@@ -323,6 +431,7 @@ impl Prev {
                 notice: None,
                 surface: None,
                 drag_hover: false,
+                settings_open: false,
             },
         );
         (id, opened.map(Message::WindowOpened))
@@ -345,6 +454,15 @@ impl Prev {
                 self.with_pdf(id, |pdf| pdf.set_device_scale(scale)),
                 self.with_images(id, |images| images.set_device_scale(scale)),
             ]),
+            Message::Pdf(_, pdf_window::Message::ToggleFloatingBars)
+            | Message::Image(_, image_window::Message::ToggleFloatingBars) => {
+                let enabled = !self.settings.auto_hide_toolbar;
+                self.update(Message::AutoHideToolbarToggled(enabled))
+            }
+            Message::Pdf(id, pdf_window::Message::OpenSettings)
+            | Message::Image(id, image_window::Message::OpenSettings) => {
+                self.perform(id, Action::Settings)
+            }
             Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
             Message::Image(id, message) => self.with_images(id, |images| images.update(message)),
             Message::Markdown(id, message) => {
@@ -411,6 +529,14 @@ impl Prev {
             }
             Message::Key(id, key, modifiers) => {
                 let action = shortcuts::lookup(&key, modifiers);
+                if action == Some(Action::Escape)
+                    && self
+                        .windows
+                        .get(&id)
+                        .is_some_and(|window| window.settings_open)
+                {
+                    return self.update(Message::CloseSettings(id));
+                }
                 let handled = self.pdf_mut(id).and_then(|pdf| match action {
                     Some(action) => pdf.shortcut(action),
                     None => pdf.key(&key, modifiers),
@@ -433,6 +559,87 @@ impl Prev {
                 if let Some(pdf) = self.pdf_mut(id) {
                     pdf.set_modifiers(modifiers);
                 }
+                Task::none()
+            }
+            Message::StorageDraft(storage, text) => {
+                self.storage_drafts[storage.index()] = text;
+                self.storage_errors[storage.index()] = None;
+                Task::none()
+            }
+            Message::StorageApply(storage) => {
+                let typed = PathBuf::from(self.storage_drafts[storage.index()].trim());
+                self.set_storage(storage, typed);
+                Task::none()
+            }
+            Message::StorageChoose(storage) => {
+                let path = storage.path(&self.settings);
+                let current = match storage {
+                    Storage::Bookmarks => path.parent().map(std::path::Path::to_path_buf),
+                    _ => Some(path.to_path_buf()),
+                }
+                .filter(|folder| folder.is_dir());
+                Task::perform(
+                    dialog::choose_folder(
+                        format!("Choose the {}", storage.label().to_lowercase()),
+                        current,
+                    ),
+                    move |result| Message::StorageChosen(storage, result),
+                )
+            }
+            Message::StorageChosen(storage, Ok(Some(folder))) => {
+                let path = match storage {
+                    // A folder for the bookmarks file keeps its name.
+                    Storage::Bookmarks => folder.join(
+                        self.settings
+                            .bookmarks
+                            .file_name()
+                            .unwrap_or(std::ffi::OsStr::new("bookmarks.toml")),
+                    ),
+                    _ => folder,
+                };
+                self.set_storage(storage, path);
+                Task::none()
+            }
+            Message::StorageChosen(_, Ok(None)) => Task::none(),
+            Message::StorageChosen(_, Err(error)) => {
+                self.settings_error = Some(format!("Could not show the file dialog: {error}"));
+                Task::none()
+            }
+            Message::AnimationsToggled(enabled) => {
+                self.settings.animations = enabled;
+                self.apply_motion();
+                self.save_settings();
+                Task::none()
+            }
+            Message::CornerRadius(radius) => {
+                self.settings.corner_radius = radius;
+                ui::shape::set_surface(radius);
+                Task::none()
+            }
+            // Saved when the slider is let go, not on every step.
+            Message::CornerRadiusSaved => {
+                self.save_settings();
+                Task::none()
+            }
+            Message::CloseSettings(id) => {
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.settings_open = false;
+                }
+                Task::none()
+            }
+            Message::Pointer(id, inside) => {
+                if let Some(pdf) = self.pdf_mut(id) {
+                    pdf.set_pointer_inside(inside);
+                }
+                if let Some(images) = self.images_mut(id) {
+                    images.set_pointer_inside(inside);
+                }
+                Task::none()
+            }
+            Message::AutoHideToolbarToggled(enabled) => {
+                self.settings.auto_hide_toolbar = enabled;
+                ui::component::set_floating_bars(enabled);
+                self.save_settings();
                 Task::none()
             }
             Message::MouseReleased(id) => match self.pdf_mut(id) {
@@ -458,7 +665,8 @@ impl Prev {
                 Task::none()
             }
             Message::AnimationsEnabled(enabled) => {
-                ui::motion::set_reduced(enabled == Some(false));
+                self.system_animations = enabled != Some(false);
+                self.apply_motion();
                 Task::none()
             }
             Message::DismissNotice(id) => {
@@ -536,14 +744,13 @@ impl Prev {
             }),
             Action::CloseWindow => window::close(id),
             Action::Quit => iced::exit(),
-            Action::Settings => match self
-                .windows
-                .iter()
-                .find(|(_, window)| matches!(window.content, Content::Settings))
-            {
-                Some((settings_id, _)) => window::gain_focus(*settings_id),
-                None => self.open_window(Content::Settings),
-            },
+            Action::Settings => {
+                self.reset_storage_drafts();
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.settings_open = true;
+                }
+                Task::none()
+            }
             Action::ToggleFullscreen => self.set_fullscreen(id, None),
             Action::Escape => self.set_fullscreen(id, Some(false)),
             _ => Task::none(),
@@ -601,7 +808,6 @@ impl Prev {
                     |name| name.to_string_lossy().into_owned(),
                 )
             }
-            Some(Content::Settings) => "prev Settings".to_owned(),
             _ => "prev".to_owned(),
         }
     }
@@ -636,6 +842,12 @@ impl Prev {
                     Event::Mouse(iced::mouse::Event::ButtonReleased(iced::mouse::Button::Left)),
                     _,
                 ) => Some(Message::MouseReleased(id)),
+                (Event::Mouse(iced::mouse::Event::CursorEntered), _) => {
+                    Some(Message::Pointer(id, true))
+                }
+                (Event::Mouse(iced::mouse::Event::CursorLeft), _) => {
+                    Some(Message::Pointer(id, false))
+                }
                 (Event::Window(window::Event::Rescaled(scale)), _) => {
                     Some(Message::ScaleFactor(id, scale))
                 }
@@ -666,20 +878,119 @@ impl Prev {
                 .view(&self.theme)
                 .map(move |message| Message::Markdown(id, message)),
             Content::Document(document) => document_view(document),
-            Content::Settings => self.settings_view(),
         };
-        let body = match &window.notice {
-            Some(notice) => component::snackbar(body, notice, Message::DismissNotice(id)),
-            None => body,
+        // Layers over the window are always in the tree, empty when not
+        // shown, so opening one keeps the state underneath, such as the
+        // scroll position.
+        let full = || Element::from(space().width(Fill).height(Fill));
+        let notice = match &window.notice {
+            Some(notice) => component::snackbar(full(), notice, Message::DismissNotice(id)),
+            None => full(),
         };
-        if window.drag_hover {
-            drop_highlight(body)
+        let drop = if window.drag_hover {
+            drop_highlight()
         } else {
-            body
+            full()
+        };
+        let settings = if window.settings_open {
+            self.settings_dialog(id)
+        } else {
+            full()
+        };
+        stack![body, notice, drop, settings].into()
+    }
+
+    /// Motion is on only when both the settings and the system allow it.
+    fn apply_motion(&self) {
+        ui::motion::set_reduced(!self.settings.animations || !self.system_animations);
+    }
+
+    fn reset_storage_drafts(&mut self) {
+        for storage in Storage::ALL {
+            self.storage_drafts[storage.index()] = shown_path(storage.path(&self.settings));
+            self.storage_errors[storage.index()] = None;
         }
     }
 
-    fn settings_view(&self) -> Element<'_, Message> {
+    /// Keeps `storage` at `path` from now on, in the settings file too,
+    /// once the place checks out; otherwise says why under its row.
+    fn set_storage(&mut self, storage: Storage, path: PathBuf) {
+        let path = prev_store::paths::expand_home(&path);
+        let path = match storage {
+            // A folder given for the bookmarks file gets the file inside it.
+            Storage::Bookmarks if path.is_dir() => path.join("bookmarks.toml"),
+            _ => path,
+        };
+        if let Err(problem) = check_storage(storage, &path) {
+            self.storage_errors[storage.index()] = Some(problem);
+            return;
+        }
+        match storage {
+            Storage::Signatures => self.settings.signatures = path,
+            Storage::Versions => self.settings.versions = path,
+            Storage::Bookmarks => self.settings.bookmarks = path,
+        }
+        prev_store::paths::set_locations(self.settings.locations());
+        self.save_settings();
+        self.storage_errors[storage.index()] = None;
+        self.reset_storage_drafts();
+    }
+
+    /// Where prev keeps its files. Each path can be typed, then applied
+    /// with Enter or Apply, or chosen with the folder dialog.
+    fn storage_view(&self) -> Element<'_, Message> {
+        let mut rows = column![].spacing(12);
+        for storage in Storage::ALL {
+            let draft = &self.storage_drafts[storage.index()];
+            let changed = *draft != shown_path(storage.path(&self.settings));
+            let mut entry = row![
+                container(component::text_field(
+                    storage.label(),
+                    draft,
+                    Backdrop::ContainerHigh,
+                    move |input| {
+                        input
+                            .on_input(move |text| Message::StorageDraft(storage, text))
+                            .on_submit(Message::StorageApply(storage))
+                    },
+                ))
+                .width(Fill),
+            ]
+            .spacing(8)
+            .align_y(Center);
+            if changed {
+                entry = entry.push(
+                    ui::button(Kind::Filled, "Apply").on_press(Message::StorageApply(storage)),
+                );
+            }
+            entry = entry
+                .push(ui::button(Kind::Tonal, "Choose…").on_press(Message::StorageChoose(storage)));
+            rows = rows.push(entry);
+            if let Some(problem) = &self.storage_errors[storage.index()] {
+                rows = rows
+                    .push(ui::styled(problem.as_str(), Type::BodySmall).style(style::error_text));
+            }
+        }
+        let file = self
+            .settings_path
+            .as_deref()
+            .map(shown_path)
+            .unwrap_or_default();
+        rows.push(
+            ui::styled(
+                format!(
+                    "Files already kept at an old place stay there; move them over to keep \
+using them. prev app settings are saved in {file}."
+                ),
+                Type::BodySmall,
+            )
+            .style(style::on_surface_variant),
+        )
+        .into()
+    }
+
+    /// Settings as a dialog over window `id`. They apply to every window.
+    fn settings_dialog(&self, id: window::Id) -> Element<'_, Message> {
         let appearance = self.settings.appearance;
         let choice = |glyph: Icon, label: &'static str, value: Appearance| {
             ui::with_icon(Kind::Tonal, glyph, label)
@@ -691,7 +1002,14 @@ impl Prev {
             None => "No Omarchy theme is active.".to_owned(),
         };
         let mut content = column![
-            ui::styled("Settings", Type::HeadlineSmall),
+            row![
+                ui::styled("Settings", Type::HeadlineSmall).width(Fill),
+                component::tip(
+                    ui::icon_button(Icon::Close).on_press(Message::CloseSettings(id)),
+                    "Close"
+                ),
+            ]
+            .align_y(Center),
             component::section("Appearance"),
             component::connected(vec![
                 choice(Icon::Settings, "System", Appearance::System),
@@ -713,17 +1031,98 @@ impl Prev {
             ]
             .spacing(16)
             .align_y(Center),
+            component::section("Windows"),
+            row![
+                column![
+                    ui::styled("Hide the toolbar when the pointer leaves", Type::BodyLarge),
+                    ui::styled(
+                        "The toolbar floats over the document and slides away while \
+the pointer is outside the window.",
+                        Type::BodyMedium
+                    )
+                    .style(style::on_surface_variant),
+                ]
+                .spacing(2)
+                .width(Fill),
+                toggler(self.settings.auto_hide_toolbar)
+                    .on_toggle(Message::AutoHideToolbarToggled)
+                    .size(28)
+                    .style(style::switch),
+            ]
+            .spacing(16)
+            .align_y(Center),
+            row![
+                column![
+                    ui::styled("Animations", Type::BodyLarge),
+                    ui::styled(
+                        if self.system_animations {
+                            "Sliding bars and panels, growing dialogs and springy buttons."
+                        } else {
+                            "Off while the system asks for reduced motion."
+                        },
+                        Type::BodyMedium
+                    )
+                    .style(style::on_surface_variant),
+                ]
+                .spacing(2)
+                .width(Fill),
+                toggler(self.settings.animations)
+                    .on_toggle(Message::AnimationsToggled)
+                    .size(28)
+                    .style(style::switch),
+            ]
+            .spacing(16)
+            .align_y(Center),
+            row![
+                column![
+                    ui::styled("Corner radius", Type::BodyLarge),
+                    ui::styled("For dialogs and the floating toolbar.", Type::BodyMedium)
+                        .style(style::on_surface_variant),
+                ]
+                .spacing(2)
+                .width(Fill),
+                ui::styled(
+                    format!("{:.0} px", self.settings.corner_radius),
+                    Type::LabelLarge
+                )
+                .style(style::on_surface_variant),
+                iced::widget::slider(
+                    0.0..=32.0,
+                    self.settings.corner_radius,
+                    Message::CornerRadius
+                )
+                .step(1.0_f32)
+                .on_release(Message::CornerRadiusSaved)
+                .width(160)
+                .height(style::SLIDER_HEIGHT)
+                .style(|theme: &Theme, status| {
+                    style::slider(Backdrop::ContainerHigh.color(&ui::Scheme::of(theme)))(
+                        theme, status,
+                    )
+                }),
+            ]
+            .spacing(16)
+            .align_y(Center),
+            component::section("Storage"),
+            self.storage_view(),
         ]
-        .spacing(12)
-        .padding(24);
+        .spacing(12);
         if let Some(error) = &self.settings_error {
             content = content.push(ui::styled(error, Type::BodyMedium).style(style::error_text));
         }
-        container(content)
-            .width(Fill)
-            .height(Fill)
-            .style(style::surface)
-            .into()
+        // Scrolls when the window is too short for all of it.
+        let card = container(component::scroll(container(content).padding(24)))
+            .width(Length::Fixed(520.0))
+            .style(style::dialog);
+        // A click on the dimmed window around the dialog closes it.
+        mouse_area(
+            container(ui::enter::grow(opaque(card)))
+                .padding(24)
+                .center(Fill)
+                .style(style::scrim),
+        )
+        .on_press(Message::CloseSettings(id))
+        .into()
     }
 }
 
@@ -798,15 +1197,12 @@ fn document_view(document: &Document) -> Element<'_, Message> {
         .into()
 }
 
-fn drop_highlight(body: Element<'_, Message>) -> Element<'_, Message> {
-    stack![
-        body,
-        container(space())
-            .width(Fill)
-            .height(Fill)
-            .style(style::drop_target)
-    ]
-    .into()
+fn drop_highlight<'a>() -> Element<'a, Message> {
+    container(space())
+        .width(Fill)
+        .height(Fill)
+        .style(style::drop_target)
+        .into()
 }
 
 /// The window's `wl_surface` pointer; `None` off Wayland.
@@ -862,6 +1258,7 @@ mod tests {
             &Settings {
                 appearance,
                 omarchy_palette,
+                ..Settings::default()
             },
             omarchy,
             system_dark,
@@ -902,5 +1299,44 @@ mod tests {
             choice(Appearance::System, false, Some(&omarchy), false),
             (ui::scheme::PREV_SEED, false)
         );
+    }
+}
+
+#[cfg(test)]
+mod storage_tests {
+    use super::*;
+
+    #[test]
+    fn storage_paths_must_exist_and_be_writable() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().join("signatures");
+        assert!(
+            check_storage(Storage::Signatures, &folder).is_err(),
+            "missing folder"
+        );
+        std::fs::create_dir(&folder).unwrap();
+        assert!(check_storage(Storage::Signatures, &folder).is_ok());
+        assert!(check_storage(Storage::Signatures, std::path::Path::new("relative")).is_err());
+        let file = dir.path().join("note.txt");
+        std::fs::write(&file, b"").unwrap();
+        assert!(check_storage(Storage::Versions, &file).is_err(), "a file");
+        // Bookmarks are a file in an existing folder, new or not.
+        assert!(check_storage(Storage::Bookmarks, &folder.join("bookmarks.toml")).is_ok());
+        assert!(
+            check_storage(Storage::Bookmarks, &folder).is_err(),
+            "a folder"
+        );
+        assert!(
+            check_storage(
+                Storage::Bookmarks,
+                &dir.path().join("missing/bookmarks.toml")
+            )
+            .is_err()
+        );
+        assert!(
+            check_storage(Storage::Signatures, std::path::Path::new("/proc/prev-test")).is_err()
+        );
+        // Nothing is left behind by the write test.
+        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
     }
 }

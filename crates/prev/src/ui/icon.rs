@@ -119,6 +119,8 @@ icons! {
     TextFields = 0xe262, "text_fields";
     TextFormat = 0xe165, "text_format";
     Toc = 0xe8de, "toc";
+    TopPanelClose = 0xf733, "top_panel_close";
+    TopPanelOpen = 0xf732, "top_panel_open";
     Tune = 0xe429, "tune";
     TwoPager = 0xf51f, "two_pager";
     Undo = 0xe166, "undo";

@@ -42,6 +42,29 @@ pub async fn open_files() -> Result<Vec<PathBuf>, String> {
     }
 }
 
+/// Asks for a folder, starting in `current`. Cancelling yields `None`.
+pub async fn choose_folder(
+    title: String,
+    current: Option<PathBuf>,
+) -> Result<Option<PathBuf>, String> {
+    let request = SelectedFiles::open_file()
+        .title(title.as_str())
+        .directory(true)
+        .current_folder::<&std::path::Path>(current.as_deref())
+        .map_err(|error| error.to_string())?
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+    match request.response() {
+        Ok(selected) => Ok(selected
+            .uris()
+            .first()
+            .and_then(|uri| file_uri_to_path(uri.as_str()))),
+        Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
 /// Asks where to save a file, suggesting `name`. Cancelling yields `None`.
 pub async fn save_file(title: String, name: String) -> Result<Option<PathBuf>, String> {
     let request = SelectedFiles::save_file()

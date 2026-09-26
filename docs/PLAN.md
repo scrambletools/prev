@@ -134,6 +134,23 @@ design).
     (the wheel scrolls during a drag).
 - **Print:** print dialog built in prev, submitted to CUPS.
 
+- **As built (after M6):**
+  - Settings live in `$XDG_CONFIG_HOME/prev.toml` (`prev-dev.toml` for
+    development builds), read once from the older `prev/settings.toml`.
+    The file lists every setting; missing keys are written when prev
+    starts, which pins the storage paths (signatures, versions,
+    bookmarks) the first time. Paths are stored with `~` and checked
+    (existing, writable) when changed from the dialog.
+  - The Settings dialog opens over the window that asked for it: iced
+    0.14 cannot give a Wayland window a parent.
+  - Floating toolbars (optional): M3 floating toolbars over the content,
+    the main one at the top and the markup bar at the bottom, shown
+    while the pointer is over the window. Content layers stay first in
+    the widget tree so showing and hiding keeps scroll positions.
+  - Animations and the corner radius of dialogs and floating toolbars
+    are settings; the system's reduced motion setting also turns motion
+    off.
+
 ### Images
 
 - **Formats (open):** PNG, JPEG, GIF (animated), WebP, AVIF, BMP, ICO, TIFF,

@@ -141,6 +141,10 @@ pub enum Message {
     Export(ExportMessage),
     ConfirmRedactions(bool),
     ApplyRedactions,
+    /// Turns floating, auto-hiding toolbars on or off; the app handles it.
+    ToggleFloatingBars,
+    /// Opens the settings window; the app handles it.
+    OpenSettings,
 }
 
 /// Changes the app applies to the window itself.
@@ -217,6 +221,8 @@ pub struct PdfWindow {
     pages_focus: bool,
     export_dialog: Option<pages_ui::ExportDialog>,
     redact_confirm: bool,
+    /// Whether the pointer is over the window, for floating toolbars.
+    pointer_inside: bool,
 }
 
 impl PdfWindow {
@@ -256,6 +262,7 @@ impl PdfWindow {
             pages_focus: false,
             export_dialog: None,
             redact_confirm: false,
+            pointer_inside: true,
         };
         let task = Task::perform(opened, |result| {
             Message::Opened(flatten(result).map_err(|error| error.to_string()))
@@ -272,6 +279,21 @@ impl PdfWindow {
 
     pub fn take_effects(&mut self) -> Vec<Effect> {
         std::mem::take(&mut self.effects)
+    }
+
+    pub fn set_pointer_inside(&mut self, inside: bool) {
+        self.pointer_inside = inside;
+    }
+
+    /// Whether floating toolbars show: while the pointer is over the
+    /// window, or something opened from them is still open.
+    fn bars_shown(&self) -> bool {
+        self.pointer_inside
+            || self.menu.is_some()
+            || self.overflow.is_some()
+            || self.export_dialog.is_some()
+            || self.redact_confirm
+            || self.signature_dialog.is_some()
     }
 
     /// Whether thumbnails are being pressed or dragged, so the app sends
@@ -660,6 +682,7 @@ impl PdfWindow {
                 Task::none()
             }
             Message::ApplyRedactions => self.apply_redactions(),
+            Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
             Message::PrintFinished(result) | Message::OpenUriFinished(result) => {
                 self.notice = result.err();
                 Task::none()
@@ -974,13 +997,22 @@ impl PdfWindow {
                         ),
                         None => (space().into(), space().into()),
                     };
-                let content = row![sidebar, handle, self.canvas(viewer, None)];
-                let markup: Element<'_, Message> = if self.markup_bar {
-                    self.markup_toolbar(viewer)
-                } else {
-                    space().into()
-                };
-                column![self.toolbar(viewer), markup, content].into()
+                let markup = self.markup_bar.then(|| self.markup_toolbar(viewer));
+                let (top, bottom) = (
+                    component::floating_room(true),
+                    component::floating_room(self.markup_bar),
+                );
+                let content = row![
+                    component::between_bars(sidebar, top, bottom),
+                    component::between_bars(handle, top, bottom),
+                    self.canvas(viewer, None)
+                ];
+                component::window_bars(
+                    self.toolbar(viewer),
+                    markup,
+                    content.into(),
+                    self.bars_shown(),
+                )
             }
         };
         let body = container(body)
@@ -1240,6 +1272,14 @@ impl PdfWindow {
                 None,
             ),
             (search_bar, 280.0, Some(4)),
+            (
+                component::group([
+                    component::floating_bars_toggle(Message::ToggleFloatingBars),
+                    component::tool(Icon::Settings, "Settings", Some(Message::OpenSettings)),
+                ]),
+                TOOL_WIDTH * 2.0 + 4.0,
+                None,
+            ),
         ];
         let widths: Vec<(f32, Option<u8>)> = slots
             .iter()

@@ -68,6 +68,8 @@ pub struct SignatureDialog {
     ink: [u8; 3],
 }
 
+pub(super) const MARKUP_BAR_HEIGHT: f32 = 48.0;
+
 const PAD: iced::Size = iced::Size::new(460.0, 170.0);
 
 /// Preview's markup colors.
@@ -467,14 +469,10 @@ impl PdfWindow {
     }
 
     pub(super) fn markup_toolbar<'a>(&'a self, viewer: &'a PdfViewer) -> Element<'a, Message> {
-        container(iced::widget::responsive(move |size| {
-            self.markup_bar_at(viewer, size.width)
-        }))
-        .padding([0, 8])
-        .height(48)
-        .width(Fill)
-        .style(style::surface_container_low)
-        .into()
+        component::secondary_toolbar(
+            iced::widget::responsive(move |size| self.markup_bar_at(viewer, size.width)),
+            MARKUP_BAR_HEIGHT,
+        )
     }
 
     /// The markup bar at `width`, with groups that do not fit in "More".

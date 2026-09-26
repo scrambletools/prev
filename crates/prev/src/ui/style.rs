@@ -37,7 +37,7 @@ pub fn surface_container(theme: &Theme) -> container::Style {
 pub fn dialog(theme: &Theme) -> container::Style {
     let scheme = Scheme::of(theme);
     container::Style {
-        border: border::rounded(shape::EXTRA_LARGE),
+        border: border::rounded(shape::surface()),
         shadow: elevation::shadow(&scheme, 3),
         ..filled(scheme.surface_container_high, scheme.on_surface)
     }

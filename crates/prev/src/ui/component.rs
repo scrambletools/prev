@@ -17,15 +17,166 @@ pub const TOOLBAR_HEIGHT: f32 = 56.0;
 pub const SIDE_SHEET_WIDTH: f32 = 320.0;
 const TOOLTIP_DELAY: Duration = Duration::from_millis(500);
 
-/// The docked toolbar along the top of a window.
+/// The docked toolbar along the top of a window, or the floating one
+/// when bars float.
 pub fn toolbar<'a, Message: 'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
+    bar(content, TOOLBAR_HEIGHT, style::surface_container)
+}
+
+/// A second toolbar under the first, such as the markup bar.
+pub fn secondary_toolbar<'a, Message: 'a>(
+    content: impl Into<Element<'a, Message>>,
+    height: f32,
+) -> Element<'a, Message> {
+    bar(content, height, style::surface_container_low)
+}
+
+/// M3 floating toolbar: a pill in the container color at elevation 3.
+pub const FLOATING_TOOLBAR_HEIGHT: f32 = 64.0;
+/// Floating bars' inset from the window edges, and the gap between them.
+pub const FLOATING_MARGIN: f32 = 16.0;
+pub const FLOATING_GAP: f32 = 8.0;
+
+fn bar<'a, Message: 'a>(
+    content: impl Into<Element<'a, Message>>,
+    height: f32,
+    docked: fn(&Theme) -> container::Style,
+) -> Element<'a, Message> {
+    if !floating_bars_enabled() {
+        return container(content)
+            .padding([0, 8])
+            .height(height)
+            .width(Fill)
+            .align_y(Center)
+            .style(docked)
+            .into();
+    }
     container(content)
-        .padding([0, 8])
-        .height(TOOLBAR_HEIGHT)
+        .padding([0, 12])
+        .height(FLOATING_TOOLBAR_HEIGHT)
         .width(Fill)
         .align_y(Center)
-        .style(style::surface_container)
+        .style(|theme: &Theme| {
+            let scheme = Scheme::of(theme);
+            container::Style {
+                background: Some(scheme.surface_container.into()),
+                text_color: Some(scheme.on_surface),
+                // A pill at the most, since the radius is at most half the
+                // bar's height.
+                border: iced::border::rounded(shape::surface()),
+                shadow: super::elevation::shadow(&scheme, 3),
+                ..container::Style::default()
+            }
+        })
         .into()
+}
+
+static FLOATING_BARS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Makes document windows float their toolbars over the content and hide
+/// them while the pointer is outside the window.
+pub fn set_floating_bars(floating: bool) {
+    FLOATING_BARS.store(floating, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn floating_bars_enabled() -> bool {
+    FLOATING_BARS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// A window's bars around its content. Docked, the top bar and then the
+/// bottom one sit above `content` and push it down. Floating, they are M3
+/// floating toolbars over the content, inset from the window edges: the
+/// top bar at the top and the bottom bar at the bottom, shown only while
+/// `shown` and sliding in from their edge as they appear.
+pub fn window_bars<'a, Message: 'a>(
+    top: Element<'a, Message>,
+    bottom: Option<Element<'a, Message>>,
+    content: Element<'a, Message>,
+    shown: bool,
+) -> Element<'a, Message> {
+    if !floating_bars_enabled() {
+        let mut docked = column![top];
+        if let Some(bottom) = bottom {
+            docked = docked.push(bottom);
+        }
+        return docked.push(content).into();
+    }
+    let slide = |bar: Element<'a, Message>, from: f32| -> Element<'a, Message> {
+        super::enter::enter(
+            container(bar).padding(FLOATING_MARGIN).width(Fill),
+            super::enter::From::Offset(0.0, from),
+        )
+        .into()
+    };
+    let (top, bottom): (Element<'a, Message>, Element<'a, Message>) = if shown {
+        (
+            slide(top, -1.0),
+            match bottom {
+                Some(bottom) => slide(bottom, 1.0),
+                None => iced::widget::space().into(),
+            },
+        )
+    } else {
+        (iced::widget::space().into(), iced::widget::space().into())
+    };
+    // The content stays the first layer, so hiding the bars keeps its
+    // state, such as the scroll position.
+    stack![
+        content,
+        column![top, iced::widget::space::vertical(), bottom]
+            .width(Fill)
+            .height(Fill)
+    ]
+    .into()
+}
+
+/// Room floating bars take at an edge: the bar and its margins.
+pub fn floating_room(bar: bool) -> f32 {
+    if bar && floating_bars_enabled() {
+        FLOATING_MARGIN + FLOATING_TOOLBAR_HEIGHT + FLOATING_GAP
+    } else {
+        0.0
+    }
+}
+
+/// The toolbar button that turns floating, auto-hiding bars on and off.
+pub fn floating_bars_toggle<'a, Message: Clone + 'a>(message: Message) -> Element<'a, Message> {
+    let floating = floating_bars_enabled();
+    toggle_tool(
+        if floating {
+            Icon::TopPanelOpen
+        } else {
+            Icon::TopPanelClose
+        },
+        if floating {
+            "Keep the toolbar shown"
+        } else {
+            "Hide the toolbar when the pointer leaves"
+        },
+        floating,
+        message,
+    )
+}
+
+/// Leaves room above and below `element` for floating bars, for
+/// sidebars and panels the bars must not cover. The room takes the
+/// sidebar color, so it reads as part of the sidebar while the bars hide.
+pub fn between_bars<'a, Message: 'a>(
+    element: Element<'a, Message>,
+    top: f32,
+    bottom: f32,
+) -> Element<'a, Message> {
+    if floating_bars_enabled() {
+        container(column![
+            iced::widget::space().height(top),
+            element,
+            iced::widget::space().height(bottom)
+        ])
+        .style(style::surface_container_low)
+        .into()
+    } else {
+        element
+    }
 }
 
 /// Width of an icon button in a toolbar, the gap between items, and a
