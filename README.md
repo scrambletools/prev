@@ -6,8 +6,8 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 [Omarchy](https://omarchy.org).
 
 > **Status:** early development. PDF, image, SVG and Markdown viewing, image
-> editing, PDF markup, form filling and signatures work today; PDF page editing
-> is on the way. See the [development plan](docs/PLAN.md).
+> editing, PDF markup, form filling, signatures, page editing and redaction
+> work today. See the [development plan](docs/PLAN.md).
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
 
@@ -17,8 +17,15 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 
 ![The signature library with a drawn and a typed signature](docs/screenshots/signatures.png)
 
+![Dragging a page to a new place in the page thumbnails](docs/screenshots/pages.png)
+
+![An account number and a routing number marked for redaction](docs/screenshots/redaction.png)
+
 <sub>Documents shown: NIST SP 800-63-3, a US government publication in the
-public domain, and a sample form made for prev.</sub>
+public domain, and a sample form and sample pages made for prev.</sub>
+
+For a walkthrough of every feature with more screenshots, see
+[A tour of prev](docs/GUIDE.md).
 
 ## Features
 
@@ -45,8 +52,26 @@ public domain, and a sample form made for prev.</sub>
     show and edit.
 - **Forms:** fill in text fields, checkboxes, radio buttons and drop-down
   menus.
-- **Signatures:** draw one, type your name in a handwriting font, or import
-  a photo or scan; keep as many as you like and place them on any page.
+- **Signatures:** draw one (with a choice of ink and pen thickness), type
+  your name in a handwriting font, or import a photo or scan; keep as many
+  as you like and place them on any page.
+- **Page editing:**
+  - Select pages in the sidebar (Ctrl+click and Shift+click for more) and
+    drag them to reorder.
+  - Rotate, delete, crop to a selection, insert a blank page or the pages
+    of another PDF, by choosing it or dropping it on the thumbnails.
+  - Copy pages and paste them into the same or another document window,
+    with their annotations and form fields.
+  - Every page edit can be undone.
+- **Redaction:** mark areas or selected text with the Redact tool, then
+  apply: the text, images and drawings underneath are removed from the
+  file for good, not just covered, and the file is rewritten so no earlier
+  revision keeps them.
+- **Export** the whole document or selected pages as PDF, optionally
+  flattened (markup and filled-in fields drawn into the pages, no longer
+  editable), encrypted with a password (AES-256) or made smaller by
+  downsampling images, or as PNG, JPEG, multi-page TIFF, WebP or OpenEXR at 72 to
+  600 dpi.
 - **Highlights and notes** sidebar listing every annotation with its text.
 - **Autosave:** edits are written in place a moment after you stop, with
   the original kept for Revert To.
@@ -84,8 +109,9 @@ public domain, and a sample form made for prev.</sub>
 
 ### Planned
 
-- **PDF editing:** reorder, insert and delete pages, true redaction,
-  encryption and export to images.
+- **Image polish:** RAW tone curves matched to the camera's own JPEG, EXIF
+  kept in edited TIFFs.
+- **Release:** packages for Arch, Flatpak, AppImage, Debian and Fedora.
 
 ## Building
 
@@ -131,7 +157,9 @@ the installed copy without handing files to it.
 | Bookmark page | Ctrl+D |
 | Sidebar: hide, thumbnails, contents, highlights and notes, bookmarks | Ctrl+Alt+1, 2, 3, 4, 5 |
 | Show markup toolbar | Ctrl+Shift+A |
-| Delete the selected annotation | Delete |
+| Delete the selected annotation or pages | Delete |
+| Copy, paste pages (after clicking a thumbnail) | Ctrl+C, Ctrl+V |
+| Select all pages (after clicking a thumbnail) | Ctrl+A |
 | Slideshow | Ctrl+Shift+F |
 | Full screen | F11 |
 | Rotate left, right | Ctrl+L, Ctrl+R |

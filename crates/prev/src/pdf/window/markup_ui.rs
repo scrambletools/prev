@@ -18,7 +18,7 @@ use crate::image::editor::spawn;
 use crate::pdf::layout;
 use crate::pdf::markup::{Shape, Tool};
 use crate::pdf::signature;
-use crate::pdf::signature_pad::{self, signature_pad};
+use crate::pdf::signature_pad::signature_pad;
 use crate::pdf::viewer::PdfMessage;
 use crate::pdf::viewer::PdfViewer;
 use crate::pdf::viewer::editing::{EditMessage, StyleChange};
@@ -29,6 +29,7 @@ use crate::ui::{self, Icon, Scheme, Type, icon, shape, style};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Menu {
+    Pages,
     Shapes,
     Highlight,
     Signatures,
@@ -61,6 +62,10 @@ pub struct SignatureDialog {
     description: String,
     error: Option<String>,
     saving: bool,
+    /// Pen width in pad pixels, for drawn signatures.
+    pen_width: f32,
+    /// Ink for drawn and typed signatures.
+    ink: [u8; 3],
 }
 
 const PAD: iced::Size = iced::Size::new(460.0, 170.0);
@@ -147,7 +152,7 @@ fn swatch<'a>(color: Option<Rgb>, selected: bool, message: Message) -> Element<'
         .into()
 }
 
-fn menu_item<'a>(
+pub(super) fn menu_item<'a>(
     glyph: Option<Icon>,
     label: impl text::IntoFragment<'a>,
     selected: bool,
@@ -177,8 +182,14 @@ impl PdfWindow {
             Message::ToggleMarkupBar => {
                 self.markup_bar = !self.markup_bar;
                 self.menu = None;
-                if self.markup_bar && self.signatures.is_empty() {
-                    return load_signatures();
+                if self.markup_bar {
+                    let signatures = if self.signatures.is_empty() {
+                        load_signatures()
+                    } else {
+                        Task::none()
+                    };
+                    // The bar offers to apply redaction marks.
+                    return Task::batch([signatures, self.load_notes()]);
                 }
                 if !self.markup_bar {
                     return self
@@ -263,6 +274,8 @@ impl PdfWindow {
                     description: String::new(),
                     error: None,
                     saving: false,
+                    pen_width: signature::PEN_WIDTH,
+                    ink: signature::INK,
                 });
                 Task::none()
             }
@@ -292,6 +305,18 @@ impl PdfWindow {
             Message::SignatureText(text) => {
                 if let Some(dialog) = self.signature_dialog.as_mut() {
                     dialog.typed = text;
+                }
+                Task::none()
+            }
+            Message::SignaturePenWidth(width) => {
+                if let Some(dialog) = self.signature_dialog.as_mut() {
+                    dialog.pen_width = width;
+                }
+                Task::none()
+            }
+            Message::SignatureInk(ink) => {
+                if let Some(dialog) = self.signature_dialog.as_mut() {
+                    dialog.ink = ink;
                 }
                 Task::none()
             }
@@ -363,9 +388,9 @@ impl PdfWindow {
                 };
                 let png = match dialog.tab {
                     SignatureTab::Draw => {
-                        signature::from_strokes(&dialog.strokes, signature_pad::LINE_WIDTH)
+                        signature::from_strokes(&dialog.strokes, dialog.pen_width, dialog.ink)
                     }
-                    SignatureTab::Type => signature::from_text(&dialog.typed),
+                    SignatureTab::Type => signature::from_text(&dialog.typed, dialog.ink),
                     SignatureTab::Image => dialog.image.as_ref().map(|(png, _)| png.clone()),
                 };
                 let Some(png) = png else {
@@ -429,7 +454,10 @@ impl PdfWindow {
         let State::Ready(viewer) = &self.state else {
             return Task::none();
         };
-        if self.sidebar != Some(Sidebar::Notes) {
+        // Listing every page's annotations can be slow, so only while
+        // something shows them: the notes sidebar, or the markup bar with
+        // its count of redaction marks.
+        if self.sidebar != Some(Sidebar::Notes) && !self.markup_bar {
             return Task::none();
         }
         let receiver = viewer.handle.all_annotations();
@@ -635,6 +663,7 @@ impl PdfWindow {
         .width(Length::Shrink);
 
         let signatures = self.signature_menu();
+        let redactions = self.redaction_count();
         let history = &viewer.edit.history;
         use component::{DIVIDER_WIDTH, TOOL_WIDTH};
         let tools = |count: f32| count * TOOL_WIDTH + (count - 1.0) * 4.0;
@@ -681,6 +710,24 @@ impl PdfWindow {
             (
                 menu_button(Icon::Signature, "Sign", Menu::Signatures, false, signatures),
                 DIVIDER_WIDTH + TOOL_WIDTH + 4.0,
+                Some(2),
+                true,
+            ),
+            (
+                group(if redactions > 0 {
+                    vec![
+                        tool_button(Icon::RemoveSelection, "Redact", Tool::Redact),
+                        component::tip(
+                            ui::button(ButtonKind::Tonal, "Apply")
+                                .size(button::Size::ExtraSmall)
+                                .on_press(Message::ConfirmRedactions(true)),
+                            "Apply redactions",
+                        ),
+                    ]
+                } else {
+                    vec![tool_button(Icon::RemoveSelection, "Redact", Tool::Redact)]
+                }),
+                DIVIDER_WIDTH + TOOL_WIDTH + 4.0 + if redactions > 0 { 68.0 } else { 0.0 },
                 Some(2),
                 true,
             ),
@@ -1025,12 +1072,15 @@ impl PdfWindow {
         };
         let surface: Element<'a, Message> = match dialog.tab {
             SignatureTab::Draw => column![
-                signature_pad(&dialog.strokes, PAD, Message::SignatureStroke),
+                signature_pad(&dialog.strokes, PAD, Message::SignatureStroke)
+                    .scale(self.device_scale)
+                    .pen(dialog.pen_width, dialog.ink),
                 ui::styled(
                     "Sign with your mouse, pen or touchpad on the line.",
                     Type::BodySmall
                 )
                 .style(style::on_surface_variant),
+                pen_controls(dialog, true),
             ]
             .spacing(8)
             .into(),
@@ -1052,7 +1102,7 @@ impl PdfWindow {
                     .color(if dialog.typed.is_empty() {
                         Color::from_rgb(0.7, 0.7, 0.7)
                     } else {
-                        Color::from_rgb8(0x10, 0x18, 0x40)
+                        Color::from_rgb8(dialog.ink[0], dialog.ink[1], dialog.ink[2])
                     })
                     .wrapping(text::Wrapping::None)
                 )
@@ -1064,6 +1114,7 @@ impl PdfWindow {
                     border: iced::border::rounded(shape::MEDIUM),
                     ..Default::default()
                 }),
+                pen_controls(dialog, false),
             ]
             .spacing(8)
             .width(PAD.width)
@@ -1140,6 +1191,47 @@ impl PdfWindow {
         ]
         .into()
     }
+}
+
+/// Ink swatches and, for drawing, a pen width slider.
+fn pen_controls<'a>(dialog: &SignatureDialog, width: bool) -> Element<'a, Message> {
+    let inks = row(signature::INKS.iter().map(|(ink, _)| {
+        swatch(
+            Some(Rgb::from_rgb8(ink[0], ink[1], ink[2])),
+            dialog.ink == *ink,
+            Message::SignatureInk(*ink),
+        )
+    }))
+    .spacing(2)
+    .align_y(Center);
+    let mut controls = row![
+        ui::styled("Ink", Type::LabelLarge).style(style::on_surface_variant),
+        inks
+    ]
+    .spacing(8)
+    .align_y(Center);
+    if width {
+        let backdrop = |theme: &Theme, status| {
+            style::slider(Backdrop::ContainerHigh.color(&Scheme::of(theme)))(theme, status)
+        };
+        controls = controls.push(space::horizontal()).push(
+            row![
+                ui::styled("Thickness", Type::LabelLarge).style(style::on_surface_variant),
+                iced::widget::slider(
+                    signature::PEN_WIDTHS,
+                    dialog.pen_width,
+                    Message::SignaturePenWidth
+                )
+                .step(0.5_f32)
+                .width(120)
+                .height(style::SLIDER_HEIGHT)
+                .style(backdrop),
+            ]
+            .spacing(8)
+            .align_y(Center),
+        );
+    }
+    controls.width(PAD.width).into()
 }
 
 fn note_card<'a>(
@@ -1223,6 +1315,7 @@ fn note_entry<'a>(
         Kind::Note => (Icon::StickyNote, "Note"),
         Kind::FreeText => (Icon::TextFields, "Text box"),
         Kind::Stamp => (Icon::Signature, "Stamp"),
+        Kind::Redact => (Icon::RemoveSelection, "Redaction"),
         _ => (Icon::Shapes, "Shape"),
     };
     let swatch_color = annotation.style.color.map(to_color);

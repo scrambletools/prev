@@ -22,6 +22,7 @@ use super::viewer::editing::EditMessage;
 use super::viewer::{PdfMessage, PdfViewer, Request, Zoom};
 
 mod markup_ui;
+mod pages_ui;
 use crate::image::editor::spawn;
 use crate::portal;
 use crate::shortcuts::Action;
@@ -30,11 +31,12 @@ use crate::ui::component::{self, Backdrop};
 use crate::ui::resize::{self, Drag, Width};
 use crate::ui::{self, Icon, Type, icon, style};
 pub use markup_ui::{LoadedSignature, Menu, SignatureTab};
+pub use pages_ui::{ExportMessage, PageAction};
 
 const SIDEBAR_WIDTH: Width = Width::new(264.0, 248.0, 480.0);
 /// Sidebar width not taken by a thumbnail: margins, frame and scrollbar.
 const THUMBNAIL_INSET: f32 = 64.0;
-const THUMBNAIL_SPACING: f32 = 34.0;
+const THUMBNAIL_SPACING: f32 = 41.0;
 const LINE_SCROLL: f32 = 48.0;
 /// Quiet time after an edit before the document is written.
 const AUTOSAVE_DELAY: std::time::Duration = std::time::Duration::from_millis(1500);
@@ -119,6 +121,8 @@ pub enum Message {
     SignatureStroke(Vec<(f32, f32)>),
     ClearSignature,
     SignatureText(String),
+    SignaturePenWidth(f32),
+    SignatureInk([u8; 3]),
     SignatureDescription(String),
     ChooseSignatureImage,
     SignatureImageChosen(Result<Vec<PathBuf>, String>),
@@ -126,6 +130,17 @@ pub enum Message {
     SaveSignature,
     SignatureSaved(Result<(), String>),
     CancelSignature,
+    PageAction(PageAction),
+    PagesCopied(usize, Result<Vec<u8>, String>),
+    InsertChosen(Result<Vec<PathBuf>, String>),
+    InsertRead(Result<Vec<Vec<u8>>, String>),
+    ThumbnailPressed(usize),
+    ThumbnailsMoved(iced::Point),
+    /// The mouse button was let go anywhere in the window.
+    ThumbnailsReleased,
+    Export(ExportMessage),
+    ConfirmRedactions(bool),
+    ApplyRedactions,
 }
 
 /// Changes the app applies to the window itself.
@@ -195,6 +210,13 @@ pub struct PdfWindow {
     notes: Vec<(usize, Vec<prev_pdf::annotation::Annotation>)>,
     text_editor_id: Id,
     field_input_id: Id,
+    modifiers: Modifiers,
+    thumbnail_drag: Option<pages_ui::ThumbnailDrag>,
+    /// Whether the page thumbnails were clicked last, so Delete, Ctrl+C
+    /// and Ctrl+A act on pages.
+    pages_focus: bool,
+    export_dialog: Option<pages_ui::ExportDialog>,
+    redact_confirm: bool,
 }
 
 impl PdfWindow {
@@ -229,6 +251,11 @@ impl PdfWindow {
             notes: Vec::new(),
             text_editor_id: Id::unique(),
             field_input_id: Id::unique(),
+            modifiers: Modifiers::default(),
+            thumbnail_drag: None,
+            pages_focus: false,
+            export_dialog: None,
+            redact_confirm: false,
         };
         let task = Task::perform(opened, |result| {
             Message::Opened(flatten(result).map_err(|error| error.to_string()))
@@ -245,6 +272,12 @@ impl PdfWindow {
 
     pub fn take_effects(&mut self) -> Vec<Effect> {
         std::mem::take(&mut self.effects)
+    }
+
+    /// Whether thumbnails are being pressed or dragged, so the app sends
+    /// the button's release wherever it happens.
+    pub fn wants_release(&self) -> bool {
+        self.thumbnail_drag.is_some()
     }
 
     pub fn in_slideshow(&self) -> bool {
@@ -289,6 +322,9 @@ impl PdfWindow {
         let State::Ready(viewer) = &mut self.state else {
             return Task::none();
         };
+        if matches!(message, PdfMessage::Press { .. }) {
+            self.pages_focus = false;
+        }
         let page_before = viewer.current;
         let text_before = viewer.edit.text.is_some();
         let field_before = viewer.edit.field.as_ref().map(|field| field.field.id);
@@ -303,6 +339,10 @@ impl PdfWindow {
             focus.push(operation::select_all(self.field_input_id.clone()));
         }
         let task = Task::batch(std::iter::once(task).chain(focus));
+        // Moving elsewhere in the document leaves the chosen pages behind.
+        if viewer.current != page_before && !viewer.selected_pages.contains(&viewer.current) {
+            viewer.selected_pages.clear();
+        }
         let requests = viewer.take_requests();
         let follow = if viewer.current == page_before {
             Task::none()
@@ -379,6 +419,20 @@ impl PdfWindow {
             Request::Notice(notice) => {
                 self.notice = Some(notice);
                 Task::none()
+            }
+            Request::PagesChanged => {
+                let State::Ready(viewer) = &self.state else {
+                    return Task::none();
+                };
+                let outline = viewer.handle.outline();
+                let (offset, height) = self.thumbnails_view;
+                Task::batch([
+                    Task::perform(outline, |result| {
+                        Message::OutlineLoaded(flatten(result).unwrap_or_default())
+                    }),
+                    self.thumbnails_for(offset, height),
+                    self.follow_thumbnail(),
+                ])
             }
         }
     }
@@ -574,6 +628,8 @@ impl PdfWindow {
             | Message::SignatureStroke(_)
             | Message::ClearSignature
             | Message::SignatureText(_)
+            | Message::SignaturePenWidth(_)
+            | Message::SignatureInk(_)
             | Message::SignatureDescription(_)
             | Message::ChooseSignatureImage
             | Message::SignatureImageChosen(_)
@@ -581,6 +637,29 @@ impl PdfWindow {
             | Message::SaveSignature
             | Message::SignatureSaved(_)
             | Message::CancelSignature => self.markup_update(message),
+            Message::PageAction(action) => self.page_action(action),
+            Message::PagesCopied(count, result) => {
+                self.pages_copied(count, result);
+                Task::none()
+            }
+            Message::InsertChosen(Ok(paths)) => self.insert_files(paths),
+            Message::InsertChosen(Err(error)) => {
+                self.notice = Some(format!("Could not show the file dialog: {error}"));
+                Task::none()
+            }
+            Message::InsertRead(result) => self.insert_read(result),
+            Message::ThumbnailPressed(page) => self.thumbnail_pressed(page),
+            Message::ThumbnailsMoved(point) => {
+                self.thumbnails_moved(point.y);
+                Task::none()
+            }
+            Message::ThumbnailsReleased => self.thumbnails_released(),
+            Message::Export(message) => self.export_update(message),
+            Message::ConfirmRedactions(show) => {
+                self.redact_confirm = show;
+                Task::none()
+            }
+            Message::ApplyRedactions => self.apply_redactions(),
             Message::PrintFinished(result) | Message::OpenUriFinished(result) => {
                 self.notice = result.err();
                 Task::none()
@@ -651,6 +730,21 @@ impl PdfWindow {
             return None;
         };
         let task = match action {
+            Action::Copy if self.pages_focus => self.page_action(PageAction::Copy),
+            Action::Paste => self.page_action(PageAction::Paste),
+            Action::SelectAll if self.pages_focus => self.page_action(PageAction::SelectAll),
+            Action::RotateLeft => self.page_action(PageAction::RotateLeft),
+            Action::RotateRight => self.page_action(PageAction::RotateRight),
+            Action::Crop => self.page_action(PageAction::Crop),
+            Action::Export => self.page_action(PageAction::Export),
+            Action::Escape if self.export_dialog.is_some() => {
+                self.export_dialog = None;
+                Task::none()
+            }
+            Action::Escape if self.redact_confirm => {
+                self.redact_confirm = false;
+                Task::none()
+            }
             Action::Copy => match viewer.copy_area() {
                 Some(task) => task.map(Message::Viewer),
                 None => viewer.copy_selection().map(Message::Viewer),
@@ -791,6 +885,9 @@ impl PdfWindow {
         if deletes && viewer.edit.selected.is_some() && viewer.edit.text.is_none() {
             return Some(self.update(Message::Edit(EditMessage::Delete)));
         }
+        if deletes && self.pages_focus && self.sidebar == Some(Sidebar::Thumbnails) {
+            return Some(self.page_action(PageAction::Delete));
+        }
         let paged = self.slideshow.is_some() || viewer.mode != ViewMode::Continuous;
         let page_height = viewer.view.height * 0.9;
         let message = match key.as_ref() {
@@ -890,11 +987,24 @@ impl PdfWindow {
             .width(Fill)
             .height(Fill)
             .style(style::surface);
-        let body = match &self.notice {
-            Some(notice) => component::snackbar(body, notice, Message::DismissNotice),
-            None => body.into(),
+        // Stacks take their size from the first layer.
+        let full = || Element::from(space().width(Fill).height(Fill));
+        // Layers over the document are always in the tree, empty when not
+        // shown, so opening one keeps the scroll position underneath.
+        let notice: Element<'_, Message> = match &self.notice {
+            Some(notice) => component::snackbar(full(), notice, Message::DismissNotice),
+            None => space().into(),
         };
-        self.signature_dialog_view(body)
+        let dialog: Element<'_, Message> = if self.signature_dialog.is_some() {
+            self.signature_dialog_view(full())
+        } else if self.redact_confirm {
+            self.redact_dialog(full())
+        } else if self.export_dialog.is_some() {
+            self.export_dialog_view(full())
+        } else {
+            space().into()
+        };
+        iced::widget::stack![body, notice, dialog].into()
     }
 
     fn password_view<'a>(
@@ -1012,22 +1122,21 @@ impl PdfWindow {
                 label,
             )
         };
-        let modes = component::connected(
+        let modes = component::connected_with_tips(
             MODES
                 .iter()
                 .map(|mode| {
-                    ui::icon_button(mode.icon())
-                        .kind(Kind::Tonal)
-                        .size(button::Size::ExtraSmall)
-                        .selected(viewer.mode == mode.0)
-                        .on_press(Message::ModeSelected(*mode))
+                    (
+                        ui::icon_button(mode.icon())
+                            .kind(Kind::Tonal)
+                            .size(button::Size::ExtraSmall)
+                            .selected(viewer.mode == mode.0)
+                            .on_press(Message::ModeSelected(*mode)),
+                        Some(mode.label()),
+                    )
                 })
                 .collect(),
         );
-        let mode_label = MODES
-            .iter()
-            .find(|mode| mode.0 == viewer.mode)
-            .map_or("", |mode| mode.label());
 
         let search = &viewer.search;
         let matches = if search.query.trim().is_empty() {
@@ -1092,7 +1201,7 @@ impl PdfWindow {
                     zoom(Icon::ZoomIn, "Zoom in", Zoom::In),
                 ]),
                 TOOL_WIDTH * 2.0 + 48.0 + 8.0,
-                Some(2),
+                Some(3),
             ),
             (
                 component::group([
@@ -1102,7 +1211,24 @@ impl PdfWindow {
                 TOOL_WIDTH * 2.0 + 4.0,
                 Some(1),
             ),
-            (component::tip(modes, mode_label), 3.0 * 32.0 + 4.0, Some(0)),
+            (modes, 3.0 * 32.0 + 4.0, Some(0)),
+            (
+                component::group([
+                    component::tool(
+                        Icon::RotateLeft,
+                        "Rotate left",
+                        Some(Message::PageAction(PageAction::RotateLeft)),
+                    ),
+                    component::tool(
+                        Icon::RotateRight,
+                        "Rotate right",
+                        Some(Message::PageAction(PageAction::RotateRight)),
+                    ),
+                    self.pages_menu(viewer),
+                ]),
+                TOOL_WIDTH * 3.0 + 8.0,
+                Some(2),
+            ),
             (
                 component::toggle_tool(
                     Icon::EditDocument,
@@ -1113,7 +1239,7 @@ impl PdfWindow {
                 TOOL_WIDTH,
                 None,
             ),
-            (search_bar, 280.0, Some(3)),
+            (search_bar, 280.0, Some(4)),
         ];
         let widths: Vec<(f32, Option<u8>)> = slots
             .iter()
@@ -1123,7 +1249,7 @@ impl PdfWindow {
         let mut bar = row![].spacing(8).align_y(Center);
         let mut hidden = Vec::new();
         for (index, ((element, _, _), shown)) in slots.into_iter().zip(shown).enumerate() {
-            // The markup button and search bar sit on the right.
+            // Page tools, the markup button and search bar sit on the right.
             if index == 5 {
                 bar = bar.push(space::horizontal());
             }
@@ -1160,23 +1286,38 @@ impl PdfWindow {
             tab("Bookmarks", Icon::Bookmarks, Sidebar::Bookmarks),
         ]);
         let list: Element<'a, Message> = match sidebar {
-            Sidebar::Thumbnails => component::scroll(
-                column(
-                    viewer
-                        .info
-                        .page_sizes
-                        .iter()
-                        .enumerate()
-                        .map(|(page, size)| thumbnail(viewer, page, *size, self.thumbnail_width())),
-                )
-                .spacing(0)
-                .width(Fill)
-                .align_x(Center),
-            )
-            .on_scroll(Message::ThumbnailsScrolled)
-            .id(self.thumbnails_id.clone())
-            .height(Fill)
-            .into(),
+            Sidebar::Thumbnails => {
+                let gap = self.dragging_gap();
+                let count = viewer.page_count();
+                let thumbnails = viewer
+                    .info
+                    .page_sizes
+                    .iter()
+                    .enumerate()
+                    .map(|(page, size)| {
+                        let dragged = self.is_dragged(page);
+                        thumbnail(
+                            viewer,
+                            page,
+                            *size,
+                            self.thumbnail_width(),
+                            gap == Some(page),
+                            dragged,
+                        )
+                    });
+                let list = column(thumbnails)
+                    .push(pages_ui::drop_marker(gap == Some(count)))
+                    .spacing(0)
+                    .width(Fill)
+                    .align_x(Center);
+                let list =
+                    mouse_area(container(list).padding([0, 16])).on_move(Message::ThumbnailsMoved);
+                component::scroll(list)
+                    .on_scroll(Message::ThumbnailsScrolled)
+                    .id(self.thumbnails_id.clone())
+                    .height(Fill)
+                    .into()
+            }
             Sidebar::Contents if !self.outline_loaded => {
                 component::empty_state(Icon::Toc, "Loading…", "")
             }
@@ -1243,6 +1384,8 @@ fn thumbnail<'a>(
     page: usize,
     size: prev_pdf::geometry::Size,
     width: f32,
+    marker: bool,
+    dragged: bool,
 ) -> Element<'a, Message> {
     let height = thumbnail_height(&size, width);
     let picture: Element<'a, Message> = match viewer.previews.get(&page) {
@@ -1250,6 +1393,7 @@ fn thumbnail<'a>(
             .width(width)
             .height(height)
             .border_radius(style::THUMBNAIL_RADIUS)
+            .opacity(if dragged { 0.4_f32 } else { 1.0 })
             .into(),
         None => container(space::horizontal())
             .width(width)
@@ -1261,24 +1405,30 @@ fn thumbnail<'a>(
             })
             .into(),
     };
-    let selected = page == viewer.current;
+    let current = page == viewer.current;
+    let selected = if viewer.selected_pages.is_empty() {
+        current
+    } else {
+        viewer.selected_pages.contains(&page)
+    };
     let framed = container(picture)
         .padding(style::THUMBNAIL_RING)
         .style(move |theme: &iced::Theme| style::thumbnail(theme, selected));
     let label = ui::styled(viewer.page_label(page), Type::LabelMedium);
-    let label = if selected {
+    let label = if current {
         label.style(style::primary_text)
     } else {
         label.style(style::on_surface_variant)
     };
-    mouse_area(
-        column![framed, label]
-            .align_x(Center)
-            .spacing(4)
-            .height(Length::Fixed(height + THUMBNAIL_SPACING)),
-    )
-    .on_press(Message::Viewer(PdfMessage::GoTo { page, point: None }))
-    .interaction(iced::mouse::Interaction::Pointer)
+    column![
+        pages_ui::drop_marker(marker),
+        mouse_area(column![framed, label].align_x(Center).spacing(4))
+            .on_press(Message::ThumbnailPressed(page))
+            .interaction(iced::mouse::Interaction::Pointer),
+    ]
+    .align_x(Center)
+    .spacing(4)
+    .height(Length::Fixed(height + THUMBNAIL_SPACING))
     .into()
 }
 

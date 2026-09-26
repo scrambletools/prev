@@ -109,16 +109,30 @@ pub fn group<'a, Message: Clone + 'a>(
 pub fn connected<'a, Message: Clone + 'a>(
     buttons: Vec<Button<'a, Message>>,
 ) -> Element<'a, Message> {
+    connected_with_tips(buttons.into_iter().map(|button| (button, None)).collect())
+}
+
+/// A connected button group where each button has its own tooltip.
+pub fn connected_with_tips<'a, Message: Clone + 'a>(
+    buttons: Vec<(Button<'a, Message>, Option<&'a str>)>,
+) -> Element<'a, Message> {
     let count = buttons.len();
-    row(buttons.into_iter().enumerate().map(|(index, button)| {
-        let position = match (index, count) {
-            (_, 1) => Position::Alone,
-            (0, _) => Position::First,
-            (index, count) if index + 1 == count => Position::Last,
-            _ => Position::Middle,
-        };
-        button.position(position).into()
-    }))
+    row(buttons
+        .into_iter()
+        .enumerate()
+        .map(|(index, (button, label))| {
+            let position = match (index, count) {
+                (_, 1) => Position::Alone,
+                (0, _) => Position::First,
+                (index, count) if index + 1 == count => Position::Last,
+                _ => Position::Middle,
+            };
+            let button = button.position(position);
+            match label {
+                Some(label) => tip(button, label),
+                None => button.into(),
+            }
+        }))
     .spacing(2)
     .align_y(Center)
     .into()

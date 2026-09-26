@@ -6,62 +6,12 @@ mod common;
 use std::path::Path;
 use std::sync::Arc;
 
-use common::{assemble_pdf, stream_object};
 use prev_pdf::annotation::{
     Annotation, Field, FieldKind, Kind, LineEnd, Rgb, StampContent, TextMarkup, new_id,
 };
 use prev_pdf::engine::{Bitmap, Document, Engine};
 use prev_pdf::geometry::{PixelRect, Point, Quad, Rect};
 use prev_pdf::mupdf_engine::MupdfEngine;
-
-/// One letter page with a line of text at the top, and a form with a text
-/// field, a checkbox, two radio buttons and a drop-down menu.
-fn form_fixture() -> Vec<u8> {
-    let content = b"BT /F1 24 Tf 72 700 Td (Annotate this line) Tj ET\n";
-    assemble_pdf(&[
-        // 1
-        b"<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [6 0 R 7 0 R 8 0 R 11 0 R] \
-/DA (/Helv 12 Tf 0 g) /DR << /Font << /Helv 5 0 R >> >> >> >>"
-            .to_vec(),
-        // 2
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_vec(),
-        // 3
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R \
-/Resources << /Font << /F1 5 0 R >> >> /Annots [6 0 R 7 0 R 9 0 R 10 0 R 11 0 R] >>"
-            .to_vec(),
-        // 4
-        stream_object("", content),
-        // 5
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_vec(),
-        // 6: text field
-        b"<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /Rect [72 600 300 624] \
-/DA (/Helv 12 Tf 0 g) /P 3 0 R /F 4 >>"
-            .to_vec(),
-        // 7: checkbox
-        b"<< /Type /Annot /Subtype /Widget /FT /Btn /T (agree) /Rect [72 560 90 578] /P 3 0 R /F 4 \
-/V /Off /AS /Off /MK << /CA (4) >> /DA (/ZaDb 0 Tf 0 g) \
-/AP << /N << /Yes 12 0 R /Off 13 0 R >> >> >>"
-            .to_vec(),
-        // 8: radio group
-        b"<< /FT /Btn /Ff 49152 /T (size) /V /Off /Kids [9 0 R 10 0 R] >>".to_vec(),
-        // 9
-        b"<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [72 520 90 538] /P 3 0 R /F 4 \
-/AS /Off /MK << /CA (l) >> /DA (/ZaDb 0 Tf 0 g) /AP << /N << /Small 12 0 R /Off 13 0 R >> >> >>"
-            .to_vec(),
-        // 10
-        b"<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [120 520 138 538] /P 3 0 R /F 4 \
-/AS /Off /MK << /CA (l) >> /DA (/ZaDb 0 Tf 0 g) /AP << /N << /Large 12 0 R /Off 13 0 R >> >> >>"
-            .to_vec(),
-        // 11: drop-down menu
-        b"<< /Type /Annot /Subtype /Widget /FT /Ch /Ff 131072 /T (color) /Rect [72 470 200 494] \
-/Opt [(Red) (Green) (Blue)] /V (Red) /DA (/Helv 12 Tf 0 g) /P 3 0 R /F 4 >>"
-            .to_vec(),
-        // 12
-        stream_object("/BBox [0 0 18 18]", b"0 g 3 3 12 12 re f"),
-        // 13
-        stream_object("/BBox [0 0 18 18]", b""),
-    ])
-}
 
 fn open(bytes: &[u8]) -> (tempfile::TempDir, Box<dyn Document>) {
     let dir = tempfile::tempdir().unwrap();
@@ -157,7 +107,7 @@ fn every_kind() -> Vec<Annotation> {
 
 #[test]
 fn every_kind_round_trips() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let written = every_kind();
     for annotation in &written {
         document.add_annotation(0, annotation, None).unwrap();
@@ -198,7 +148,7 @@ fn every_kind_round_trips() {
 
 #[test]
 fn updates_move_and_restyle() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let square = Annotation::new(
         new_id(),
         Kind::Square,
@@ -223,7 +173,7 @@ fn updates_move_and_restyle() {
 
 #[test]
 fn removal_can_be_undone_exactly() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let mut circle = Annotation::new(
         new_id(),
         Kind::Circle,
@@ -279,7 +229,7 @@ fn pixel(document: &dyn Document, x: f32, y: f32) -> [u8; 4] {
 
 #[test]
 fn image_stamps_keep_transparency_and_survive_moves() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let mut stamp = Annotation::new(new_id(), Kind::Stamp, Rect::new(100.0, 300.0, 300.0, 400.0));
     stamp.subject = Some("Signature".into());
     let content = StampContent::Image {
@@ -310,7 +260,7 @@ fn image_stamps_keep_transparency_and_survive_moves() {
 
 #[test]
 fn masks_darken_all_but_the_hole() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let page = Rect::new(0.0, 0.0, 612.0, 792.0);
     let hole = Rect::new(100.0, 100.0, 300.0, 200.0);
     let mask = Annotation::new(new_id(), Kind::Stamp, page);
@@ -338,7 +288,7 @@ fn field<'a>(fields: &'a [Field], name: &str) -> &'a Field {
 
 #[test]
 fn form_fields_fill_and_round_trip() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let fields = document.fields(0).unwrap();
     assert_eq!(fields.len(), 5, "{fields:#?}");
     let name = field(&fields, "name");
@@ -481,7 +431,7 @@ mod image_rgb {
 
 #[test]
 fn poppler_draws_prev_annotations() {
-    let (_dir, mut document) = open(&form_fixture());
+    let (_dir, mut document) = open(&common::form_fixture());
     let mut square = Annotation::new(
         new_id(),
         Kind::Square,
@@ -515,7 +465,7 @@ fn poppler_draws_prev_annotations() {
 
 #[test]
 fn saving_appends_to_the_original() {
-    let original = form_fixture();
+    let original = common::form_fixture();
     let (_dir, mut document) = open(&original);
     assert!(!document.has_changes());
     let note = Annotation::new(new_id(), Kind::Note, Rect::new(10.0, 10.0, 30.0, 30.0));

@@ -98,3 +98,52 @@ pub fn navigation_fixture() -> Vec<u8> {
     ];
     assemble_pdf_with_trailer(&objects, "/Info 15 0 R")
 }
+
+/// One letter page with a line of text at the top, and a form with a text
+/// field, a checkbox, two radio buttons and a drop-down menu.
+pub fn form_fixture() -> Vec<u8> {
+    let content = b"BT /F1 24 Tf 72 700 Td (Annotate this line) Tj ET\n";
+    assemble_pdf(&[
+        // 1
+        b"<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [6 0 R 7 0 R 8 0 R 11 0 R] \
+/DA (/Helv 12 Tf 0 g) /DR << /Font << /Helv 5 0 R >> >> >> >>"
+            .to_vec(),
+        // 2
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_vec(),
+        // 3
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R \
+/Resources << /Font << /F1 5 0 R >> >> /Annots [6 0 R 7 0 R 9 0 R 10 0 R 11 0 R] >>"
+            .to_vec(),
+        // 4
+        stream_object("", content),
+        // 5
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_vec(),
+        // 6: text field
+        b"<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /Rect [72 600 300 624] \
+/DA (/Helv 12 Tf 0 g) /P 3 0 R /F 4 >>"
+            .to_vec(),
+        // 7: checkbox
+        b"<< /Type /Annot /Subtype /Widget /FT /Btn /T (agree) /Rect [72 560 90 578] /P 3 0 R /F 4 \
+/V /Off /AS /Off /MK << /CA (4) >> /DA (/ZaDb 0 Tf 0 g) \
+/AP << /N << /Yes 12 0 R /Off 13 0 R >> >> >>"
+            .to_vec(),
+        // 8: radio group
+        b"<< /FT /Btn /Ff 49152 /T (size) /V /Off /Kids [9 0 R 10 0 R] >>".to_vec(),
+        // 9
+        b"<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [72 520 90 538] /P 3 0 R /F 4 \
+/AS /Off /MK << /CA (l) >> /DA (/ZaDb 0 Tf 0 g) /AP << /N << /Small 12 0 R /Off 13 0 R >> >> >>"
+            .to_vec(),
+        // 10
+        b"<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [120 520 138 538] /P 3 0 R /F 4 \
+/AS /Off /MK << /CA (l) >> /DA (/ZaDb 0 Tf 0 g) /AP << /N << /Large 12 0 R /Off 13 0 R >> >> >>"
+            .to_vec(),
+        // 11: drop-down menu
+        b"<< /Type /Annot /Subtype /Widget /FT /Ch /Ff 131072 /T (color) /Rect [72 470 200 494] \
+/Opt [(Red) (Green) (Blue)] /V (Red) /DA (/Helv 12 Tf 0 g) /P 3 0 R /F 4 >>"
+            .to_vec(),
+        // 12
+        stream_object("/BBox [0 0 18 18]", b"0 g 3 3 12 12 re f"),
+        // 13
+        stream_object("/BBox [0 0 18 18]", b""),
+    ])
+}

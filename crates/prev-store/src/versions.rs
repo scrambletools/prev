@@ -127,6 +127,25 @@ impl VersionStore {
         atomic::write(document, &contents)
     }
 
+    /// Deletes every version of `document`, for content that must not
+    /// survive anywhere, such as redacted text.
+    pub fn forget(&self, document: &Path) -> io::Result<()> {
+        let folder = self.folder(document);
+        let index = self.load_index(document);
+        for version in &index.versions {
+            match std::fs::remove_file(folder.join(&version.file)) {
+                Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
+                _ => {}
+            }
+        }
+        match std::fs::remove_file(folder.join(INDEX)) {
+            Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
+            _ => {}
+        }
+        let _ = std::fs::remove_dir(&folder);
+        Ok(())
+    }
+
     /// Deletes versions older than `max_age`, then the oldest ones until all
     /// documents together use at most `max_bytes`.
     pub fn prune(&self, max_age: Duration, max_bytes: u64) -> io::Result<()> {
@@ -236,6 +255,24 @@ mod tests {
             b"third",
             "the revert is undoable"
         );
+    }
+
+    #[test]
+    fn forgetting_deletes_every_version() {
+        let (dir, store, document) = setup();
+        let first = store.keep(&document).unwrap();
+        store.keep(&document).unwrap();
+        store.forget(&document).unwrap();
+        assert!(store.list(&document).is_empty());
+        assert!(store.contents(&document, &first).is_err());
+        assert!(
+            !dir.path()
+                .join("versions")
+                .join(store.folder(&document))
+                .exists()
+        );
+        // Nothing to forget is fine too.
+        store.forget(&document).unwrap();
     }
 
     #[test]

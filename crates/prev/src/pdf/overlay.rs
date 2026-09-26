@@ -117,6 +117,16 @@ pub fn paint(frame: &mut Frame, annotation: &Annotation, mapping: &Mapping) {
             frame,
             polyline(&rect_points(annotation.rect), mapping, true),
         ),
+        Kind::Redact => {
+            let (origin, size) = mapping.rect(annotation.rect);
+            frame.fill_rectangle(origin, size, Color::from_rgba(0.0, 0.0, 0.0, 0.35));
+            frame.stroke(
+                &Path::rectangle(origin, size),
+                Stroke::default()
+                    .with_color(Color::from_rgb(0.85, 0.1, 0.1))
+                    .with_width(1.5),
+            );
+        }
         Kind::Circle => shape(
             frame,
             polyline(&ellipse_points(annotation.rect), mapping, true),

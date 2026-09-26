@@ -11,11 +11,12 @@ use mupdf::{
 
 use crate::annotation::{Annotation, Field, Removed, StampContent};
 use crate::engine::{
-    Bitmap, Document, Engine, Error, Link, LinkTarget, OutlineItem, PageDisplay, Result,
+    Bitmap, CropBox, Document, Engine, Error, ExportOptions, Link, LinkTarget, OutlineItem,
+    PageDisplay, RemovedPage, Result,
 };
 use crate::geometry::{PixelRect, Point, Quad, Rect, Size};
-use crate::mupdf_annotations;
 use crate::text::{TextChar, TextLayout, TextLine};
+use crate::{mupdf_annotations, mupdf_pages};
 
 const MAX_SEARCH_HITS: u32 = 10_000;
 
@@ -29,12 +30,18 @@ impl Engine for MupdfEngine {
     fn open(&self, path: &Path) -> Result<Box<dyn Document>> {
         let document =
             PdfDocument::open(path.as_os_str()).map_err(|error| Error::Open(error.to_string()))?;
-        Ok(Box::new(MupdfDocument { document }))
+        Ok(Box::new(MupdfDocument {
+            document,
+            rewrite: false,
+        }))
     }
 }
 
 struct MupdfDocument {
     document: PdfDocument,
+    /// Set by redaction: the next save must rewrite the whole file, so the
+    /// removed content does not survive in an earlier revision.
+    rewrite: bool,
 }
 
 impl MupdfDocument {
@@ -232,7 +239,12 @@ impl Document for MupdfDocument {
 
     fn save(&mut self) -> Result<Vec<u8>> {
         let mut options = mupdf::pdf::PdfWriteOptions::default();
-        if self.document.can_be_saved_incrementally() {
+        if self.rewrite {
+            options
+                .set_garbage_level(3)
+                .set_compress(true)
+                .set_encryption(mupdf::pdf::Encryption::Keep);
+        } else if self.document.can_be_saved_incrementally() {
             options.set_incremental(true);
         } else {
             options.set_garbage_level(1);
@@ -242,6 +254,54 @@ impl Document for MupdfDocument {
             .write_to_with_options(&mut bytes, options)
             .map_err(engine_error)?;
         Ok(bytes)
+    }
+
+    fn rotate_page(&mut self, page: usize, quarter_turns: i32) -> Result<()> {
+        mupdf_pages::rotate_page(&self.document, page, quarter_turns)
+    }
+
+    fn remove_page(&mut self, page: usize) -> Result<RemovedPage> {
+        mupdf_pages::remove_page(&mut self.document, page)
+    }
+
+    fn restore_page(&mut self, at: usize, removed: &RemovedPage) -> Result<()> {
+        mupdf_pages::restore_page(&mut self.document, at, removed)
+    }
+
+    fn move_page(&mut self, from: usize, to: usize) -> Result<()> {
+        mupdf_pages::move_page(&mut self.document, from, to)
+    }
+
+    fn insert_blank_page(&mut self, at: usize, size: Size) -> Result<()> {
+        mupdf_pages::insert_blank_page(&mut self.document, at, size)
+    }
+
+    fn insert_document(&mut self, at: usize, bytes: &[u8]) -> Result<usize> {
+        mupdf_pages::insert_document(&mut self.document, at, bytes)
+    }
+
+    fn extract_pages(&self, pages: &[usize]) -> Result<Vec<u8>> {
+        mupdf_pages::extract_pages(&self.document, pages)
+    }
+
+    fn crop_page(&mut self, page: usize, rect: Rect) -> Result<CropBox> {
+        mupdf_pages::crop_page(&self.document, page, rect)
+    }
+
+    fn set_crop_box(&mut self, page: usize, crop: &CropBox) -> Result<CropBox> {
+        mupdf_pages::set_crop_box(&self.document, page, crop)
+    }
+
+    fn apply_redactions(&mut self) -> Result<usize> {
+        let applied = mupdf_pages::apply_redactions(&self.document)?;
+        if applied > 0 {
+            self.rewrite = true;
+        }
+        Ok(applied)
+    }
+
+    fn export(&mut self, options: &ExportOptions) -> Result<Vec<u8>> {
+        mupdf_pages::export(&self.document, options)
     }
 }
 

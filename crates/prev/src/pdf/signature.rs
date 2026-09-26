@@ -6,12 +6,108 @@ use std::sync::Arc;
 
 use prev_pdf::engine::Bitmap;
 
-/// Height of stored signature images, in pixels.
-const HEIGHT: f32 = 240.0;
-const INK: [u8; 3] = [0x10, 0x18, 0x40];
+/// Height of stored signature images, in pixels: enough to stay sharp
+/// when a signature is placed large or the page is zoomed in.
+const HEIGHT: f32 = 480.0;
+/// The default ink, a dark blue as from a pen.
+pub const INK: [u8; 3] = [0x10, 0x18, 0x40];
+/// Ink colors to sign with, as (color, name).
+pub const INKS: [([u8; 3], &str); 6] = [
+    (INK, "Blue-black"),
+    ([0x14, 0x14, 0x14], "Black"),
+    ([0x1a, 0x4f, 0xc4], "Blue"),
+    ([0xc6, 0x28, 0x28], "Red"),
+    ([0x2e, 0x7d, 0x32], "Green"),
+    ([0x6a, 0x1b, 0x9a], "Purple"),
+];
+/// Pen widths the pad offers, in pad pixels, and the default.
+pub const PEN_WIDTHS: std::ops::RangeInclusive<f32> = 1.0..=8.0;
+pub const PEN_WIDTH: f32 = 3.0;
+
+/// Evens out pointer positions, which come rounded to whole pixels: each
+/// point moves toward its neighbours (weights 1, 2, 1), twice. The ends
+/// stay where they are.
+fn smoothed(points: &[(f32, f32)]) -> Vec<(f32, f32)> {
+    let mut points = points.to_vec();
+    for _ in 0..2 {
+        if points.len() < 3 {
+            break;
+        }
+        let mut next = points.clone();
+        for index in 1..points.len() - 1 {
+            let (a, b, c) = (points[index - 1], points[index], points[index + 1]);
+            next[index] = ((a.0 + 2.0 * b.0 + c.0) / 4.0, (a.1 + 2.0 * b.1 + c.1) / 4.0);
+        }
+        points = next;
+    }
+    points
+}
+
+/// Strokes as smooth paths: the points evened out, then quadratic curves
+/// through the midpoints between them. `map` places each point.
+fn stroke_paths(
+    strokes: &[Vec<(f32, f32)>],
+    map: impl Fn((f32, f32)) -> (f32, f32),
+) -> Vec<tiny_skia::Path> {
+    let mut paths = Vec::new();
+    for points in strokes {
+        let mut builder = tiny_skia::PathBuilder::new();
+        let points = smoothed(points);
+        let mut mapped = points.iter().map(|point| map(*point));
+        let Some(first) = mapped.next() else {
+            continue;
+        };
+        builder.move_to(first.0, first.1);
+        let rest: Vec<(f32, f32)> = mapped.collect();
+        if rest.is_empty() {
+            // A dot.
+            builder.line_to(first.0 + 0.01, first.1);
+        }
+        let mut previous = first;
+        for (index, point) in rest.iter().enumerate() {
+            if index + 1 == rest.len() {
+                builder.quad_to(previous.0, previous.1, point.0, point.1);
+            } else {
+                let middle = ((previous.0 + point.0) / 2.0, (previous.1 + point.1) / 2.0);
+                builder.quad_to(previous.0, previous.1, middle.0, middle.1);
+            }
+            previous = *point;
+        }
+        paths.extend(builder.finish());
+    }
+    paths
+}
+
+/// Draws strokes in `ink` onto `pixmap`, antialiased, `width` pixels wide.
+pub fn draw_strokes(
+    pixmap: &mut tiny_skia::Pixmap,
+    strokes: &[Vec<(f32, f32)>],
+    width: f32,
+    ink: [u8; 3],
+    map: impl Fn((f32, f32)) -> (f32, f32),
+) {
+    let mut paint = tiny_skia::Paint::default();
+    paint.set_color_rgba8(ink[0], ink[1], ink[2], 255);
+    paint.anti_alias = true;
+    let stroke = tiny_skia::Stroke {
+        width,
+        line_cap: tiny_skia::LineCap::Round,
+        line_join: tiny_skia::LineJoin::Round,
+        ..tiny_skia::Stroke::default()
+    };
+    for path in stroke_paths(strokes, map) {
+        pixmap.stroke_path(
+            &path,
+            &paint,
+            &stroke,
+            tiny_skia::Transform::identity(),
+            None,
+        );
+    }
+}
 
 /// Renders strokes drawn on a pad, in pad coordinates, as a PNG.
-pub fn from_strokes(strokes: &[Vec<(f32, f32)>], line_width: f32) -> Option<Vec<u8>> {
+pub fn from_strokes(strokes: &[Vec<(f32, f32)>], line_width: f32, ink: [u8; 3]) -> Option<Vec<u8>> {
     let points = strokes.iter().flatten();
     let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for &(x, y) in points {
@@ -30,49 +126,9 @@ pub fn from_strokes(strokes: &[Vec<(f32, f32)>], line_width: f32) -> Option<Vec<
         (width * scale).ceil().max(1.0) as u32,
         (height * scale).ceil().max(1.0) as u32,
     )?;
-    let mut paint = tiny_skia::Paint::default();
-    paint.set_color_rgba8(INK[0], INK[1], INK[2], 255);
-    paint.anti_alias = true;
-    let stroke = tiny_skia::Stroke {
-        width: line_width * scale,
-        line_cap: tiny_skia::LineCap::Round,
-        line_join: tiny_skia::LineJoin::Round,
-        ..tiny_skia::Stroke::default()
-    };
-    let map = |(x, y): (f32, f32)| ((x - x0 + pad) * scale, (y - y0 + pad) * scale);
-    for points in strokes {
-        let mut builder = tiny_skia::PathBuilder::new();
-        let mut mapped = points.iter().map(|point| map(*point));
-        let Some(first) = mapped.next() else {
-            continue;
-        };
-        builder.move_to(first.0, first.1);
-        let rest: Vec<(f32, f32)> = mapped.collect();
-        if rest.is_empty() {
-            // A dot.
-            builder.line_to(first.0 + 0.1, first.1);
-        }
-        // Quadratic curves through the midpoints smooth the mouse's steps.
-        let mut previous = first;
-        for (index, point) in rest.iter().enumerate() {
-            if index + 1 == rest.len() {
-                builder.quad_to(previous.0, previous.1, point.0, point.1);
-            } else {
-                let middle = ((previous.0 + point.0) / 2.0, (previous.1 + point.1) / 2.0);
-                builder.quad_to(previous.0, previous.1, middle.0, middle.1);
-            }
-            previous = *point;
-        }
-        if let Some(path) = builder.finish() {
-            pixmap.stroke_path(
-                &path,
-                &paint,
-                &stroke,
-                tiny_skia::Transform::identity(),
-                None,
-            );
-        }
-    }
+    draw_strokes(&mut pixmap, strokes, line_width * scale, ink, |(x, y)| {
+        ((x - x0 + pad) * scale, (y - y0 + pad) * scale)
+    });
     pixmap.encode_png().ok()
 }
 
@@ -83,7 +139,7 @@ fn escape(text: &str) -> String {
 }
 
 /// Renders a typed name in the handwriting font as a PNG.
-pub fn from_text(text: &str) -> Option<Vec<u8>> {
+pub fn from_text(text: &str, ink: [u8; 3]) -> Option<Vec<u8>> {
     let text = text.trim();
     if text.is_empty() {
         return None;
@@ -94,9 +150,9 @@ pub fn from_text(text: &str) -> Option<Vec<u8>> {
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{HEIGHT}"><text x="{x}" y="{y}" font-family="Dancing Script" font-size="{size}" fill="#{r:02x}{g:02x}{b:02x}">{text}</text></svg>"##,
         x = size * 0.25,
         y = HEIGHT * 0.7,
-        r = INK[0],
-        g = INK[1],
-        b = INK[2],
+        r = ink[0],
+        g = ink[1],
+        b = ink[2],
         text = escape(text),
     );
     let mut fonts = usvg::fontdb::Database::new();
@@ -227,19 +283,32 @@ mod tests {
     }
 
     #[test]
+    fn smoothing_evens_out_jitter_and_keeps_the_ends() {
+        let zigzag: Vec<(f32, f32)> = (0..20)
+            .map(|index| (index as f32 * 3.0, if index % 2 == 0 { 0.0 } else { 1.0 }))
+            .collect();
+        let smooth = smoothed(&zigzag);
+        assert_eq!(smooth.first(), zigzag.first());
+        assert_eq!(smooth.last(), zigzag.last());
+        for point in &smooth[2..smooth.len() - 2] {
+            assert!((point.1 - 0.5).abs() < 0.2, "{point:?}");
+        }
+    }
+
+    #[test]
     fn strokes_become_a_transparent_png() {
         let strokes = vec![vec![(10.0, 10.0), (60.0, 40.0), (110.0, 10.0)]];
-        let bitmap = decode(&from_strokes(&strokes, 3.0).unwrap()).unwrap();
+        let bitmap = decode(&from_strokes(&strokes, 3.0, INK).unwrap()).unwrap();
         assert_eq!(bitmap.height, HEIGHT as u32);
         let coverage = ink_coverage(&bitmap);
         assert!(coverage > 0.01 && coverage < 0.5, "coverage {coverage}");
         assert_eq!(bitmap.pixels[3], 0, "the corner is transparent");
-        assert!(from_strokes(&[], 3.0).is_none());
+        assert!(from_strokes(&[], 3.0, INK).is_none());
     }
 
     #[test]
     fn typed_names_use_the_handwriting_font() {
-        let bitmap = decode(&from_text("Ada Lovelace").unwrap()).unwrap();
+        let bitmap = decode(&from_text("Ada Lovelace", INK).unwrap()).unwrap();
         assert!(
             bitmap.width > bitmap.height * 2,
             "{}x{}",
@@ -247,7 +316,7 @@ mod tests {
             bitmap.height
         );
         assert!(ink_coverage(&bitmap) > 0.02);
-        assert!(from_text("   ").is_none());
+        assert!(from_text("   ", INK).is_none());
     }
 
     #[test]

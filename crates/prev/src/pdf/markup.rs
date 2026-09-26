@@ -65,6 +65,8 @@ pub enum Tool {
     TextBox,
     Highlight(TextMarkup),
     Note,
+    /// Marks areas for redaction.
+    Redact,
 }
 
 impl Tool {
@@ -73,7 +75,7 @@ impl Tool {
     pub fn is_sticky(self) -> bool {
         matches!(
             self,
-            Tool::Highlight(_) | Tool::Draw | Tool::Sketch | Tool::Area
+            Tool::Highlight(_) | Tool::Draw | Tool::Sketch | Tool::Area | Tool::Redact
         )
     }
 }

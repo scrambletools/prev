@@ -295,11 +295,10 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             .into_iter()
             .filter_map(|page| {
                 let area = viewer.layout.page_area(page)?;
-                let rect = Rectangle::new(
-                    iced::Point::new(bounds.x + area.x, bounds.y + area.y),
-                    Size::new(area.width, area.height),
-                );
-                Some((page, rect))
+                Some((
+                    page,
+                    snapped_page(bounds, viewport, &area, viewer.device_scale),
+                ))
             })
             .collect();
 
@@ -311,12 +310,21 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             } else {
                 crate::ui::elevation::shadow(&crate::ui::Scheme::of(theme), 2)
             };
+            // Quads soften their edges over about a pixel, so the white
+            // backing sits a device pixel inside the page, where the tiles
+            // drawn over it hide that edge.
+            let inset = 1.0 / viewer.device_scale.max(0.01);
             renderer.fill_quad(
                 Quad {
-                    bounds: page_rect,
+                    bounds: Rectangle {
+                        x: page_rect.x + inset,
+                        y: page_rect.y + inset,
+                        width: (page_rect.width - 2.0 * inset).max(0.0),
+                        height: (page_rect.height - 2.0 * inset).max(0.0),
+                    },
                     border: Border::default(),
                     shadow,
-                    snap: true,
+                    snap: false,
                 },
                 Background::Color(Color::WHITE),
             );
@@ -481,4 +489,30 @@ impl<'a, Message: 'a> From<PageCanvas<'a, Message>> for Element<'a, Message> {
     fn from(canvas: PageCanvas<'a, Message>) -> Self {
         Element::new(canvas)
     }
+}
+
+/// A page's rectangle, moved and sized to whole device pixels on screen:
+/// its tiles are drawn pixel for pixel, so no edge falls between pixels
+/// and lets the shadow behind the page show. The scrollable draws the
+/// content moved by `viewport - bounds`, which the snapping must include.
+fn snapped_page(
+    bounds: Rectangle,
+    viewport: &Rectangle,
+    area: &Area,
+    device_scale: f32,
+) -> Rectangle {
+    let device_scale = device_scale.max(0.01);
+    let (shift_x, shift_y) = (viewport.x - bounds.x, viewport.y - bounds.y);
+    let snap = |content: f32, shift: f32| {
+        ((content - shift) * device_scale).round() / device_scale + shift
+    };
+    let x = snap(bounds.x + area.x, shift_x);
+    let y = snap(bounds.y + area.y, shift_y);
+    // As `visible_tiles` counts the page's pixels.
+    let width = (area.width * device_scale - 0.01).ceil();
+    let height = (area.height * device_scale - 0.01).ceil();
+    Rectangle::new(
+        iced::Point::new(x, y),
+        Size::new(width / device_scale, height / device_scale),
+    )
 }

@@ -218,6 +218,7 @@ fn read_annotation(
         PdfAnnotationType::FreeText => Kind::FreeText,
         PdfAnnotationType::Text => Kind::Note,
         PdfAnnotationType::Stamp => Kind::Stamp,
+        PdfAnnotationType::Redact => Kind::Redact,
         other => Kind::Other(format!("{other:?}")),
     };
     let rect = space.rect(annot.rect().map_err(engine_error)?);
@@ -304,6 +305,7 @@ pub(crate) fn add_annotation(
         Kind::FreeText => page.add_free_text_annotation(rect, &annotation.contents),
         Kind::Note => page.add_text_annotation(rect, &annotation.contents),
         Kind::Stamp => page.add_stamp_annotation(rect, "Draft"),
+        Kind::Redact => page.add_redact_annotation(rect),
         Kind::Other(name) => {
             return Err(Error::Engine(format!("cannot create {name} annotations")));
         }
@@ -360,7 +362,7 @@ pub(crate) fn update_annotation(
         // A stamp keeps its own appearance, which setting the rect through
         // MuPDF would replace; the appearance scales to /Rect by itself.
         Kind::Stamp => write_rect(page, &annot, annotation.rect, space)?,
-        Kind::Square | Kind::Circle | Kind::FreeText | Kind::Note => annot
+        Kind::Square | Kind::Circle | Kind::FreeText | Kind::Note | Kind::Redact => annot
             .set_rect(space.to_mupdf_rect(annotation.rect))
             .map_err(engine_error)?,
         Kind::Other(_) => {}
@@ -444,7 +446,7 @@ fn write_properties(
     }
     let bordered = !matches!(
         annotation.kind,
-        Kind::Markup { .. } | Kind::Note | Kind::Stamp
+        Kind::Markup { .. } | Kind::Note | Kind::Stamp | Kind::Redact
     );
     if bordered {
         // Text boxes have a border only when given a border color.

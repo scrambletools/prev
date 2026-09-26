@@ -3412,6 +3412,7 @@ dependencies = [
  "serde",
  "smithay-clipboard",
  "tempfile",
+ "tiff",
  "tiny-skia",
  "toml 1.1.6+spec-1.1.0",
  "usvg",
@@ -3441,6 +3442,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "futures-channel",
+ "image",
  "mupdf",
  "tempfile",
 ]

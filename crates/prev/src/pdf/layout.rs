@@ -16,6 +16,7 @@ pub enum ViewMode {
     #[default]
     Continuous,
     SinglePage,
+    /// Pages side by side in pairs: 1 and 2, 3 and 4.
     TwoPages,
 }
 
@@ -70,17 +71,12 @@ pub struct Layout {
     pub content: Size,
 }
 
-/// The pages shown in `SinglePage` mode for `current`: just that page, or in
-/// `TwoPages` mode the spread containing it (first page alone, like a book).
+/// The pages shown for `current`: just that page, or in `TwoPages` mode
+/// the pair containing it. Its right page may be past the last page.
 fn spread_of(mode: ViewMode, current: usize) -> (usize, Option<usize>) {
     match mode {
-        ViewMode::TwoPages if current == 0 => (0, None),
         ViewMode::TwoPages => {
-            let left = if current % 2 == 1 {
-                current
-            } else {
-                current - 1
-            };
+            let left = current - current % 2;
             (left, Some(left + 1))
         }
         _ => (current, None),
@@ -122,10 +118,9 @@ pub fn resolve_zoom(
                         .filter_map(|index| sizes.get(index))
                         .map(|size| size.height)
                         .fold(0.0, f32::max);
-                    (
-                        pair_width(left).max(pair_width(1.min(sizes.len().saturating_sub(1)))),
-                        height,
-                    )
+                    // Wide enough for a full pair, even beside a last page
+                    // shown alone.
+                    (pair_width(left).max(pair_width(0)), height)
                 }
             };
             let width_zoom =
@@ -155,17 +150,11 @@ pub fn layout(mode: ViewMode, sizes: &[Size], current: usize, zoom: f32, viewpor
 
     let rows: Vec<Vec<usize>> = match mode {
         ViewMode::Continuous => (0..sizes.len()).map(|index| vec![index]).collect(),
-        ViewMode::TwoPages => {
-            let mut rows = vec![vec![0]];
-            rows.extend(
-                (1..sizes.len())
-                    .collect::<Vec<_>>()
-                    .chunks(2)
-                    .map(|pair| pair.to_vec()),
-            );
-            rows.retain(|row| row.iter().all(|index| *index < sizes.len()));
-            rows
-        }
+        ViewMode::TwoPages => (0..sizes.len())
+            .collect::<Vec<_>>()
+            .chunks(2)
+            .map(|pair| pair.to_vec())
+            .collect(),
         ViewMode::SinglePage if sizes.is_empty() => Vec::new(),
         ViewMode::SinglePage => vec![vec![current.min(sizes.len() - 1)]],
     };
@@ -306,8 +295,9 @@ fn distance_to(area: &Area, x: f32, y: f32) -> f32 {
 /// `page` and `view` are in document space; `device_scale` is the window's
 /// scale factor.
 pub fn visible_tiles(page: &Area, view: &Area, device_scale: f32) -> Vec<PixelRect> {
-    let page_width = (page.width * device_scale).ceil() as i64;
-    let page_height = (page.height * device_scale).ceil() as i64;
+    // As in `page_pixels`: float error must not add a blank column.
+    let page_width = (page.width * device_scale - 0.01).ceil() as i64;
+    let page_height = (page.height * device_scale - 0.01).ceil() as i64;
     let to_device = |value: f32| (value * device_scale).floor() as i64;
     let left = (to_device(view.x - page.x)).clamp(0, page_width);
     let top = (to_device(view.y - page.y)).clamp(0, page_height);
@@ -382,16 +372,17 @@ mod tests {
     }
 
     #[test]
-    fn two_pages_puts_the_first_page_alone() {
+    fn two_pages_pairs_from_the_first_page() {
         let sizes = [LETTER; 5];
         let layout = layout(ViewMode::TwoPages, &sizes, 0, 1.0, Size::new(800.0, 600.0));
         let areas: Vec<Area> = (0..5)
             .map(|index| layout.page_area(index).unwrap())
             .collect();
-        assert!(areas[1].y > areas[0].y);
-        assert_eq!(areas[1].y, areas[2].y, "pages 2 and 3 share a row");
-        assert!(areas[2].x > areas[1].x);
-        assert_eq!(areas[3].y, areas[4].y);
+        assert_eq!(areas[0].y, areas[1].y, "pages 1 and 2 share a row");
+        assert!(areas[1].x > areas[0].x);
+        assert_eq!(areas[2].y, areas[3].y);
+        assert!(areas[4].y > areas[3].y, "the last page is alone");
+        assert_eq!(spread_of(ViewMode::TwoPages, 3), (2, Some(3)));
     }
 
     #[test]

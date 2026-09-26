@@ -5,5 +5,7 @@ pub mod engine;
 pub mod geometry;
 mod mupdf_annotations;
 pub mod mupdf_engine;
+mod mupdf_pages;
+pub mod pages;
 pub mod text;
 pub mod worker;

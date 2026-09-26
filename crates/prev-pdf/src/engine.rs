@@ -82,8 +82,80 @@ pub trait Document {
     fn set_field(&mut self, page: usize, id: i32, value: &str) -> Result<()>;
     fn has_changes(&self) -> bool;
     /// The document with its changes, appended to the original file when
-    /// possible so earlier signatures and revisions stay intact.
+    /// possible so earlier signatures and revisions stay intact. After
+    /// redaction it is always rewritten whole, so nothing removed survives
+    /// in an earlier revision.
     fn save(&mut self) -> Result<Vec<u8>>;
+
+    /// Turns a page clockwise by `quarter_turns` quarter turns.
+    fn rotate_page(&mut self, page: usize, quarter_turns: i32) -> Result<()>;
+    /// Takes a page out of the document, keeping it to put back.
+    fn remove_page(&mut self, page: usize) -> Result<RemovedPage>;
+    /// Puts a removed page back at index `at`.
+    fn restore_page(&mut self, at: usize, removed: &RemovedPage) -> Result<()>;
+    /// Moves the page at `from` so it ends up at index `to`.
+    fn move_page(&mut self, from: usize, to: usize) -> Result<()>;
+    /// Inserts an empty page of `size` points at index `at`.
+    fn insert_blank_page(&mut self, at: usize, size: Size) -> Result<()>;
+    /// Inserts every page of the PDF in `bytes` at index `at`, with its
+    /// annotations and form fields. Returns how many pages were inserted.
+    fn insert_document(&mut self, at: usize, bytes: &[u8]) -> Result<usize>;
+    /// A new, unencrypted PDF with copies of `pages`, in that order.
+    fn extract_pages(&self, pages: &[usize]) -> Result<Vec<u8>>;
+    /// Crops a page to `rect`, in page space. Returns the crop it had.
+    fn crop_page(&mut self, page: usize, rect: Rect) -> Result<CropBox>;
+    /// Gives a page a crop box it had before. Returns the one it replaces.
+    fn set_crop_box(&mut self, page: usize, crop: &CropBox) -> Result<CropBox>;
+    /// Applies every redaction mark on every page: text, images and
+    /// drawings under them are removed and the areas filled black. Returns
+    /// how many marks were applied. Cannot be undone.
+    fn apply_redactions(&mut self) -> Result<usize>;
+    /// The whole document written anew for another file: unused objects
+    /// dropped, streams compressed, optionally encrypted and with images
+    /// made smaller.
+    fn export(&mut self, options: &ExportOptions) -> Result<Vec<u8>>;
+}
+
+/// A page taken out of the document, kept so the removal can be undone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemovedPage {
+    pub(crate) object: i32,
+}
+
+/// A page's crop box in PDF user space, or none, in which case the media
+/// box shows.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CropBox(pub(crate) Option<[f32; 4]>);
+
+/// How a document is written for export.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ExportOptions {
+    /// Encrypts with AES-256; the password is needed to open the file.
+    pub password: Option<String>,
+    pub reduce: Option<Reduce>,
+    /// Only these pages, in this order; all when `None`.
+    pub pages: Option<Vec<usize>>,
+    /// Draws annotations and form fields into the page content, so they
+    /// can no longer be edited. Redaction marks not yet applied are left
+    /// out: flattening them would cover content without removing it.
+    pub flatten: bool,
+}
+
+/// Image downsampling and recompression, for a smaller file.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Reduce {
+    /// Images are scaled down to at most this many pixels per inch of the
+    /// page they are on.
+    pub dpi: f32,
+    /// JPEG quality, 1 to 100.
+    pub quality: u8,
+}
+
+impl Reduce {
+    pub const DEFAULT: Reduce = Reduce {
+        dpi: 150.0,
+        quality: 75,
+    };
 }
 
 /// A parsed page, safe to share with render threads.
@@ -140,10 +212,10 @@ pub fn zoom_to_scale(zoom: f32) -> f32 {
     zoom * 96.0 / 72.0
 }
 
-/// The page area in device pixels at `scale`.
+/// The page area in device pixels at `scale`. Rounds up, but not for
+/// float error: a page 320.0001 pixels wide is 320 pixels, not 321 with a
+/// blank last column.
 pub fn page_pixels(size: Size, scale: f32) -> (u32, u32) {
-    (
-        (size.width * scale).ceil().max(1.0) as u32,
-        (size.height * scale).ceil().max(1.0) as u32,
-    )
+    let pixels = |length: f32| (length * scale - 0.01).ceil().max(1.0) as u32;
+    (pixels(size.width), pixels(size.height))
 }

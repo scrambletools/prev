@@ -117,6 +117,9 @@ pub enum Kind {
     /// An image or drawing with its own appearance: signatures, loupes
     /// and masks.
     Stamp,
+    /// An area marked for redaction; applying redactions removes what is
+    /// under it for good.
+    Redact,
     /// A type prev shows but does not edit.
     Other(String),
 }

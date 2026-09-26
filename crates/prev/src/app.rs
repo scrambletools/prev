@@ -77,6 +77,8 @@ pub enum Message {
     Markdown(window::Id, markdown::Message),
     SystemTheme(iced::theme::Mode),
     Key(window::Id, Key, Modifiers),
+    Modifiers(window::Id, Modifiers),
+    MouseReleased(window::Id),
     Perform(window::Id, Action),
     DialogFinished(window::Id, Result<Vec<PathBuf>, String>),
     AppearanceSelected(Appearance),
@@ -427,6 +429,18 @@ impl Prev {
                     (None, None) => Task::none(),
                 }
             }
+            Message::Modifiers(id, modifiers) => {
+                if let Some(pdf) = self.pdf_mut(id) {
+                    pdf.set_modifiers(modifiers);
+                }
+                Task::none()
+            }
+            Message::MouseReleased(id) => match self.pdf_mut(id) {
+                Some(pdf) if pdf.wants_release() => self.with_pdf(id, |pdf| {
+                    pdf.update(pdf_window::Message::ThumbnailsReleased)
+                }),
+                _ => Task::none(),
+            },
             Message::Perform(id, action) => self.perform(id, action),
             Message::DialogFinished(id, result) => match result {
                 Ok(paths) => self.open_paths_if_any(paths),
@@ -477,10 +491,10 @@ impl Prev {
             | DragEvent::Left { surface }
             | DragEvent::Dropped { surface, .. } => surface,
         };
-        let Some(window) = self
+        let Some((&id, window)) = self
             .windows
-            .values_mut()
-            .find(|window| window.surface == Some(surface))
+            .iter_mut()
+            .find(|(_, window)| window.surface == Some(surface))
         else {
             return Task::none();
         };
@@ -488,12 +502,19 @@ impl Prev {
             DragEvent::Entered { accepted, .. } => window.drag_hover = accepted,
             DragEvent::Left { .. } => window.drag_hover = false,
             DragEvent::Moved { .. } => {}
-            DragEvent::Dropped { uris, .. } => {
+            DragEvent::Dropped { uris, x, .. } => {
                 window.drag_hover = false;
-                let paths = uris
+                let paths: Vec<PathBuf> = uris
                     .iter()
                     .filter_map(|uri| dialog::file_uri_to_path(uri))
                     .collect();
+                // PDFs dropped on the page thumbnails are inserted there.
+                if let Content::Document(Document { pdf: Some(pdf), .. }) = &mut window.content
+                    && pdf.drops_on_pages(x as f32)
+                {
+                    let task = pdf.insert_files(paths);
+                    return task.map(move |message| Message::Pdf(id, message));
+                }
                 return self.open_paths_if_any(paths);
             }
         }
@@ -608,6 +629,13 @@ impl Prev {
                     Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }),
                     event::Status::Ignored,
                 ) => Some(Message::Key(id, key, modifiers)),
+                (Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), _) => {
+                    Some(Message::Modifiers(id, modifiers))
+                }
+                (
+                    Event::Mouse(iced::mouse::Event::ButtonReleased(iced::mouse::Button::Left)),
+                    _,
+                ) => Some(Message::MouseReleased(id)),
                 (Event::Window(window::Event::Rescaled(scale)), _) => {
                     Some(Message::ScaleFactor(id, scale))
                 }

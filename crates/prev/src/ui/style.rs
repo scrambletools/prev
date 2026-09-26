@@ -1,6 +1,9 @@
 //! M3 styles for iced's built-in widgets.
 
-use iced::widget::{container, rule, scrollable, slider as slider_widget, text_input, toggler};
+use iced::widget::{
+    checkbox as checkbox_widget, container, rule, scrollable, slider as slider_widget, text_input,
+    toggler,
+};
 use iced::{Background, Border, Color, Theme, border};
 
 use super::{Scheme, blend, elevation, faded, shape, state_layer};
@@ -241,6 +244,38 @@ pub fn switch(theme: &Theme, status: toggler::Status) -> toggler::Style {
         border_radius: None,
         // A bigger handle when on, as in M3.
         padding_ratio: if toggled { 0.125 } else { 0.25 },
+    }
+}
+
+/// The M3 checkbox: an outlined box that fills with the primary color.
+pub fn checkbox(theme: &Theme, status: checkbox_widget::Status) -> checkbox_widget::Style {
+    let scheme = Scheme::of(theme);
+    let (checked, hovered, disabled) = match status {
+        checkbox_widget::Status::Active { is_checked } => (is_checked, false, false),
+        checkbox_widget::Status::Hovered { is_checked } => (is_checked, true, false),
+        checkbox_widget::Status::Disabled { is_checked } => (is_checked, false, true),
+    };
+    let fade = |color: Color| if disabled { faded(color, 0.38) } else { color };
+    let fill = if checked {
+        scheme.primary
+    } else if hovered {
+        faded(scheme.on_surface, state_layer::HOVERED)
+    } else {
+        Color::TRANSPARENT
+    };
+    checkbox_widget::Style {
+        background: Background::Color(fade(fill)),
+        icon_color: fade(scheme.on_primary),
+        border: Border {
+            color: fade(if checked {
+                scheme.primary
+            } else {
+                scheme.on_surface_variant
+            }),
+            width: 2.0,
+            radius: 2.0.into(),
+        },
+        text_color: Some(fade(scheme.on_surface)),
     }
 }
 

@@ -13,8 +13,11 @@ use std::time::Duration;
 use futures_channel::{mpsc as stream, oneshot};
 
 use crate::annotation::{Annotation, Field, Removed, StampContent};
-use crate::engine::{Bitmap, Document, Engine, Error, Link, OutlineItem, PageDisplay, Result};
-use crate::geometry::{PixelRect, Quad, Size};
+use crate::engine::{
+    Bitmap, CropBox, Document, Engine, Error, ExportOptions, Link, OutlineItem, PageDisplay,
+    RemovedPage, Result,
+};
+use crate::geometry::{PixelRect, Quad, Rect, Size};
 use crate::text::TextLayout;
 
 const DISPLAY_CACHE_PAGES: usize = 48;
@@ -227,6 +230,64 @@ impl std::fmt::Debug for Edited {
     }
 }
 
+/// A change to the document's pages. Page numbers are those before the
+/// change.
+#[derive(Debug, Clone)]
+pub enum PageEdit {
+    /// Turns pages clockwise by quarter turns; negative turns go back.
+    Rotate {
+        pages: Vec<usize>,
+        quarter_turns: i32,
+    },
+    /// Takes pages out; the outcome holds them, to put back.
+    Remove(Vec<usize>),
+    /// Puts removed pages back, each at its index, lowest first.
+    Restore(Vec<(usize, RemovedPage)>),
+    /// Puts pages in a new order: `order[i]` is the page that goes to `i`.
+    Reorder(Vec<usize>),
+    InsertBlank {
+        at: usize,
+        size: Size,
+    },
+    /// Inserts every page of a PDF.
+    Insert {
+        at: usize,
+        bytes: Arc<Vec<u8>>,
+    },
+    /// Crops pages to a rect in page space.
+    Crop {
+        pages: Vec<usize>,
+        rect: Rect,
+    },
+    /// Gives pages back the crop boxes they had.
+    SetCrop(Vec<(usize, CropBox)>),
+    /// Applies every redaction mark. Cannot be undone.
+    ApplyRedactions,
+}
+
+/// What a page edit returned, to undo it with.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PageOutcome {
+    Done,
+    /// The removed pages with the index each had, lowest first.
+    Removed(Vec<(usize, RemovedPage)>),
+    Inserted {
+        at: usize,
+        count: usize,
+    },
+    /// The crop boxes the pages had.
+    Cropped(Vec<(usize, CropBox)>),
+    /// How many redaction marks were applied.
+    Redacted(usize),
+}
+
+/// The document after a page edit.
+#[derive(Debug, Clone)]
+pub struct Restructured {
+    pub info: DocumentInfo,
+    pub outcome: PageOutcome,
+}
+
 /// Writes a saved document's bytes to its file.
 pub type Writer = Box<dyn FnOnce(&[u8]) -> std::result::Result<(), String> + Send>;
 
@@ -245,6 +306,9 @@ enum Request {
     AllAnnotations(oneshot::Sender<Result<DocumentAnnotations>>),
     Edit(usize, Box<Edit>, oneshot::Sender<Result<Edited>>),
     Save(Writer, oneshot::Sender<Result<()>>),
+    Pages(PageEdit, oneshot::Sender<Result<Restructured>>),
+    Extract(Vec<usize>, oneshot::Sender<Result<Vec<u8>>>),
+    Export(ExportOptions, Writer, oneshot::Sender<Result<()>>),
     Authenticate(String, oneshot::Sender<Result<Option<DocumentInfo>>>),
     Display(usize, oneshot::Sender<Result<Arc<dyn PageDisplay>>>),
     Links(usize, oneshot::Sender<Result<Vec<Link>>>),
@@ -348,6 +412,22 @@ impl DocumentHandle {
     /// what is on disk.
     pub fn save(&self, write: Writer) -> oneshot::Receiver<Result<()>> {
         self.request(|sender| Request::Save(write, sender))
+    }
+
+    /// Changes the pages. Every page's display and markup must be fetched
+    /// again afterwards.
+    pub fn pages(&self, edit: PageEdit) -> oneshot::Receiver<Result<Restructured>> {
+        self.request(|sender| Request::Pages(edit, sender))
+    }
+
+    /// A new PDF with copies of `pages`, in that order.
+    pub fn extract(&self, pages: Vec<usize>) -> oneshot::Receiver<Result<Vec<u8>>> {
+        self.request(|sender| Request::Extract(pages, sender))
+    }
+
+    /// Writes the document, rewritten with `options`, through `write`.
+    pub fn export(&self, options: ExportOptions, write: Writer) -> oneshot::Receiver<Result<()>> {
+        self.request(|sender| Request::Export(options, write, sender))
     }
 
     /// Streams matches page by page from the first page. Cancelling the
@@ -483,6 +563,88 @@ impl DocumentThread {
         Ok(())
     }
 
+    fn page_edit(&mut self, edit: PageEdit) -> Result<Restructured> {
+        // Page numbers change, so nothing cached by number holds.
+        self.displays.clear();
+        self.recent.clear();
+        if let Some(search) = self.search.take() {
+            search.ticket.cancel();
+        }
+        let outcome = match edit {
+            PageEdit::Rotate {
+                pages,
+                quarter_turns,
+            } => {
+                for page in pages {
+                    self.document.rotate_page(page, quarter_turns)?;
+                }
+                PageOutcome::Done
+            }
+            PageEdit::Remove(mut pages) => {
+                pages.sort_unstable();
+                pages.dedup();
+                if pages.len() >= self.document.page_count()? {
+                    return Err(Error::Engine("a document needs at least one page".into()));
+                }
+                let mut removed = Vec::new();
+                for page in pages.iter().rev() {
+                    removed.push((*page, self.document.remove_page(*page)?));
+                }
+                removed.reverse();
+                PageOutcome::Removed(removed)
+            }
+            PageEdit::Restore(pages) => {
+                for (at, page) in &pages {
+                    self.document.restore_page(*at, page)?;
+                }
+                PageOutcome::Done
+            }
+            PageEdit::Reorder(order) => {
+                if order.len() != self.document.page_count()? {
+                    return Err(Error::Engine(
+                        "the page order does not match the document".into(),
+                    ));
+                }
+                for (from, to) in crate::pages::moves(&order) {
+                    self.document.move_page(from, to)?;
+                }
+                PageOutcome::Done
+            }
+            PageEdit::InsertBlank { at, size } => {
+                self.document.insert_blank_page(at, size)?;
+                PageOutcome::Inserted { at, count: 1 }
+            }
+            PageEdit::Insert { at, bytes } => {
+                let count = self.document.insert_document(at, &bytes)?;
+                PageOutcome::Inserted { at, count }
+            }
+            PageEdit::Crop { pages, rect } => {
+                let mut before = Vec::new();
+                for page in pages {
+                    before.push((page, self.document.crop_page(page, rect)?));
+                }
+                PageOutcome::Cropped(before)
+            }
+            PageEdit::SetCrop(crops) => {
+                let mut before = Vec::new();
+                for (page, crop) in crops {
+                    before.push((page, self.document.set_crop_box(page, &crop)?));
+                }
+                PageOutcome::Cropped(before)
+            }
+            PageEdit::ApplyRedactions => PageOutcome::Redacted(self.document.apply_redactions()?),
+        };
+        Ok(Restructured {
+            info: self.info()?,
+            outcome,
+        })
+    }
+
+    fn export(&mut self, options: &ExportOptions, write: Writer) -> Result<()> {
+        let bytes = self.document.export(options)?;
+        write(&bytes).map_err(Error::Engine)
+    }
+
     fn run(&mut self, requests: mpsc::Receiver<Request>) {
         loop {
             // Serve requests first; search one page whenever the queue is idle.
@@ -546,6 +708,15 @@ impl DocumentThread {
             }
             Request::Save(write, reply) => {
                 let _ = reply.send(self.save(write));
+            }
+            Request::Pages(edit, reply) => {
+                let _ = reply.send(self.page_edit(edit));
+            }
+            Request::Extract(pages, reply) => {
+                let _ = reply.send(self.document.extract_pages(&pages));
+            }
+            Request::Export(options, write, reply) => {
+                let _ = reply.send(self.export(&options, write));
             }
             Request::Search {
                 needle,

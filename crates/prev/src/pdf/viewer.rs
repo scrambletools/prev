@@ -13,9 +13,11 @@ use prev_pdf::text::{Selection, TextLayout};
 use prev_pdf::worker::{DocumentHandle, DocumentInfo, RenderPool, SearchEvent, Ticket};
 
 use super::layout::{self, Area, Fit, Layout, ViewMode};
-use prev_pdf::worker::{Edited, PageMarkup};
+pub use pages::Pick;
+use prev_pdf::worker::{Edited, PageMarkup, Restructured};
 
 pub mod editing;
+pub mod pages;
 pub use editing::{Editing, FieldEdit, TextEdit};
 
 /// Device pixels across a page preview, used until sharp tiles arrive and
@@ -124,6 +126,10 @@ pub enum PdfMessage {
     SearchEvent(u64, SearchEvent),
     NextMatch,
     PreviousMatch,
+    /// A result about pages, from before or after the page numbers last
+    /// changed; stale ones are dropped.
+    Fresh(u64, Box<PdfMessage>),
+    Restructured(pages::PagesSent, Result<Restructured, String>),
 }
 
 /// Something the app must do on the viewer's behalf.
@@ -136,6 +142,9 @@ pub enum Request {
     OpenUri(String),
     /// The document changed; autosave it.
     Changed,
+    /// Pages were added, removed, moved or changed: thumbnails, outline
+    /// and notes need loading again.
+    PagesChanged,
     Notice(String),
 }
 
@@ -166,6 +175,8 @@ pub struct PdfViewer {
     displays_requested: HashSet<usize>,
     pub previews: HashMap<usize, Handle>,
     previews_requested: HashSet<usize>,
+    /// Sidebar thumbnails waiting for their page to load.
+    thumbnails_waiting: HashSet<usize>,
     tiles: HashMap<TileKey, (Handle, usize, u64)>,
     tile_bytes: usize,
     tiles_in_flight: HashMap<TileKey, (Ticket, Instant)>,
@@ -187,6 +198,10 @@ pub struct PdfViewer {
     generations: HashMap<usize, u32>,
     pub edit: Editing,
     shift: bool,
+    /// Bumped whenever page numbers change.
+    epoch: u64,
+    /// Pages chosen in the sidebar, for page edits.
+    pub selected_pages: std::collections::BTreeSet<usize>,
 }
 
 impl PdfViewer {
@@ -226,6 +241,7 @@ impl PdfViewer {
             displays_requested: HashSet::new(),
             previews: HashMap::new(),
             previews_requested: HashSet::new(),
+            thumbnails_waiting: HashSet::new(),
             tiles: HashMap::new(),
             tile_bytes: 0,
             tiles_in_flight: HashMap::new(),
@@ -246,7 +262,22 @@ impl PdfViewer {
             generations: HashMap::new(),
             edit: Editing::default(),
             shift: false,
+            epoch: 0,
+            selected_pages: std::collections::BTreeSet::new(),
         }
+    }
+
+    /// Runs `future` and makes its result a message, dropped if the page
+    /// numbers change before it arrives.
+    fn current<T: Send + 'static>(
+        &self,
+        future: impl std::future::Future<Output = T> + Send + 'static,
+        message: impl FnOnce(T) -> PdfMessage + Send + 'static,
+    ) -> Task<PdfMessage> {
+        let epoch = self.epoch;
+        Task::perform(future, move |result| {
+            PdfMessage::Fresh(epoch, Box::new(message(result)))
+        })
     }
 
     pub fn shift(&self) -> bool {
@@ -353,7 +384,12 @@ impl PdfViewer {
                 } else {
                     Task::none()
                 };
-                Task::batch([copy_text, self.schedule()])
+                let thumbnail = if self.thumbnails_waiting.remove(&page) {
+                    self.request_preview(page, &display, 12)
+                } else {
+                    Task::none()
+                };
+                Task::batch([copy_text, thumbnail, self.schedule()])
             }
             PdfMessage::PreviewReady(page, handle) => {
                 if let Some(handle) = handle {
@@ -448,6 +484,9 @@ impl PdfViewer {
             }
             PdfMessage::NextMatch => self.step_match(1),
             PdfMessage::PreviousMatch => self.step_match(-1),
+            PdfMessage::Fresh(epoch, message) if epoch == self.epoch => self.update(*message),
+            PdfMessage::Fresh(..) => Task::none(),
+            PdfMessage::Restructured(sent, result) => self.restructured(sent, result),
         }
     }
 
@@ -522,12 +561,13 @@ impl PdfViewer {
     }
 
     fn step_page(&mut self, step: i64) -> Task<PdfMessage> {
-        let step = if self.mode == ViewMode::TwoPages && self.current > 0 {
-            step * 2
-        } else {
-            step
+        // Two pages steps a pair at a time, from its left page.
+        let current = self.current as i64;
+        let target = match self.mode {
+            ViewMode::TwoPages => current - current % 2 + step * 2,
+            _ => current + step,
         };
-        let target = (self.current as i64 + step).clamp(0, self.page_count() as i64 - 1) as usize;
+        let target = target.clamp(0, self.page_count() as i64 - 1) as usize;
         self.go_to(target, None)
     }
 
@@ -547,7 +587,7 @@ impl PdfViewer {
             tasks.push(self.ensure_markup(page));
             if !self.links.contains_key(&page) && self.links_requested.insert(page) {
                 let receiver = self.handle.links(page);
-                tasks.push(Task::perform(receiver, move |result| {
+                tasks.push(self.current(receiver, move |result| {
                     PdfMessage::LinksReady(
                         page,
                         result.ok().and_then(Result::ok).unwrap_or_default(),
@@ -584,7 +624,7 @@ impl PdfViewer {
                 let receiver =
                     self.pool
                         .render(Arc::clone(&display), scale, tile, 16 + order as u32, ticket);
-                tasks.push(Task::perform(receiver, move |result| {
+                tasks.push(self.current(receiver, move |result| {
                     PdfMessage::TileReady(key, result.ok().and_then(Result::ok).map(to_handle))
                 }));
             }
@@ -620,7 +660,7 @@ impl PdfViewer {
         let receiver = self
             .pool
             .render(Arc::clone(display), scale, area, priority, Ticket::new());
-        Task::perform(receiver, move |result| {
+        self.current(receiver, move |result| {
             PdfMessage::PreviewReady(
                 page,
                 result
@@ -636,7 +676,7 @@ impl PdfViewer {
             return Task::none();
         }
         let receiver = self.pool.text(Arc::clone(display), 8, Ticket::new());
-        Task::perform(receiver, move |result| {
+        self.current(receiver, move |result| {
             PdfMessage::TextReady(page, result.ok().and_then(Result::ok).map(Arc::new))
         })
     }
@@ -646,7 +686,7 @@ impl PdfViewer {
             return Task::none();
         }
         let receiver = self.handle.markup(page);
-        Task::perform(receiver, move |result| {
+        self.current(receiver, move |result| {
             PdfMessage::MarkupReady(page, result.ok().and_then(Result::ok))
         })
     }
@@ -657,7 +697,7 @@ impl PdfViewer {
             return Task::none();
         }
         let receiver = self.handle.display(page);
-        Task::perform(receiver, move |result| {
+        self.current(receiver, move |result| {
             PdfMessage::DisplayReady(page, result.ok().and_then(Result::ok).map(SharedDisplay))
         })
     }
@@ -672,7 +712,10 @@ impl PdfViewer {
         for page in pages.into_iter().filter(|page| *page < count) {
             match self.displays.get(&page).cloned() {
                 Some(display) => tasks.push(self.request_preview(page, &display, 12)),
-                None => tasks.push(self.ensure_display(page)),
+                None => {
+                    self.thumbnails_waiting.insert(page);
+                    tasks.push(self.ensure_display(page));
+                }
             }
         }
         Task::batch(tasks)

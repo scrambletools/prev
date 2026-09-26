@@ -14,7 +14,7 @@ use prev_pdf::geometry::{PixelRect, Point, Quad, Rect};
 use prev_pdf::worker::{Edit, Edited, PageMarkup, Ticket};
 
 use super::{PdfMessage, PdfViewer, Request};
-use crate::pdf::history::{Change, History, Stack};
+use crate::pdf::history::{Change, History, Stack, Step};
 use crate::pdf::layout;
 use crate::pdf::markup::{self, Handle, Shape, Tool};
 
@@ -74,6 +74,7 @@ pub(super) enum Creation {
     TextBox,
     Note,
     Area,
+    Redact,
 }
 
 pub struct Editing {
@@ -273,6 +274,12 @@ impl PdfViewer {
                 };
                 Some((*page, annotation))
             }
+            Drag::Create {
+                page,
+                creation: Creation::Redact,
+                start,
+                current,
+            } => Some((*page, redaction(markup::normalized(*start, *current)))),
             Drag::Create { .. } => None,
             Drag::Move {
                 page,
@@ -379,6 +386,11 @@ impl PdfViewer {
             Tool::Highlight(_) => {
                 self.edit.selected = None;
                 tasks.push(self.text_press(x, y, clicks));
+                return Some(Task::batch(tasks));
+            }
+            Tool::Redact => {
+                self.edit.selected = None;
+                self.edit.drag = create(Creation::Redact);
                 return Some(Task::batch(tasks));
             }
             Tool::Select => {}
@@ -576,6 +588,13 @@ impl PdfViewer {
                 }
                 Task::none()
             }
+            Creation::Redact => {
+                if !dragged {
+                    return Task::none();
+                }
+                let annotation = redaction(markup::normalized(start, current));
+                self.add(page, annotation, None, false)
+            }
             Creation::Note => {
                 let size = markup::NOTE_SIZE;
                 let rect = Rect::new(start.x, start.y - size, start.x + size, start.y);
@@ -585,6 +604,27 @@ impl PdfViewer {
                 self.add(page, annotation, None, true)
             }
         }
+    }
+
+    /// Marks the selected text for redaction, one mark per line.
+    pub fn redact_selection(&mut self) -> Task<PdfMessage> {
+        let Some(selection) = self.selection else {
+            return Task::none();
+        };
+        let first = selection.anchor.0.min(selection.focus.0);
+        let last = selection.anchor.0.max(selection.focus.0);
+        let mut tasks = Vec::new();
+        for page in first..=last {
+            let (Some(range), Some(text)) = (self.page_selection(page), self.texts.get(&page))
+            else {
+                continue;
+            };
+            for rect in text.highlight(range) {
+                tasks.push(self.add(page, redaction(rect), None, false));
+            }
+        }
+        self.selection = None;
+        Task::batch(tasks)
     }
 
     /// Turns the text selection into highlight, underline or strikethrough
@@ -787,9 +827,23 @@ impl PdfViewer {
         self.send(page, Edit::Remove(id), sent)
     }
 
+    /// Sends an undo or redo step; `stack` is where its change went.
+    fn send_step(&mut self, step: Step, stack: Stack) -> Task<PdfMessage> {
+        match step {
+            Step::Annotation(page, edit) => {
+                let sent = Sent {
+                    stack: Some(stack),
+                    ..Sent::plain(page)
+                };
+                self.send(page, *edit, sent)
+            }
+            Step::Pages(edit) => self.undo_pages(edit, stack),
+        }
+    }
+
     fn send(&mut self, page: usize, edit: Edit, sent: Sent) -> Task<PdfMessage> {
         let receiver = self.handle.edit(page, edit);
-        Task::perform(receiver, move |result| {
+        self.current(receiver, move |result| {
             let result = match result {
                 Ok(Ok(edited)) => Ok(edited),
                 Ok(Err(error)) => Err(error.to_string()),
@@ -884,7 +938,7 @@ impl PdfViewer {
             height: (height * scale).round().max(1.0) as u32,
         };
         let receiver = self.pool.render(display, scale, area, 2, Ticket::new());
-        Task::perform(receiver, move |result| {
+        self.current(receiver, move |result| {
             PdfMessage::Editing(EditMessage::LoupeRendered(Box::new(LoupeRender {
                 page,
                 annotation: annotation.clone(),
@@ -934,6 +988,10 @@ impl PdfViewer {
                     // Highlighting a selection applies right away.
                     self.edit.tool = Tool::Select;
                     return Task::batch([commit, self.highlight_selection(style)]);
+                }
+                if tool == Tool::Redact && self.selection.is_some() {
+                    self.edit.tool = Tool::Select;
+                    return Task::batch([commit, self.redact_selection()]);
                 }
                 if tool != Tool::Select {
                     self.edit.selected = None;
@@ -1002,30 +1060,18 @@ impl PdfViewer {
             EditMessage::Undo => {
                 self.edit.text = None;
                 self.edit.field = None;
+                self.edit.selected = None;
                 match self.edit.history.undo() {
-                    Some((page, edit)) => {
-                        let sent = Sent {
-                            stack: Some(Stack::Undone),
-                            ..Sent::plain(page)
-                        };
-                        self.edit.selected = None;
-                        self.send(page, edit, sent)
-                    }
+                    Some(step) => self.send_step(step, Stack::Undone),
                     None => Task::none(),
                 }
             }
             EditMessage::Redo => {
                 self.edit.text = None;
                 self.edit.field = None;
+                self.edit.selected = None;
                 match self.edit.history.redo() {
-                    Some((page, edit)) => {
-                        let sent = Sent {
-                            stack: Some(Stack::Done),
-                            ..Sent::plain(page)
-                        };
-                        self.edit.selected = None;
-                        self.send(page, edit, sent)
-                    }
+                    Some(step) => self.send_step(step, Stack::Done),
                     None => Task::none(),
                 }
             }
@@ -1125,6 +1171,16 @@ impl Editing {
             self.markup_color
         }
     }
+}
+
+/// A redaction mark over `rect`, in the colors other viewers use for
+/// marks not yet applied.
+fn redaction(rect: Rect) -> Annotation {
+    let mut annotation = Annotation::new(new_id(), Kind::Redact, rect);
+    annotation.style.color = Some(Rgb::new(0.85, 0.1, 0.1));
+    annotation.style.line_width = 1.0;
+    annotation.subject = Some("Redact".into());
+    annotation
 }
 
 fn copy_png(bitmap: &Bitmap) -> Result<(), String> {

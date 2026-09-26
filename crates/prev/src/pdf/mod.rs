@@ -2,6 +2,7 @@
 
 pub mod bench;
 pub mod canvas;
+pub mod export;
 pub mod history;
 pub mod layout;
 pub mod markup;

@@ -90,6 +90,48 @@ design).
   downsampling and recompression).
 - **Export:** PDF, PNG, JPEG, JPEG 2000, TIFF (including multi-page), OpenEXR,
   with DPI and quality options.
+- **As built (M6):**
+  - Page edits go through the engine (`mupdf_pages.rs`): rotate, remove and
+    restore, move, insert blank, insert a PDF, extract, crop, apply
+    redactions and export. The document thread answers each with a new
+    `DocumentInfo`; the viewer moves every cache keyed by page number to
+    the new numbers and drops results that were on their way from before
+    (an epoch on page-keyed messages).
+  - Undo uses the same history as markup, strictly in order, so page
+    numbers held by earlier changes are right again when they are undone.
+    Removed pages stay in the file as objects and are put back by number,
+    as removed annotations are; reorders undo with the inverse order.
+  - MuPDF's page graft leaves annotations and form fields behind, so prev
+    copies them onto copied pages itself, keeping each field's parents (a
+    radio group stays one group); links into the source document and
+    popups are dropped.
+  - MuPDF shifts page label ranges on every insert and delete and makes
+    labels up for documents without any, numbering from 1 again after an
+    insert at the start. prev keeps labels as they were for moves and
+    removes invented ones.
+  - Merging between windows is copy and paste (Ctrl+C and Ctrl+V after
+    clicking a thumbnail): the pages travel as a PDF inside the one prev
+    process. Dragging thumbnails between windows is not possible on
+    Wayland without a drag source in the vendored clipboard; dropping PDF
+    files on the thumbnails inserts them.
+  - Redaction marks are standard Redact annotations until applied. Applying
+    removes text, image pixels and drawings covered by a mark and draws
+    black boxes; the next save rewrites the whole file with unused objects
+    dropped, and prev deletes the versions it kept of the file. Tests check
+    the saved bytes for the text, the image's pixels and the drawing.
+  - Export writes a full rewrite (compressed, garbage collected), optionally
+    AES-256 encrypted, of all or the selected pages. Reduce file size
+    recompresses 8-bit gray and RGB images (JPEG or Flate) as JPEG at
+    150 dpi of the page they are on, in place so shared images shrink once,
+    and keeps an image unchanged when that would not save 10%.
+  - Flatten bakes annotations and widgets into the page content with
+    MuPDF and drops the AcroForm. Unapplied redaction marks are removed
+    first, since baking them would cover content without removing it.
+  - Images: PNG, JPEG, WebP, OpenEXR one file per page, TIFF as one
+    multi-page LZW file, at 72 to 600 dpi. JPEG 2000 is not offered: the
+    image crate has no encoder.
+  - Not done: auto-scrolling the thumbnails while dragging near an edge
+    (the wheel scrolls during a drag).
 - **Print:** print dialog built in prev, submitted to CUPS.
 
 ### Images
@@ -298,7 +340,7 @@ Each milestone ends with a usable build.
 | M4 | Image editing | Crop, rotate, flip, Adjust Size, Adjust Color, metadata inspector and edits, export, autosave and version history |
 | M4.1 | Material 3 design | M3 Expressive color scheme from the Omarchy accent, Roboto Flex and the M3 type scale, Material Symbols, M3 components for toolbar, sidebar, panels, dialogs, menus and fields, state layers and focus, spring motion; screenshots and README updated |
 | M5 | PDF markup | All markup tools, notes, form filling, signatures, undo/redo, annotation round-trip tests (MuPDF and Poppler), highlights and notes sidebar |
-| M6 | PDF page editing | Reorder, delete, rotate, insert, merge between windows, extract, redaction, encryption, reduce file size, export to images |
+| M6 | PDF page editing | Reorder, delete, rotate, crop, insert, merge between windows (copy and paste), extract, redaction, encryption, reduce file size, export to images |
 | M7 | Image polish | RAW tone curve matched to the camera's embedded JPEG (RawTherapee's auto-matched curve, in Rust), keep EXIF in edited TIFFs, read XMP from TIFF |
 | M8 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 |
 
@@ -312,7 +354,7 @@ Later: cryptographic signatures, OCR, markup on SVG.
 | MuPDF weaker on JBIG2 refinement and halftone scans ([ADR 0001](decisions/0001-pdf-engine.md)) | Track upstream jbig2dec; keep such files in the regression corpus |
 | MuPDF license change by Artifex | Engine trait; pin versions; released AGPL versions remain usable |
 | iced multi-window or text input gaps on Wayland | Checked on Hyprland 0.56: native Wayland windows, per-window titles and app id, per-window shortcuts, exit on last close. Text input and IME still to be tried by hand; contribute fixes upstream |
-| No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. Page drag between windows (M6) will extend it |
+| No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. Page drag between windows needs a drag source there too; M6 uses copy and paste instead |
 | Metadata lost or altered by image edits | Saving carries EXIF, ICC and XMP for JPEG, PNG and WebP and resets the EXIF orientation; EXIF edits (orientation, GPS removal, which overwrites the data) are done in place by prev's own code. Not yet: EXIF in edited TIFF files, XMP inside TIFF |
 | Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths. PDFs are reopened after every incremental save, and a test checks every cross-reference offset after repeated saves |
 | Redaction leaking content | Dedicated test suite; full rewrite only, never incremental |
