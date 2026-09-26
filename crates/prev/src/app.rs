@@ -22,7 +22,11 @@ use smithay_clipboard::dnd::DragEvent;
 
 use crate::External;
 
-pub const APP_ID: &str = "io.github.scrambletools.prev";
+pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
+    "io.github.scrambletools.prev"
+} else {
+    "io.github.scrambletools.prev.Devel"
+};
 
 pub struct Prev {
     windows: BTreeMap<window::Id, Window>,
@@ -531,6 +535,15 @@ impl Prev {
     }
 
     pub fn title(&self, id: window::Id) -> String {
+        let title = self.base_title(id);
+        if prev_store::paths::PRODUCTION {
+            title
+        } else {
+            format!("{title} (dev)")
+        }
+    }
+
+    fn base_title(&self, id: window::Id) -> String {
         match self.windows.get(&id).map(|window| &window.content) {
             Some(Content::Document(document)) => {
                 let path = document

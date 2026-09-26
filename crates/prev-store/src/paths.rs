@@ -3,7 +3,12 @@
 use std::env;
 use std::path::PathBuf;
 
-const APP_DIR: &str = "prev";
+/// Set when built by `scripts/install.sh`. Every other build is a
+/// development build, which keeps its own settings, data and instance
+/// socket so it never disturbs the installed copy.
+pub const PRODUCTION: bool = option_env!("PREV_PRODUCTION").is_some();
+
+const APP_DIR: &str = if PRODUCTION { "prev" } else { "prev-dev" };
 
 fn xdg_dir(variable: &str, fallback_under_home: &str) -> Option<PathBuf> {
     env::var_os(variable)

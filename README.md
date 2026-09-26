@@ -86,6 +86,18 @@ cargo build --release
 
 MuPDF is compiled from source as part of the build.
 
+To install prev for your user, with a desktop entry so it shows up in the
+launcher and "Open With":
+
+```sh
+./scripts/install.sh
+```
+
+This puts the binary in `~/.local/bin`. Builds made with plain `cargo build`
+or `cargo run` are development builds: they keep their own settings and
+history under `prev-dev`, show "(dev)" in window titles, and run alongside
+the installed copy without handing files to it.
+
 ## Keyboard shortcuts
 
 | Action | Shortcut |
