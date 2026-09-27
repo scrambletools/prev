@@ -230,6 +230,9 @@ blue = "#829dd4"
         assert_eq!(parse_hex("#ééé"), None);
     }
 
+    // Omarchy is Linux only; elsewhere the signature lacks the inode that
+    // tells two same sized files written in the same instant apart.
+    #[cfg(unix)]
     #[test]
     fn signature_changes_when_theme_directory_is_swapped() {
         let root = tempfile::tempdir().unwrap();
