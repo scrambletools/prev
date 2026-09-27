@@ -11,6 +11,7 @@ pub mod popover;
 pub mod probe;
 pub mod resize;
 pub mod scheme;
+pub mod smooth;
 pub mod style;
 
 pub use button::{button, icon_button, with_icon};

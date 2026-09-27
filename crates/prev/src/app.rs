@@ -1133,7 +1133,7 @@ impl Prev {
         } else {
             full()
         };
-        stack![body, notice, drop, settings].into()
+        ui::smooth::smooth(stack![body, notice, drop, settings])
     }
 
     /// Motion is on only when both the settings and the system allow it.
