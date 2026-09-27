@@ -39,4 +39,6 @@ smithay-clipboard = "0.7"
 rfd = { version = "0.15", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+clipboard-win = "5"
+interprocess = "2"
+windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }

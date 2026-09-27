@@ -81,8 +81,26 @@ mod other {
             .map_err(|error| format!("Could not open {uri}: {error}"))
     }
 
-    /// Not read from the system yet; animations stay on unless the
+    /// Whether Windows animates controls and elements, its "Animation
+    /// effects" setting.
+    #[cfg(windows)]
+    #[allow(unsafe_code)]
+    pub async fn animations_enabled() -> Option<bool> {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            SPI_GETCLIENTAREAANIMATION, SystemParametersInfoW,
+        };
+        let mut enabled: i32 = 1;
+        // SAFETY: the setting is a BOOL written to `enabled`, which lives
+        // through the call.
+        let read = unsafe {
+            SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, (&raw mut enabled).cast(), 0)
+        };
+        (read != 0).then_some(enabled != 0)
+    }
+
+    /// Not read from the system here; animations stay on unless the
     /// settings turn them off.
+    #[cfg(not(windows))]
     pub async fn animations_enabled() -> Option<bool> {
         None
     }

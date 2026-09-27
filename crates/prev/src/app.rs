@@ -176,6 +176,10 @@ pub enum Message {
     /// The window manager or a shortcut asked to close a window.
     CloseRequested(window::Id),
     Resized(window::Id, Size),
+    /// The size of the monitor a new window opened on, if known. Only
+    /// asked for off Linux.
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
+    MonitorSize(window::Id, Option<Size>),
     /// The pointer moved, reported while a drag may leave its window.
     PointerMoved(window::Id, iced::Point),
     /// A file dropped through the windowing system rather than prev's own
@@ -505,7 +509,28 @@ impl Prev {
                 window::run(id, wayland_surface)
                     .map(move |surface| Message::SurfaceKnown(id, surface)),
                 window::scale_factor(id).map(move |scale| Message::ScaleFactor(id, scale)),
+                fit_to_monitor(id),
             ]),
+            Message::MonitorSize(id, Some(monitor)) => {
+                // Room for the taskbar and window borders.
+                let room = Size::new(monitor.width * 0.9, monitor.height * 0.85);
+                let Some(window) = self.windows.get(&id) else {
+                    return Task::none();
+                };
+                if window.size.width <= room.width && window.size.height <= room.height {
+                    return Task::none();
+                }
+                let size = Size::new(
+                    window.size.width.min(room.width),
+                    window.size.height.min(room.height),
+                );
+                let at = iced::Point::new(
+                    (monitor.width - size.width) / 2.0,
+                    (monitor.height - size.height) / 2.0,
+                );
+                Task::batch([window::resize(id, size), window::move_to(id, at)])
+            }
+            Message::MonitorSize(_, None) => Task::none(),
             Message::ScaleFactor(id, scale) => Task::batch([
                 self.with_pdf(id, |pdf| pdf.set_device_scale(scale)),
                 self.with_images(id, |images| images.set_device_scale(scale)),
@@ -1496,6 +1521,18 @@ fn drop_highlight<'a>() -> Element<'a, Message> {
         .height(Fill)
         .style(style::drop_target)
         .into()
+}
+
+/// Asks for the monitor's size, to shrink a new window that would not fit
+/// it. Linux compositors place and size windows themselves.
+#[cfg(not(target_os = "linux"))]
+fn fit_to_monitor(id: window::Id) -> Task<Message> {
+    window::monitor_size(id).map(move |size| Message::MonitorSize(id, size))
+}
+
+#[cfg(target_os = "linux")]
+fn fit_to_monitor(_id: window::Id) -> Task<Message> {
+    Task::none()
 }
 
 /// On Linux, the app id desktops match windows and launchers by.

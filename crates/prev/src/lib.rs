@@ -8,6 +8,9 @@ pub mod image;
 pub mod info;
 #[cfg(unix)]
 pub mod instance;
+#[cfg(windows)]
+#[path = "instance_windows.rs"]
+pub mod instance;
 pub mod markdown;
 pub mod omarchy;
 pub mod paste;

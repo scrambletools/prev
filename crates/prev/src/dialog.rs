@@ -156,10 +156,43 @@ mod native {
     ];
     const SVG: &[&str] = &["svg", "svgz"];
 
+    /// The folder the last dialog ended in, where the next one starts;
+    /// Documents until then, rather than wherever prev was started from.
+    static LAST_FOLDER: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+
+    fn starting(dialog: AsyncFileDialog) -> AsyncFileDialog {
+        let last = LAST_FOLDER
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clone();
+        let folder = last.or_else(|| {
+            prev_store::paths::home()
+                .map(|home| home.join("Documents"))
+                .filter(|documents| documents.is_dir())
+        });
+        match folder {
+            Some(folder) => dialog.set_directory(folder),
+            None => dialog,
+        }
+    }
+
+    fn remember(path: &std::path::Path) {
+        let folder = if path.is_dir() {
+            Some(path)
+        } else {
+            path.parent()
+        };
+        if let Some(folder) = folder {
+            *LAST_FOLDER
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner()) = Some(folder.to_path_buf());
+        }
+    }
+
     /// Asks the user for files to open. Cancelling yields an empty list.
     pub async fn open_files() -> Result<Vec<PathBuf>, String> {
         let all: Vec<&str> = [PDF, IMAGES, SVG, filetype::MARKDOWN_EXTENSIONS].concat();
-        let files = AsyncFileDialog::new()
+        let files = starting(AsyncFileDialog::new())
             .set_title("Open")
             .add_filter("All supported files", &all)
             .add_filter("PDF documents", PDF)
@@ -168,11 +201,15 @@ mod native {
             .add_filter("Markdown", filetype::MARKDOWN_EXTENSIONS)
             .pick_files()
             .await;
-        Ok(files
+        let files: Vec<PathBuf> = files
             .unwrap_or_default()
             .iter()
             .map(|file| file.path().to_path_buf())
-            .collect())
+            .collect();
+        if let Some(first) = files.first() {
+            remember(first);
+        }
+        Ok(files)
     }
 
     /// Asks for a folder, starting in `current`. Cancelling yields `None`.
@@ -180,7 +217,7 @@ mod native {
         title: String,
         current: Option<PathBuf>,
     ) -> Result<Option<PathBuf>, String> {
-        let mut dialog = AsyncFileDialog::new().set_title(title);
+        let mut dialog = starting(AsyncFileDialog::new()).set_title(title);
         if let Some(current) = current {
             dialog = dialog.set_directory(current);
         }
@@ -192,12 +229,16 @@ mod native {
 
     /// Asks where to save a file, suggesting `name`. Cancelling yields `None`.
     pub async fn save_file(title: String, name: String) -> Result<Option<PathBuf>, String> {
-        Ok(AsyncFileDialog::new()
+        let path = starting(AsyncFileDialog::new())
             .set_title(title)
             .set_file_name(name)
             .save_file()
             .await
-            .map(|file| file.path().to_path_buf()))
+            .map(|file| file.path().to_path_buf());
+        if let Some(path) = &path {
+            remember(path);
+        }
+        Ok(path)
     }
 
     /// Asks where to save. The system dialog has no room for extra menus,
@@ -208,7 +249,9 @@ mod native {
         folder: Option<PathBuf>,
         menus: Vec<Menu>,
     ) -> Result<Option<SavedWithMenus>, String> {
-        let mut dialog = AsyncFileDialog::new().set_title(title).set_file_name(name);
+        let mut dialog = starting(AsyncFileDialog::new())
+            .set_title(title)
+            .set_file_name(name);
         if let Some(folder) = folder {
             dialog = dialog.set_directory(folder);
         }
@@ -216,10 +259,14 @@ mod native {
             .into_iter()
             .map(|menu| (menu.id.to_owned(), menu.initial))
             .collect();
-        Ok(dialog
+        let path = dialog
             .save_file()
             .await
-            .map(|file| (file.path().to_path_buf(), choices)))
+            .map(|file| file.path().to_path_buf());
+        if let Some(path) = &path {
+            remember(path);
+        }
+        Ok(path.map(|path| (path, choices)))
     }
 }
 

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use iced::futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use prev::instance::{self, Role};
 use prev::{omarchy, ui};
 
@@ -80,6 +80,16 @@ fn main() -> iced::Result {
             }
             Err(error) => eprintln!("prev: running without single instance: {error}"),
         }
+    }
+
+    #[cfg(windows)]
+    match instance::claim_or_forward(&instance::pipe_name(), &paths) {
+        Ok(Role::Forwarded) => return Ok(()),
+        Ok(Role::Primary(listener)) => {
+            let sender = sender.clone();
+            listener.spawn(move |paths| send(&sender, External::OpenPaths(paths)));
+        }
+        Err(error) => eprintln!("prev: running without single instance: {error}"),
     }
 
     let omarchy_dir = omarchy::current_theme_dir();

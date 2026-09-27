@@ -30,13 +30,41 @@ pub fn write(path: &Path, contents: &[u8]) -> io::Result<()> {
             file.set_permissions(permissions)?;
         }
         file.sync_all()?;
-        fs::rename(&temp_path, path)?;
+        replace(&temp_path, path)?;
         sync_folder(parent)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temp_path);
     }
     result
+}
+
+#[cfg(not(windows))]
+fn replace(from: &Path, to: &Path) -> io::Result<()> {
+    fs::rename(from, to)
+}
+
+/// Windows refuses to replace a file another program has open, often
+/// only for a moment (a virus scanner, a thumbnailer), so try a few times
+/// before saying so.
+#[cfg(windows)]
+fn replace(from: &Path, to: &Path) -> io::Result<()> {
+    let mut tries = 0;
+    loop {
+        match fs::rename(from, to) {
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied && tries < 10 => {
+                tries += 1;
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!("{} is open in another program", to.display()),
+                ));
+            }
+            result => return result,
+        }
+    }
 }
 
 /// Makes the rename itself durable. Windows cannot open a folder as a
