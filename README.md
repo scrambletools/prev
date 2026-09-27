@@ -20,12 +20,8 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 
 ![The signature library with a drawn and a typed signature](docs/screenshots/signatures.png)
 
-![Dragging a page to a new place in the page thumbnails](docs/screenshots/pages.png)
-
-![An account number and a routing number marked for redaction](docs/screenshots/redaction.png)
-
 <sub>Documents shown: NIST SP 800-63-3, a US government publication in the
-public domain, and a sample form and sample pages made for prev.</sub>
+public domain, and a sample form made for prev.</sub>
 
 For a walkthrough of every feature with more screenshots, see
 [A tour of prev](docs/GUIDE.md).
@@ -166,6 +162,7 @@ has these packages:
 | Flatpak | `flatpak install --user prev.flatpak` |
 | Any distribution | the AppImage: `chmod +x prev-1.0.0-x86_64.AppImage`, then run it |
 | Any distribution | `prev-1.0.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
+| Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
 
 On Arch, until the AUR packages are published:
 
@@ -203,6 +200,11 @@ Every package has every feature. Some depend on where prev runs:
   launcher entry or "Open With" unless a tool such as AppImageLauncher
   adds one. It needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12,
   Fedora 36 and later), as do the .deb and .rpm.
+- **mise:** installs the release's plain binary and puts only `prev` on
+  your PATH, so there is no launcher entry, icon or "Open With"; start
+  it from a terminal. It updates with `mise up`; mise waits a day after
+  a release before offering it. Like the tarball, it does not install
+  wl-clipboard, libheif or curl.
 - **Holding Shift** during a drop from another app is seen only under
   compositors that move keyboard focus with the pointer, such as
   Hyprland.
