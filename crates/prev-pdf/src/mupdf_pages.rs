@@ -173,7 +173,7 @@ pub(crate) fn insert_document(
             .map_err(engine_error)
     })?;
     let pairs: Vec<(usize, usize)> = (0..count).map(|page| (page, at + page)).collect();
-    copy_annotations(document, &source, &pairs)?;
+    copy_annotations(document, &source, &pairs, &|_| true)?;
     Ok(inserted.page_count)
 }
 
@@ -268,6 +268,7 @@ fn copy_annotations(
     document: &mut PdfDocument,
     source: &PdfDocument,
     pairs: &[(usize, usize)],
+    keep: &dyn Fn(&PdfObject) -> bool,
 ) -> Result<()> {
     let mut map = document.new_graft_map().map_err(engine_error)?;
     // Top-level fields, and the copies of every field by source number.
@@ -291,7 +292,10 @@ fn copy_annotations(
                 continue;
             }
             let subtype = name(&annot, "Subtype").unwrap_or_default();
-            if subtype == b"Popup" || (subtype == b"Link" && is_internal_link(&annot)?) {
+            if subtype == b"Popup"
+                || (subtype == b"Link" && is_internal_link(&annot)?)
+                || !keep(&annot)
+            {
                 continue;
             }
             let mut dict = copy_dict(
@@ -404,8 +408,115 @@ pub(crate) fn extract_pages(document: &PdfDocument, pages: &[usize]) -> Result<V
         )
         .map_err(engine_error)?;
     let pairs: Vec<(usize, usize)> = pages.iter().copied().zip(0..).collect();
-    copy_annotations(&mut extracted, document, &pairs)?;
+    copy_annotations(&mut extracted, document, &pairs, &|_| true)?;
     write(&extracted, rewrite_options())
+}
+
+/// The id prev gives an annotation object: `/NM`, or its object number.
+fn annotation_id(annot: &PdfObject) -> Option<String> {
+    if let Some(name) = annot
+        .get_dict("NM")
+        .ok()
+        .flatten()
+        .and_then(|name| name.as_string().ok())
+        .filter(|name| !name.is_empty())
+    {
+        return Some(name);
+    }
+    annot
+        .as_indirect()
+        .ok()
+        .map(|number| format!("object-{number}"))
+}
+
+/// A one-page copy of `page` with the annotations `keep` accepts, and
+/// with the page's own contents or without them.
+fn page_copy(
+    document: &PdfDocument,
+    page: usize,
+    keep: &dyn Fn(&PdfObject) -> bool,
+    empty: bool,
+) -> Result<PdfDocument> {
+    let mut copy = PdfDocument::new();
+    copy.insert_pdf(
+        document,
+        InsertPdfOptions {
+            source_pages: PageSelection::Pages(vec![page]),
+            ..InsertPdfOptions::default()
+        },
+    )
+    .map_err(engine_error)?;
+    if empty {
+        let mut page_object = copy.find_page(0).map_err(engine_error)?;
+        page_object.dict_delete("Contents").map_err(engine_error)?;
+    }
+    copy_annotations(&mut copy, document, &[(page, 0)], keep)?;
+    Ok(copy)
+}
+
+/// Two copies of `page` for moving annotation `id` on screen: one with
+/// every other annotation, to paint over where it was, and one with the
+/// annotation alone on an empty page. The document is not changed.
+pub(crate) fn lift(
+    document: &PdfDocument,
+    page: usize,
+    id: &str,
+) -> Result<(PdfDocument, PdfDocument)> {
+    check_page(document, page)?;
+    let without = page_copy(
+        document,
+        page,
+        &|annot| annotation_id(annot).as_deref() != Some(id),
+        false,
+    )?;
+    let alone = page_copy(
+        document,
+        page,
+        &|annot| annotation_id(annot).as_deref() == Some(id),
+        true,
+    )?;
+    Ok((without, alone))
+}
+
+/// A copy of `page` with its annotations and none of its own contents,
+/// to draw the markup over something else.
+pub(crate) fn annotations_alone(document: &PdfDocument, page: usize) -> Result<PdfDocument> {
+    check_page(document, page)?;
+    page_copy(document, page, &|_| true, true)
+}
+
+/// A PDF of one page of `size` points filled by `image`, for marking up
+/// an image with the PDF tools.
+pub fn image_document(image: &crate::engine::Bitmap, size: Size) -> Result<Vec<u8>> {
+    let mut document = PdfDocument::new();
+    document
+        .new_page(MupdfSize::new(size.width, size.height))
+        .map_err(engine_error)?;
+    let pixmap = crate::mupdf_annotations::rgba_pixmap(image)?;
+    let image = mupdf::Image::from_pixmap(&pixmap).map_err(engine_error)?;
+    let image = document.add_image(&image).map_err(engine_error)?;
+    let mut xobjects = document.new_dict().map_err(engine_error)?;
+    xobjects.dict_put("Im", image).map_err(engine_error)?;
+    let mut resources = document.new_dict().map_err(engine_error)?;
+    resources
+        .dict_put("XObject", xobjects)
+        .map_err(engine_error)?;
+    let contents = format!("q {} 0 0 {} 0 0 cm /Im Do Q", size.width, size.height);
+    let contents = Buffer::from_bytes(contents.as_bytes()).map_err(engine_error)?;
+    let contents = document
+        .add_stream(&contents, None, false)
+        .map_err(engine_error)?;
+    let mut page = document.find_page(0).map_err(engine_error)?;
+    page.dict_put("Resources", resources)
+        .map_err(engine_error)?;
+    page.dict_put("Contents", contents).map_err(engine_error)?;
+    let mut options = PdfWriteOptions::default();
+    options.set_compress(true).set_compress_images(true);
+    let mut bytes = Vec::new();
+    document
+        .write_to_with_options(&mut bytes, options)
+        .map_err(engine_error)?;
+    Ok(bytes)
 }
 
 fn rect_entry(object: &PdfObject, key: &str) -> Result<Option<[f32; 4]>> {

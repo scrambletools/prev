@@ -416,6 +416,7 @@ impl PdfViewer {
         self.edit.selected = None;
         self.edit.area = None;
         self.edit.drag = None;
+        self.edit.lift = None;
         self.edit.text = None;
         self.edit.field = None;
         self.edit.choice = None;

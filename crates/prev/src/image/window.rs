@@ -28,11 +28,17 @@ use super::canvas::{CanvasEvent, ImageCanvas, Selection};
 use super::editor::{self, Editor, spawn};
 use super::view::{self, Fit, Placement, ZOOM_STEP};
 use crate::dialog;
+use crate::pdf::viewer::editing::EditMessage;
+use crate::pdf::viewer::{PdfMessage, Zoom};
+use crate::pdf::window::{self as pdf_window, PdfWindow};
 use crate::shortcuts::Action;
 use crate::ui::button::Kind;
 use crate::ui::component::{self, Backdrop};
 use crate::ui::resize::{self, Drag, Width};
 use crate::ui::{self, Icon, Type, icon, style};
+
+mod dnd;
+mod markup;
 
 const THUMBNAIL_SIZE: u32 = 480;
 const SIDEBAR_WIDTH: Width = Width::new(184.0, 140.0, 400.0);
@@ -134,6 +140,44 @@ struct Item {
     state: ItemState,
     thumbnail: Option<Handle>,
     size: Option<(u32, u32)>,
+    markup: Option<Markup>,
+    /// The markup's page is being made.
+    markup_starting: bool,
+    /// What to do once the markup opens.
+    on_open: Option<dnd::OnOpen>,
+}
+
+/// Markup over an image: the PDF tools on a page made of it. Markup lives
+/// only as long as the window; exporting draws it into the pixels.
+struct Markup {
+    window: Box<PdfWindow>,
+    /// The PDF made of the image, deleted once open.
+    file: PathBuf,
+    /// Image pixels per page point.
+    scale: f32,
+    /// The markup's edit count when it was last exported.
+    exported: u64,
+}
+
+impl Markup {
+    /// Whether there are annotations that no export holds yet.
+    fn unexported(&self) -> bool {
+        self.window.has_annotations() && self.window.edits() != self.exported
+    }
+}
+
+impl Drop for Markup {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.file);
+    }
+}
+
+/// What to do about markup that would be lost by closing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloseChoice {
+    Cancel,
+    Discard,
+    Export,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -207,6 +251,17 @@ pub enum Message {
     SidebarResized(Drag),
     ToggleOverflow,
     CloseOverflow,
+    ToggleMarkup,
+    /// Undoes the latest image edit, or markup change while there is markup.
+    Undo,
+    Redo,
+    MarkupMade(usize, f32, Result<PathBuf, String>),
+    Markup(usize, pdf_window::Message),
+    MarkupExported(usize, u64, Result<PathBuf, String>),
+    Close(CloseChoice),
+    SidebarPressed(usize),
+    SidebarMoved(iced::Point),
+    SidebarReleased,
 }
 
 /// An export waiting for the user to confirm a name whose extension does
@@ -253,6 +308,14 @@ pub struct ImageWindow {
     inspector: Option<Inspector>,
     pending_export: Option<PendingExport>,
     notice: Option<String>,
+    /// Asking whether to close with markup not exported.
+    close_prompt: bool,
+    /// The window should close; the app does it.
+    closing: bool,
+    /// A press on a sidebar image, which may drag it out.
+    sidebar_press: Option<dnd::SidebarPress>,
+    /// A drag started since the app last asked.
+    drag_started: bool,
 }
 
 /// Uploads `handle` to the GPU, then yields the allocation that keeps it
@@ -361,13 +424,7 @@ impl ImageWindow {
         let sidebar = files.len() > 1;
         let items = files
             .into_iter()
-            .map(|(path, source)| Item {
-                path,
-                source,
-                state: ItemState::Waiting,
-                thumbnail: None,
-                size: None,
-            })
+            .map(|(path, source)| Item::new(path, source))
             .collect();
         let mut window = Self {
             items,
@@ -392,6 +449,10 @@ impl ImageWindow {
             inspector: None,
             pending_export: None,
             notice: None,
+            close_prompt: false,
+            closing: false,
+            sidebar_press: None,
+            drag_started: false,
         };
         let task = window.load_next();
         (window, task)
@@ -407,7 +468,7 @@ impl ImageWindow {
 
     pub fn set_device_scale(&mut self, scale: f32) -> Task<Message> {
         self.device_scale = scale;
-        self.schedule()
+        Task::batch([self.schedule(), self.markup_device_scale(scale)])
     }
 
     fn shown(&self) -> Option<&Shown> {
@@ -454,7 +515,8 @@ impl ImageWindow {
                 })
             });
         for (index, item) in self.items.iter_mut().enumerate() {
-            let editing = matches!(&item.state, ItemState::Loaded(shown) if shown.editor.is_some());
+            let editing = matches!(&item.state, ItemState::Loaded(shown) if shown.editor.is_some())
+                || markup::keeps(item);
             if index.abs_diff(current) > KEEP_AROUND
                 && matches!(item.state, ItemState::Loaded(_))
                 && !editing
@@ -537,12 +599,55 @@ impl ImageWindow {
                 self.sidebar = !self.sidebar;
                 Task::none()
             }
+            Message::ZoomIn | Message::ZoomOut | Message::FitToWindow if self.marked() => {
+                let zoom = match message {
+                    Message::ZoomIn => Zoom::In,
+                    Message::ZoomOut => Zoom::Out,
+                    _ => Zoom::FitPage,
+                };
+                self.with_markup(|window, _| {
+                    window.update(pdf_window::Message::Viewer(PdfMessage::Zoom(zoom)))
+                })
+                .unwrap_or_else(Task::none)
+            }
+            Message::ActualSize if self.marked() => {
+                self.markup_zoom_to(1.0).unwrap_or_else(Task::none)
+            }
             Message::ZoomIn => self.zoom_to(self.zoom() * ZOOM_STEP, None),
             Message::ZoomOut => self.zoom_to(self.zoom() / ZOOM_STEP, None),
             Message::ActualSize => self.zoom_to(1.0, None),
             Message::FitToWindow => {
                 self.fit = Fit::Fit;
                 self.schedule()
+            }
+            Message::ToggleMarkup => self.toggle_markup(),
+            Message::Undo | Message::Redo => {
+                let redo = matches!(message, Message::Redo);
+                match self.with_markup(|window, _| {
+                    window.update(pdf_window::Message::Edit(if redo {
+                        EditMessage::Redo
+                    } else {
+                        EditMessage::Undo
+                    }))
+                }) {
+                    Some(task) => task,
+                    None => self.edit(if redo { Edit::Redo } else { Edit::Undo }),
+                }
+            }
+            Message::MarkupMade(index, scale, result) => self.markup_made(index, scale, result),
+            Message::Markup(index, message) => self.markup_message(index, message),
+            Message::MarkupExported(index, edits, result) => {
+                self.markup_exported(index, edits, result)
+            }
+            Message::Close(choice) => self.close_choice(choice),
+            Message::SidebarPressed(index) => self.sidebar_pressed(index),
+            Message::SidebarMoved(point) => {
+                self.sidebar_moved(point);
+                Task::none()
+            }
+            Message::SidebarReleased => {
+                self.sidebar_released();
+                Task::none()
             }
             Message::Edit(edit) => self.edit(edit),
             Message::PreviewRendered(index, generation, handle) => {
@@ -1002,6 +1107,14 @@ impl ImageWindow {
             Edit::ResetColor => self.color = ColorAdjust::default(),
             _ => {}
         }
+        if self.marked() {
+            self.notice = Some(
+                "Images with markup can't be edited. Export to keep the markup, or delete it \
+                 and close the markup bar."
+                    .into(),
+            );
+            return Task::none();
+        }
         let index = self.current;
         let selection = self.selection;
         let size_input = self.size_input.clone();
@@ -1358,6 +1471,14 @@ impl ImageWindow {
         let Some(frame) = self.shown().and_then(Shown::current_frame) else {
             return Task::none();
         };
+        if self
+            .markup()
+            .is_some_and(|markup| markup.window.has_annotations())
+        {
+            return self
+                .export_marked(pending, frame)
+                .unwrap_or_else(Task::none);
+        }
         let original = self.items[self.current].path.clone();
         let PendingExport { path, format, .. } = pending;
         Task::perform(
@@ -1367,6 +1488,31 @@ impl ImageWindow {
     }
 
     pub fn shortcut(&mut self, action: Action) -> Option<Task<Message>> {
+        if action == Action::Escape && self.close_prompt {
+            return Some(self.close_choice(CloseChoice::Cancel));
+        }
+        if action == Action::ShowMarkup {
+            return Some(self.toggle_markup());
+        }
+        if action == Action::Paste && self.items[self.current].markup.is_none() {
+            return Some(self.paste_into_new_markup());
+        }
+        if action == Action::ActualSize && self.marked() {
+            return self.markup_zoom_to(1.0);
+        }
+        if self.marked() {
+            let index = self.current;
+            if let Some(markup) = self.items[index].markup.as_mut()
+                && let Some(task) = markup.window.shortcut(action)
+            {
+                markup.window.take_effects();
+                return Some(task.map(markup::wrap(index)));
+            }
+            // Undo and redo belong to the markup while there is some.
+            if matches!(action, Action::Undo | Action::Redo) {
+                return Some(Task::none());
+            }
+        }
         let task = match action {
             Action::ZoomIn => self.update(Message::ZoomIn),
             Action::ZoomOut => self.update(Message::ZoomOut),
@@ -1410,8 +1556,14 @@ impl ImageWindow {
         Some(task)
     }
 
-    /// Arrow keys step through the images.
+    /// Arrow keys step through the images; Delete removes selected markup.
     pub fn key(&mut self, key: &Key, modifiers: Modifiers) -> Option<Task<Message>> {
+        let index = self.current;
+        if let Some(markup) = self.items[index].markup.as_mut()
+            && let Some(task) = markup.window.key(key, modifiers)
+        {
+            return Some(task.map(markup::wrap(index)));
+        }
         if modifiers.control() || modifiers.alt() || modifiers.logo() {
             return None;
         }
@@ -1430,9 +1582,16 @@ impl ImageWindow {
 
     pub fn set_pointer_inside(&mut self, inside: bool) {
         self.pointer_inside = inside;
+        self.markup_pointer(inside);
     }
 
     pub fn view(&self) -> Element<'_, Message> {
+        let index = self.current;
+        if let Some(parts) = self.markup_parts() {
+            let wrap = markup::wrap(index);
+            let bar = parts.bar.map(|bar| bar.map(wrap.clone()));
+            return self.frame_view(parts.canvas.map(wrap.clone()), bar, parts.overlay.map(wrap));
+        }
         let canvas: Element<'_, Message> = match &self.items[self.current].state {
             ItemState::Failed(error) => component::empty_state(
                 Icon::BrokenImage,
@@ -1461,26 +1620,48 @@ impl ImageWindow {
                 None => component::empty_state(Icon::Image, "Opening…", ""),
             },
         };
+        self.frame_view(canvas, None, space().into())
+    }
+
+    /// The window around `canvas`: bars, sidebar, panel, notices and
+    /// dialogs, with `overlay` on top.
+    fn frame_view<'a>(
+        &'a self,
+        canvas: Element<'a, Message>,
+        markup_bar: Option<Element<'a, Message>>,
+        overlay: Element<'a, Message>,
+    ) -> Element<'a, Message> {
+        let bottom = markup_bar.is_some();
         let mut content = row![].height(Fill);
         if self.sidebar && self.items.len() > 1 {
             content = content
-                .push(below_bars(ui::enter::from_left(
-                    container(self.sidebar_view())
-                        .clip(true)
-                        .width(self.sidebar_width.value)
-                        .height(Fill)
-                        .style(style::surface_container_low),
-                )))
-                .push(below_bars(resize::handle(Message::SidebarResized).into()));
+                .push(below_bars(
+                    ui::enter::from_left(
+                        container(self.sidebar_view())
+                            .clip(true)
+                            .width(self.sidebar_width.value)
+                            .height(Fill)
+                            .style(style::surface_container_low),
+                    ),
+                    bottom,
+                ))
+                .push(below_bars(
+                    resize::handle(Message::SidebarResized).into(),
+                    bottom,
+                ));
         }
         content = content.push(canvas);
         if let Some(panel) = self.panel {
-            content = content.push(below_bars(self.panel_view(panel)));
+            content = content.push(below_bars(self.panel_view(panel), bottom));
         }
-        let shown = self.pointer_inside || self.overflow_open || self.pending_export.is_some();
+        let shown = self.pointer_inside
+            || self.overflow_open
+            || self.pending_export.is_some()
+            || self.close_prompt
+            || self.markup_holds_bars();
         let page = container(component::window_bars(
             self.toolbar(),
-            None,
+            markup_bar,
             content.into(),
             shown,
         ))
@@ -1491,10 +1672,16 @@ impl ImageWindow {
             Some(notice) => component::snackbar(page, notice, Message::DismissNotice),
             None => page.into(),
         };
-        match &self.pending_export {
+        let page = match &self.pending_export {
             Some(pending) => self.export_prompt(page, pending),
             None => page,
-        }
+        };
+        let page = if self.close_prompt {
+            self.close_prompt_view(page)
+        } else {
+            page
+        };
+        iced::widget::stack![page, overlay].into()
     }
 
     fn export_prompt<'a>(
@@ -1567,8 +1754,12 @@ impl ImageWindow {
         {
             details.push_str("  ·  edited");
         }
-        let editable = shown.is_some_and(Shown::is_editable);
-        let editor = shown.and_then(|shown| shown.editor.as_ref());
+        let markable = shown.is_some_and(Shown::is_editable);
+        let marked = self.marked();
+        let editable = markable && !marked;
+        let editor = shown
+            .and_then(|shown| shown.editor.as_ref())
+            .filter(|_| !marked);
         let when = |glyph: Icon, label: &'static str, enabled: bool, message: Message| {
             component::tool(glyph, label, enabled.then_some(message))
         };
@@ -1608,41 +1799,87 @@ impl ImageWindow {
                 false,
             ));
         }
-        // The details give way first: they are clipped rather than moved.
+        // As in the PDF toolbar: what is shown and the view on the left,
+        // editing, panels and export on the right.
+        let details_width = details.chars().count() as f32 * 7.5 + 8.0;
         slots.push((
-            container(
+            row![
                 ui::styled(details, Type::BodyMedium)
                     .style(style::on_surface_variant)
                     .wrapping(text::Wrapping::None),
-            )
-            .width(Fill)
-            .clip(true)
+                component::toolbar_divider(),
+            ]
+            .spacing(8)
+            .align_y(Center)
             .into(),
-            80.0,
-            None,
+            details_width + DIVIDER_WIDTH + 8.0,
+            Some(0),
             false,
         ));
+        let zoom = self.markup_zoom().unwrap_or(self.zoom());
         slots.push((
             component::group([
-                when(
-                    Icon::Undo,
-                    "Undo",
-                    editor.is_some_and(|editor| editor.stack.can_undo()),
-                    Message::Edit(Edit::Undo),
+                component::tool(Icon::ZoomOut, "Zoom out", Some(Message::ZoomOut)),
+                ui::styled(format!("{:.0}%", zoom * 100.0), Type::LabelLarge)
+                    .width(48)
+                    .align_x(Center)
+                    .into(),
+                component::tool(Icon::ZoomIn, "Zoom in", Some(Message::ZoomIn)),
+            ]),
+            TOOL_WIDTH * 2.0 + 48.0 + 8.0,
+            Some(4),
+            false,
+        ));
+        let fitted = match self.markup() {
+            Some(markup) => markup.window.fits_page(),
+            None => self.fit == Fit::Fit,
+        };
+        slots.push((
+            component::group([
+                component::toggle_tool(
+                    Icon::FitPage,
+                    "Fit to window",
+                    fitted,
+                    Message::FitToWindow,
                 ),
-                when(
-                    Icon::Redo,
-                    "Redo",
-                    editor.is_some_and(|editor| editor.stack.can_redo()),
-                    Message::Edit(Edit::Redo),
+                component::toggle_tool(
+                    Icon::OneToOne,
+                    "Actual size",
+                    !fitted && (zoom - 1.0).abs() < 0.005,
+                    Message::ActualSize,
                 ),
             ]),
             tools(2.0),
-            None,
+            Some(1),
             false,
         ));
+        let right = slots.len();
+        // Undo and redo act on the markup while there is some, and give
+        // way to the markup bar's own.
+        let markup_bar = self
+            .markup()
+            .is_some_and(|markup| markup.window.markup_bar_shown());
+        let undo = !markup_bar;
+        if undo {
+            let (can_undo, can_redo) = match self.markup() {
+                Some(markup) => markup.window.can_undo(),
+                None => (
+                    editor.is_some_and(|editor| editor.stack.can_undo()),
+                    editor.is_some_and(|editor| editor.stack.can_redo()),
+                ),
+            };
+            slots.push((
+                component::group([
+                    when(Icon::Undo, "Undo", can_undo, Message::Undo),
+                    when(Icon::Redo, "Redo", can_redo, Message::Redo),
+                ]),
+                tools(2.0),
+                None,
+                false,
+            ));
+        }
         slots.push((
-            (component::group([
+            component::group([
                 when(
                     Icon::RotateLeft,
                     "Rotate left",
@@ -1667,16 +1904,16 @@ impl ImageWindow {
                     editable,
                     Message::Edit(Edit::FlipVertical),
                 ),
-            ])),
+            ]),
             DIVIDER_WIDTH + tools(4.0) + 8.0,
             Some(2),
-            true,
+            undo,
         ));
         slots.push((
             component::group([
                 component::toggle_tool(
                     Icon::HighlightAlt,
-                    "Select",
+                    "Rectangular selection",
                     self.selecting,
                     Message::ToggleSelecting,
                 ),
@@ -1692,39 +1929,36 @@ impl ImageWindow {
             false,
         ));
         slots.push((
-            (component::group([
+            component::group([
                 panel(Icon::Resize, "Adjust size", Panel::AdjustSize),
                 panel(Icon::Tune, "Adjust color", Panel::AdjustColor),
                 panel(Icon::Info, "Inspector", Panel::Inspector),
-            ])),
-            DIVIDER_WIDTH + tools(3.0) + 8.0,
-            Some(1),
+                if markable {
+                    component::toggle_tool(
+                        Icon::EditDocument,
+                        "Markup",
+                        self.markup()
+                            .is_some_and(|markup| markup.window.markup_bar_shown()),
+                        Message::ToggleMarkup,
+                    )
+                } else {
+                    component::tool(Icon::EditDocument, "Markup", None)
+                },
+            ]),
+            DIVIDER_WIDTH + tools(4.0) + 8.0,
+            Some(5),
             true,
         ));
         slots.push((
             component::tip(
-                ui::with_icon(Kind::Tonal, Icon::FileExport, "Export")
-                    .on_press_maybe(editable.then_some(Message::Export)),
-                "Export as another format",
+                ui::icon_button(Icon::FileExport)
+                    .kind(Kind::Tonal)
+                    .on_press_maybe(markable.then_some(Message::Export)),
+                "Export",
             ),
-            112.0,
-            Some(0),
+            component::TOOL_WIDTH,
+            Some(6),
             false,
-        ));
-        slots.push((
-            (component::group([
-                component::tool(Icon::ZoomOut, "Zoom out", Some(Message::ZoomOut)),
-                ui::styled(format!("{:.0}%", self.zoom() * 100.0), Type::LabelLarge)
-                    .width(48)
-                    .align_x(Center)
-                    .into(),
-                component::tool(Icon::ZoomIn, "Zoom in", Some(Message::ZoomIn)),
-                component::tool(Icon::FitScreen, "Fit to window", Some(Message::FitToWindow)),
-                component::tool(Icon::OneToOne, "Actual size", Some(Message::ActualSize)),
-            ])),
-            DIVIDER_WIDTH + tools(4.0) + 48.0 + 12.0,
-            Some(4),
-            true,
         ));
         slots.push((
             component::group([
@@ -1742,7 +1976,10 @@ impl ImageWindow {
         let shown = component::fitting_slots(width, &widths);
         let mut bar = row![].spacing(8).align_y(Center);
         let mut hidden = Vec::new();
-        for ((element, _, _, divider), shown) in slots.into_iter().zip(shown) {
+        for (index, ((element, _, _, divider), shown)) in slots.into_iter().zip(shown).enumerate() {
+            if index == right {
+                bar = bar.push(space::horizontal());
+            }
             if shown {
                 if divider {
                     bar = bar.push(component::toolbar_divider());
@@ -1902,7 +2139,23 @@ impl ImageWindow {
                 .style(style::on_surface_variant)
                 .into();
         };
-        let mut content = column![].spacing(6);
+        // The file first, as Preview's inspector shows it.
+        let item = &self.items[self.current];
+        let mut file = crate::info::file_facts(&item.path);
+        file.push((
+            "Format".to_owned(),
+            match item.source {
+                Source::Raster(format) => format.name().to_owned(),
+                Source::Svg => "SVG".to_owned(),
+            },
+        ));
+        if let Some((width, height)) = item.size {
+            file.push((
+                "Dimensions".to_owned(),
+                format!("{width} × {height} pixels"),
+            ));
+        }
+        let mut content = column![crate::info::sections_view(vec![("File", file)])].spacing(6);
         let mut section = "";
         for (group, label, value) in &inspector.details.fields {
             if group != section {
@@ -2052,11 +2305,14 @@ impl ImageWindow {
                     .align_x(Center)
                     .width(Length::Fill),
             )
-            .on_press(Message::Select(index))
+            .on_press(Message::SidebarPressed(index))
             .interaction(iced::mouse::Interaction::Pointer)
             .into()
         });
-        component::scroll(column(entries).spacing(12).padding(12).width(Fill))
+        let list = mouse_area(column(entries).spacing(12).padding(12).width(Fill))
+            .on_move(Message::SidebarMoved)
+            .on_release(Message::SidebarReleased);
+        component::scroll(list)
             .id(self.sidebar_id.clone())
             .height(Fill)
             .into()
@@ -2064,6 +2320,10 @@ impl ImageWindow {
 }
 
 /// Room above sidebars and panels for the toolbar when it floats.
-fn below_bars(element: Element<'_, Message>) -> Element<'_, Message> {
-    component::between_bars(element, component::floating_room(true), 0.0)
+fn below_bars(element: Element<'_, Message>, bottom_bar: bool) -> Element<'_, Message> {
+    component::between_bars(
+        element,
+        component::floating_room(true),
+        component::floating_room(bottom_bar),
+    )
 }

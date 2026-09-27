@@ -8,6 +8,7 @@ pub mod font;
 pub mod icon;
 pub mod motion;
 pub mod popover;
+pub mod probe;
 pub mod resize;
 pub mod scheme;
 pub mod style;

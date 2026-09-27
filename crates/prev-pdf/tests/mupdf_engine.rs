@@ -44,6 +44,10 @@ fn page_geometry_labels_and_title() {
     );
     assert_eq!(document.title().as_deref(), Some("Engine Fixture"));
     assert_eq!(document.page_size(3), Err(Error::PageOutOfRange(3)));
+    let metadata = document.metadata();
+    assert_eq!(metadata.title, "Engine Fixture");
+    assert!(metadata.format.starts_with("PDF"), "{metadata:?}");
+    assert!(metadata.author.is_empty());
 }
 
 #[test]

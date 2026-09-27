@@ -38,6 +38,7 @@ impl Clipboard {
 
         // Create channel to send data to clipboard thread.
         let (request_sender, rx_chan) = channel::channel();
+        dnd::set_commands(request_sender.clone());
         // Create channel to get data from the clipboard thread.
         let (clipboard_reply_sender, request_receiver) = mpsc::channel();
 

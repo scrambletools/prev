@@ -52,6 +52,9 @@ pub trait Document {
     }
     fn page_label(&self, index: usize) -> Option<String>;
     fn title(&self) -> Option<String>;
+    /// The document information, as MuPDF reads it: title, author and so
+    /// on, with dates as the PDF stores them (`D:YYYYMMDDHHmmSS…`).
+    fn metadata(&self) -> Metadata;
     fn outline(&self) -> Result<Vec<OutlineItem>>;
     fn links(&self, index: usize) -> Result<Vec<Link>>;
     /// A parsed page that can be rendered on any thread, any number of times.
@@ -110,10 +113,49 @@ pub trait Document {
     /// drawings under them are removed and the areas filled black. Returns
     /// how many marks were applied. Cannot be undone.
     fn apply_redactions(&mut self) -> Result<usize>;
+    /// Displays for moving an annotation on screen: the page without it,
+    /// and the annotation alone on a transparent page.
+    fn lift_annotation(&self, page: usize, id: &str) -> Result<Lifted>;
+    /// A page's annotations alone on a transparent page.
+    fn annotation_layer(&self, page: usize) -> Result<Arc<dyn PageDisplay>>;
     /// The whole document written anew for another file: unused objects
     /// dropped, streams compressed, optionally encrypted and with images
     /// made smaller.
     fn export(&mut self, options: &ExportOptions) -> Result<Vec<u8>>;
+}
+
+/// A document's information entries, empty when absent.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Metadata {
+    pub title: String,
+    pub author: String,
+    pub subject: String,
+    pub keywords: String,
+    /// The app that made the original document.
+    pub creator: String,
+    /// The app that wrote the PDF.
+    pub producer: String,
+    pub created: String,
+    pub modified: String,
+    /// Such as "PDF 1.7".
+    pub format: String,
+    /// Such as "Standard V5 R6 256-bit AES", or "None".
+    pub encryption: String,
+}
+
+/// A page split for moving one of its annotations: `without` shows the
+/// page as if the annotation were gone, `alone` only the annotation, on a
+/// transparent background.
+#[derive(Clone)]
+pub struct Lifted {
+    pub without: Arc<dyn PageDisplay>,
+    pub alone: Arc<dyn PageDisplay>,
+}
+
+impl std::fmt::Debug for Lifted {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Lifted")
+    }
 }
 
 /// A page taken out of the document, kept so the removal can be undone.

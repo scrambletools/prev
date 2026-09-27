@@ -11,8 +11,8 @@ use mupdf::{
 
 use crate::annotation::{Annotation, Field, Removed, StampContent};
 use crate::engine::{
-    Bitmap, CropBox, Document, Engine, Error, ExportOptions, Link, LinkTarget, OutlineItem,
-    PageDisplay, RemovedPage, Result,
+    Bitmap, CropBox, Document, Engine, Error, ExportOptions, Lifted, Link, LinkTarget, Metadata,
+    OutlineItem, PageDisplay, RemovedPage, Result,
 };
 use crate::geometry::{PixelRect, Point, Quad, Rect, Size};
 use crate::text::{TextChar, TextLayout, TextLine};
@@ -149,6 +149,27 @@ impl Document for MupdfDocument {
             .filter(|title| !title.is_empty())
     }
 
+    fn metadata(&self) -> Metadata {
+        let read = |name: MetadataName| {
+            self.document
+                .metadata(name)
+                .map(|value| value.trim().to_owned())
+                .unwrap_or_default()
+        };
+        Metadata {
+            title: read(MetadataName::Title),
+            author: read(MetadataName::Author),
+            subject: read(MetadataName::Subject),
+            keywords: read(MetadataName::Keywords),
+            creator: read(MetadataName::Creator),
+            producer: read(MetadataName::Producer),
+            created: read(MetadataName::CreationDate),
+            modified: read(MetadataName::ModDate),
+            format: read(MetadataName::Format),
+            encryption: read(MetadataName::Encryption),
+        }
+    }
+
     fn outline(&self) -> Result<Vec<OutlineItem>> {
         let outlines = self.document.outlines().map_err(engine_error)?;
         Ok(self.outline_items(outlines))
@@ -171,7 +192,11 @@ impl Document for MupdfDocument {
         let page = self.load_page(index)?;
         let bounds = page.bounds().map_err(engine_error)?;
         let list = page.to_display_list(true).map_err(engine_error)?;
-        Ok(Arc::new(MupdfPage { list, bounds }))
+        Ok(Arc::new(MupdfPage {
+            list,
+            bounds,
+            transparent: false,
+        }))
     }
 
     fn annotations(&self, page: usize) -> Result<Vec<Annotation>> {
@@ -303,11 +328,36 @@ impl Document for MupdfDocument {
     fn export(&mut self, options: &ExportOptions) -> Result<Vec<u8>> {
         mupdf_pages::export(&self.document, options)
     }
+
+    fn lift_annotation(&self, page: usize, id: &str) -> Result<Lifted> {
+        let (without, alone) = mupdf_pages::lift(&self.document, page, id)?;
+        Ok(Lifted {
+            without: first_page_display(without, false)?,
+            alone: first_page_display(alone, true)?,
+        })
+    }
+
+    fn annotation_layer(&self, page: usize) -> Result<Arc<dyn PageDisplay>> {
+        first_page_display(mupdf_pages::annotations_alone(&self.document, page)?, true)
+    }
+}
+
+fn first_page_display(document: PdfDocument, transparent: bool) -> Result<Arc<dyn PageDisplay>> {
+    let page = document.load_page(0).map_err(engine_error)?;
+    let bounds = page.bounds().map_err(engine_error)?;
+    let list = page.to_display_list(true).map_err(engine_error)?;
+    Ok(Arc::new(MupdfPage {
+        list,
+        bounds,
+        transparent,
+    }))
 }
 
 struct MupdfPage {
     list: DisplayList,
     bounds: mupdf::Rect,
+    /// Renders on a transparent background instead of white paper.
+    transparent: bool,
 }
 
 fn offset_rect(rect: mupdf::Rect, origin: mupdf::Rect) -> Rect {
@@ -343,9 +393,13 @@ impl PageDisplay for MupdfPage {
             x1: area.x + area.width as i32,
             y1: area.y + area.height as i32,
         };
-        let mut pixmap =
-            Pixmap::new_with_rect(&Colorspace::device_rgb(), rect, false).map_err(engine_error)?;
-        pixmap.clear_with(0xff).map_err(engine_error)?;
+        let mut pixmap = Pixmap::new_with_rect(&Colorspace::device_rgb(), rect, self.transparent)
+            .map_err(engine_error)?;
+        if self.transparent {
+            pixmap.clear().map_err(engine_error)?;
+        } else {
+            pixmap.clear_with(0xff).map_err(engine_error)?;
+        }
         {
             let device = Device::from_pixmap(&pixmap).map_err(engine_error)?;
             let clip = mupdf::Rect::new(
@@ -355,6 +409,9 @@ impl PageDisplay for MupdfPage {
                 rect.y1 as f32,
             );
             self.list.run(&device, &ctm, clip).map_err(engine_error)?;
+        }
+        if self.transparent {
+            return Ok(premultiplied_to_rgba(&pixmap, area.width, area.height));
         }
         Ok(rgb_to_rgba(&pixmap, area.width, area.height))
     }
@@ -458,6 +515,34 @@ fn page_dictionary_size(page: &PdfObject) -> Option<Size> {
     } else {
         Size::new(width, height)
     })
+}
+
+/// A pixmap with premultiplied alpha, as MuPDF draws them, to straight
+/// RGBA.
+fn premultiplied_to_rgba(pixmap: &Pixmap, width: u32, height: u32) -> Bitmap {
+    let stride = pixmap.stride() as usize;
+    let samples = pixmap.samples();
+    let mut pixels = Vec::with_capacity(width as usize * height as usize * 4);
+    for row in 0..height as usize {
+        let start = row * stride;
+        let (row_pixels, _) = samples[start..start + width as usize * 4].as_chunks::<4>();
+        for [red, green, blue, alpha] in row_pixels {
+            let straight = |channel: u8| {
+                if *alpha == 0 {
+                    0
+                } else {
+                    ((u32::from(channel) * 255 + u32::from(*alpha) / 2) / u32::from(*alpha))
+                        .min(255) as u8
+                }
+            };
+            pixels.extend_from_slice(&[straight(*red), straight(*green), straight(*blue), *alpha]);
+        }
+    }
+    Bitmap {
+        width,
+        height,
+        pixels,
+    }
 }
 
 fn rgb_to_rgba(pixmap: &Pixmap, width: u32, height: u32) -> Bitmap {

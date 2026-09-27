@@ -65,6 +65,9 @@ fn png_itxt_text(contents: &[u8]) -> Option<Vec<u8>> {
 
 /// The XMP packet of a JPEG, PNG or WebP file, if it has one.
 pub fn extract(file: &[u8]) -> Option<Vec<u8>> {
+    if crate::tiff_meta::is_tiff(file) {
+        return crate::tiff_meta::xmp(file);
+    }
     let bytes = Bytes::copy_from_slice(file);
     if let Ok(jpeg) = Jpeg::from_bytes(bytes.clone()) {
         let segment = jpeg

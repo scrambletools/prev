@@ -47,6 +47,22 @@ For a walkthrough of every feature with more screenshots, see
   - Text boxes and notes, with fonts, sizes, colors and alignment.
   - Border and fill colors, line widths and dashes.
   - Select, move, resize, restyle and delete annotations; undo and redo.
+  - Paste an image or text from the clipboard onto the page, whatever
+    tool is chosen (images need wl-clipboard), or drop one where it
+    should go.
+- **Drag and drop** both ways ([details](docs/GUIDE.md#drag-and-drop)):
+  - Drop images, text, files and pages from other windows and apps
+    where they should go: images and text onto pages or an image's
+    markup, pages and PDFs among the thumbnails, image files into an
+    image window, and other files into windows of their own.
+  - Drag selected text, areas (as images), pages (to another document,
+    or to the file manager as a PDF) and sidebar images (as their files)
+    out of prev.
+  - Shift moves pages instead of copying them, and takes dropped images
+    as files (pictures from web pages are saved to Downloads).
+  - Pictures dragged from a browser arrive at full size; where a browser
+    gives only their address, prev downloads them with curl if it is
+    installed.
   - Rectangular selection copies an area as an image (needs wl-clipboard).
   - Everything is saved as standard PDF annotations that other viewers
     show and edit.
@@ -60,6 +76,7 @@ For a walkthrough of every feature with more screenshots, see
     drag them to reorder.
   - Rotate, delete, crop to a selection, insert a blank page or the pages
     of another PDF, by choosing it or dropping it on the thumbnails.
+  - Drag pages to another document window, or out as a PDF file.
   - Copy pages and paste them into the same or another document window,
     with their annotations and form fields.
   - Every page edit can be undone.
@@ -73,6 +90,8 @@ For a walkthrough of every feature with more screenshots, see
   downsampling images, or as PNG, JPEG, multi-page TIFF, WebP or OpenEXR at 72 to
   600 dpi.
 - **Highlights and notes** sidebar listing every annotation with its text.
+- **Inspector** (Ctrl+I) with the file, the document information (title,
+  author, dates, producer, PDF version, encryption) and page size.
 - **Autosave:** edits are written in place a moment after you stop, with
   the original kept for Revert To.
 - **Text selection and copy**, including across pages; double-click selects a
@@ -82,16 +101,22 @@ For a walkthrough of every feature with more screenshots, see
 - **Images:** PNG, JPEG, GIF and animated GIF, WebP, AVIF, HEIC, TIFF, BMP,
   ICO, TGA, PNM, QOI, JPEG 2000, OpenEXR, Radiance HDR and camera RAW
   from the cameras [rawler](https://github.com/dnglab/dnglab) supports.
-  - Images opened together share one window with a thumbnail sidebar.
+  RAW photos open looking like the camera's own JPEG: prev matches its
+  tone curves to the preview the camera stores in the file.
+  - Images opened together share one window with a thumbnail sidebar;
+    drop more image files on the window to add them.
   - Zoom, fit, actual size, Ctrl+scroll zoom and drag to pan.
   - HEIC and AVIF use the system's libheif when it is installed.
 - **Image editing:** rotate, flip, crop, resize and Adjust Color (exposure,
   contrast, saturation, temperature, tint, sepia, sharpness and levels),
   with undo.
-  - Edits save automatically, keeping EXIF, color profiles and XMP; the
-    original is kept for Revert To.
-  - Inspector with camera details, Remove Location Info, keywords and
-    description.
+  - Edits save automatically, keeping EXIF, color profiles and XMP (in
+    JPEG, PNG, WebP and TIFF); the original is kept for Revert To.
+  - Inspector with the file's details, camera details, Remove Location
+    Info, keywords and description.
+  - Markup with the PDF tools (draw, shapes, text, notes, signatures),
+    kept while the window is open and drawn into the image on export;
+    closing asks first if markup hasn't been exported.
   - Export to PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR.
 - **SVG** drawings, sharp at any zoom.
 - **Markdown** with tables, task lists, syntax highlighted code and images;
@@ -101,23 +126,26 @@ For a walkthrough of every feature with more screenshots, see
   Symbols icons, spring motion and keyboard focus (Tab and Shift+Tab).
   - Colors are generated from the active Omarchy theme's accent, or from
     prev's own blue, in light or dark.
-  - In narrow windows, toolbar groups that don't fit move into a More menu.
+  - Documents and images share one toolbar layout: what is shown and the
+    view on the left, editing, panels and export on the right.
+  - In narrow windows, toolbar groups that don't fit move into a More
+    menu, which closes once you choose from it.
   - Optionally, the toolbar floats over the document as an M3 floating
     toolbar, with the markup bar along the bottom, and hides while the
     pointer is outside the window.
 - **Settings** (the gear button or Ctrl+,): appearance, Omarchy colors,
-  the floating toolbar, animations, corner radius, and where signatures,
+  the floating toolbar and its transparency, animations, corner radius,
+  and where signatures,
   version history and bookmarks are kept. They are saved in
   `~/.config/prev.toml`.
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
+  - Drag and drop with other apps both ways, on Wayland.
   - Follows the system light or dark setting and reduced motion setting.
 
 ### Planned
 
-- **Image polish:** RAW tone curves matched to the camera's own JPEG, EXIF
-  kept in edited TIFFs.
 - **Release:** packages for Arch, Flatpak, AppImage, Debian and Fedora.
 
 ## Building
@@ -140,6 +168,14 @@ cargo build --release
 ```
 
 MuPDF is compiled from source as part of the build.
+
+prev runs without these, but uses them when they are installed:
+
+- **wl-clipboard** (`wl-copy`, `wl-paste`): pasting images, and copying
+  an area as an image. Text copies and pastes without it.
+- **libheif**: opening HEIC and AVIF images.
+- **curl**: fetching a picture dropped from a browser that gives only
+  its web address; without it the address arrives as text.
 
 To install prev for your user, with a desktop entry so it shows up in the
 launcher and "Open With":
@@ -165,8 +201,9 @@ the installed copy without handing files to it.
 | Go to page | Ctrl+Alt+G |
 | Bookmark page | Ctrl+D |
 | Sidebar: hide, thumbnails, contents, highlights and notes, bookmarks | Ctrl+Alt+1, 2, 3, 4, 5 |
-| Show markup toolbar | Ctrl+Shift+A |
+| Show markup toolbar (PDFs and images) | Ctrl+Shift+A |
 | Delete the selected annotation or pages | Delete |
+| Paste an image or text from the clipboard | Ctrl+V |
 | Copy, paste pages (after clicking a thumbnail) | Ctrl+C, Ctrl+V |
 | Select all pages (after clicking a thumbnail) | Ctrl+A |
 | Slideshow | Ctrl+Shift+F |
@@ -174,7 +211,7 @@ the installed copy without handing files to it.
 | Rotate left, right | Ctrl+L, Ctrl+R |
 | Crop to selection | Ctrl+K |
 | Undo, redo | Ctrl+Z, Ctrl+Shift+Z |
-| Adjust Color, Inspector | Ctrl+Shift+C, Ctrl+I |
+| Adjust Color (images), Inspector | Ctrl+Shift+C, Ctrl+I |
 | Export | Ctrl+Shift+S |
 | Print | Ctrl+P |
 | Settings | Ctrl+, |

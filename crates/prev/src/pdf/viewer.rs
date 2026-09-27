@@ -146,6 +146,8 @@ pub enum Request {
     /// and notes need loading again.
     PagesChanged,
     Notice(String),
+    /// Selected text or an area is being dragged out of the document.
+    DragOut(editing::Outgoing),
 }
 
 #[derive(Debug, Default)]
@@ -323,6 +325,17 @@ impl PdfViewer {
         }
     }
 
+    /// Whether every tile the view needs of `page` is drawn at its current
+    /// generation.
+    pub fn page_tiles_ready(&self, page: usize) -> bool {
+        let Some(area) = self.layout.page_area(page) else {
+            return true;
+        };
+        layout::visible_tiles(&area, &self.view, self.device_scale)
+            .iter()
+            .all(|tile| self.tiles.contains_key(&self.tile_key(page, tile)))
+    }
+
     pub fn generation(&self, page: usize) -> u32 {
         self.generations.get(&page).copied().unwrap_or(0)
     }
@@ -421,6 +434,7 @@ impl PdfViewer {
                     self.tiles.insert(key, (handle, bytes, self.use_clock));
                     self.evict_tiles();
                 }
+                self.settle_lift();
                 Task::none()
             }
             PdfMessage::TextReady(page, text) => {
@@ -750,6 +764,19 @@ impl PdfViewer {
     // Selection and links.
 
     fn press(&mut self, x: f32, y: f32, clicks: u8) -> Task<PdfMessage> {
+        // Pressing on the selection or the chosen area may start a drag of
+        // it, whatever else would happen here.
+        if clicks == 1
+            && matches!(
+                self.edit.tool,
+                super::markup::Tool::Select | super::markup::Tool::Area
+            )
+            && self.edit.text.is_none()
+            && let Some(out) = self.drag_out_at(x, y)
+        {
+            self.edit.drag = Some(editing::Drag::Out { start: (x, y), out });
+            return Task::none();
+        }
         if let Some(task) = self.editing_press(x, y, clicks) {
             return task;
         }
@@ -783,6 +810,11 @@ impl PdfViewer {
             && (x - press_x).abs() + (y - press_y).abs() > 3.0
         {
             self.dragged = true;
+        }
+        // Only a press that began a selection extends it; one that went
+        // on to drag the selection out does not.
+        if self.press.is_none() {
+            return;
         }
         if let (Some(selection), Some(focus)) =
             (self.selection.as_mut(), self.layout.hit_nearest(x, y))
@@ -904,10 +936,21 @@ impl PdfViewer {
             return Task::batch(tasks);
         }
         self.pending_copy = false;
+        match self.selected_text() {
+            Some(text) => iced::clipboard::write(text),
+            None => Task::none(),
+        }
+    }
+
+    /// The selected text, from the pages whose text is loaded.
+    pub fn selected_text(&self) -> Option<String> {
+        let selection = self.selection?;
+        let first = selection.anchor.0.min(selection.focus.0);
+        let last = selection.anchor.0.max(selection.focus.0);
         let text: Vec<String> = (first..=last)
-            .filter_map(|page| Some(self.texts[&page].text(self.page_selection(page)?)))
+            .filter_map(|page| Some(self.texts.get(&page)?.text(self.page_selection(page)?)))
             .collect();
-        iced::clipboard::write(text.join("\n"))
+        (!text.is_empty()).then(|| text.join("\n"))
     }
 
     // Search.

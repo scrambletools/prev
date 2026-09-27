@@ -29,3 +29,11 @@ flate2 = "1"
 default = ["raw"]
 # Camera RAW decoding with rawler (LGPL-2.1).
 raw = ["dep:rawler"]
+
+[[example]]
+name = "raw_look"
+required-features = ["raw"]
+
+[[example]]
+name = "raw_score"
+required-features = ["raw"]

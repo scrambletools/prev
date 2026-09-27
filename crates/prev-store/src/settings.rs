@@ -25,6 +25,8 @@ pub struct Settings {
     pub auto_hide_toolbar: bool,
     /// Corner radius of dialogs and floating toolbars, 0 to 32 pixels.
     pub corner_radius: f32,
+    /// How see-through floating toolbars are, in percent, 0 to 90.
+    pub overlay_transparency: f32,
     /// Interface motion: springs, slides and growing dialogs. Off, or the
     /// system's reduced motion setting, makes changes happen at once.
     pub animations: bool,
@@ -51,6 +53,7 @@ impl Default for Settings {
             omarchy_palette: true,
             auto_hide_toolbar: false,
             corner_radius: DEFAULT_CORNER_RADIUS,
+            overlay_transparency: 0.0,
             animations: true,
             signatures: locations.signatures,
             versions: locations.versions,
@@ -199,6 +202,7 @@ mod tests {
         assert!(text.contains("auto-hide-toolbar = true"), "{text}");
         assert!(text.contains("corner-radius = 28"), "{text}");
         assert!(text.contains("animations = true"), "{text}");
+        assert!(text.contains("overlay-transparency = 0"), "{text}");
         assert!(text.contains("signatures = \"/srv/signatures\""), "{text}");
         assert!(text.contains("versions = "), "{text}");
         assert!(text.contains("bookmarks = "), "{text}");

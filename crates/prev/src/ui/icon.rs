@@ -103,7 +103,7 @@ icons! {
     Remove = 0xe15b, "remove";
     RemoveSelection = 0xe9d5, "remove_selection";
     ResetAll = 0xf053, "restart_alt";
-    Resize = 0xf707, "resize";
+    Resize = 0xf1ce, "open_in_full";
     RotateLeft = 0xe419, "rotate_left";
     RotateRight = 0xe41a, "rotate_right";
     RoundedCorner = 0xe920, "rounded_corner";

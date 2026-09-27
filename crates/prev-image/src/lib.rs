@@ -11,6 +11,8 @@ mod mupdf_image;
 #[cfg(feature = "raw")]
 mod raw;
 pub mod svg;
+mod tiff_meta;
+pub mod tone;
 pub mod xmp;
 
 pub use format::ImageFormat;

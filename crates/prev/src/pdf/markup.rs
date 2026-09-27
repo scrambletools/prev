@@ -510,6 +510,48 @@ pub fn recognize(points: &[Point]) -> Sketched {
 }
 
 /// The annotation a finished stroke becomes with the draw or sketch tool.
+/// A freehand stroke evened out and made dense: pointer positions come
+/// rounded and far apart, which drawn as they are gives a jagged line.
+/// Each point moves toward its neighbours (weights 1, 2, 1), twice, then
+/// quadratic curves through the midpoints are sampled, so the ink is drawn
+/// as a smooth curve. The ends stay where they are.
+pub fn smooth(points: &[Point]) -> Vec<Point> {
+    let mut points = points.to_vec();
+    for _ in 0..2 {
+        if points.len() < 3 {
+            break;
+        }
+        let mut next = points.clone();
+        for index in 1..points.len() - 1 {
+            let (a, b, c) = (points[index - 1], points[index], points[index + 1]);
+            next[index] = Point::new((a.x + 2.0 * b.x + c.x) / 4.0, (a.y + 2.0 * b.y + c.y) / 4.0);
+        }
+        points = next;
+    }
+    if points.len() < 3 {
+        return points;
+    }
+    const STEPS: usize = 4;
+    let middle = |a: Point, b: Point| Point::new((a.x + b.x) / 2.0, (a.y + b.y) / 2.0);
+    let mut dense = vec![points[0]];
+    let mut start = points[0];
+    for index in 1..points.len() - 1 {
+        let control = points[index];
+        let end = middle(control, points[index + 1]);
+        for step in 1..=STEPS {
+            let t = step as f32 / STEPS as f32;
+            let u = 1.0 - t;
+            dense.push(Point::new(
+                u * u * start.x + 2.0 * u * t * control.x + t * t * end.x,
+                u * u * start.y + 2.0 * u * t * control.y + t * t * end.y,
+            ));
+        }
+        start = end;
+    }
+    dense.push(points[points.len() - 1]);
+    dense
+}
+
 pub fn stroke_annotation(points: &[Point], sketch: bool, style: Style) -> Option<Annotation> {
     let points = thin(points, 0.75);
     if points.is_empty() {
@@ -529,10 +571,11 @@ pub fn stroke_annotation(points: &[Point], sketch: bool, style: Style) -> Option
         },
         Sketched::Rectangle => Kind::Square,
         Sketched::Oval => Kind::Circle,
-        Sketched::Freehand => Kind::Ink(vec![points.clone()]),
+        Sketched::Freehand => Kind::Ink(vec![smooth(&points)]),
     };
-    let rect = match kind {
-        Kind::Line { start, end, .. } => normalized(start, end),
+    let rect = match &kind {
+        Kind::Line { start, end, .. } => normalized(*start, *end),
+        Kind::Ink(strokes) => bounds(&strokes[0]),
         _ => rect,
     };
     let mut annotation = Annotation::new(new_id(), kind, rect);
@@ -544,6 +587,27 @@ pub fn stroke_annotation(points: &[Point], sketch: bool, style: Style) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn smoothing_evens_out_steps_and_keeps_the_ends() {
+        // A staircase, as a pointer reports a diagonal.
+        let stairs: Vec<Point> = (0..40)
+            .map(|index| {
+                Point::new(
+                    (index / 2) as f32 * 2.0 + (index % 2) as f32 * 2.0,
+                    (index / 2) as f32 * 2.0,
+                )
+            })
+            .collect();
+        let smooth = smooth(&stairs);
+        assert_eq!(smooth.first(), stairs.first());
+        assert_eq!(smooth.last(), stairs.last());
+        assert!(smooth.len() > stairs.len() * 3, "made dense");
+        // Away from the ends, the line is close to the diagonal y = x - 1.
+        for point in &smooth[20..smooth.len() - 20] {
+            assert!((point.y - (point.x - 1.0)).abs() < 1.0, "{point:?}");
+        }
+    }
 
     fn circle_points(center: Point, radius: f32) -> Vec<Point> {
         (0..=64)

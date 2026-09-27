@@ -8,7 +8,7 @@ use std::sync::mpsc::Sender;
 
 use sctk::data_device_manager::data_device::{DataDevice, DataDeviceData, DataDeviceHandler};
 use sctk::data_device_manager::data_offer::{DataOfferError, DataOfferHandler, DragOffer};
-use sctk::data_device_manager::data_source::{CopyPasteSource, DataSourceHandler};
+use sctk::data_device_manager::data_source::{CopyPasteSource, DataSourceHandler, DragSource};
 use sctk::data_device_manager::{DataDeviceManagerState, WritePipe};
 use sctk::primary_selection::PrimarySelectionManagerState;
 use sctk::primary_selection::device::{PrimarySelectionDevice, PrimarySelectionDeviceHandler};
@@ -16,9 +16,11 @@ use sctk::primary_selection::selection::{PrimarySelectionSource, PrimarySelectio
 use sctk::registry::{ProvidesRegistryState, RegistryState};
 use sctk::seat::pointer::{PointerData, PointerEvent, PointerEventKind, PointerHandler};
 use sctk::seat::{Capability, SeatHandler, SeatState};
+use sctk::shm::slot::{Buffer, SlotPool};
+use sctk::shm::{Shm, ShmHandler};
 use sctk::{
     delegate_data_device, delegate_pointer, delegate_primary_selection, delegate_registry,
-    delegate_seat, registry_handlers,
+    delegate_seat, delegate_shm, registry_handlers,
 };
 
 use sctk::reexports::calloop::{LoopHandle, PostAction};
@@ -26,7 +28,9 @@ use sctk::reexports::client::globals::GlobalList;
 use sctk::reexports::client::protocol::wl_data_device::WlDataDevice;
 use sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 use sctk::reexports::client::protocol::wl_data_source::WlDataSource;
+use sctk::reexports::client::protocol::wl_compositor::WlCompositor;
 use sctk::reexports::client::protocol::wl_keyboard::WlKeyboard;
+use sctk::reexports::client::protocol::wl_shm;
 use sctk::reexports::client::protocol::wl_pointer::WlPointer;
 use sctk::reexports::client::protocol::wl_seat::WlSeat;
 use sctk::reexports::client::protocol::wl_surface::WlSurface;
@@ -37,7 +41,7 @@ use sctk::reexports::protocols::wp::primary_selection::zv1::client::{
 };
 use wayland_backend::client::ObjectId;
 
-use crate::dnd::{self, DragEvent};
+use crate::dnd::{self, Action, Drag, DragEvent};
 use crate::mime::{ALLOWED_MIME_TYPES, MimeType, normalize_to_lf};
 
 pub struct State {
@@ -64,6 +68,22 @@ pub struct State {
 
     /// Surface under the current drag, if any.
     drag_surface: Option<usize>,
+    /// The type a drag over the application would be taken in.
+    drag_mime: Option<String>,
+    /// A drag the application started, while it lasts.
+    outgoing: Option<OutgoingDrag>,
+    /// The action the target chose for the outgoing drag.
+    outgoing_action: DndAction,
+    compositor: Option<WlCompositor>,
+    shm: Option<Shm>,
+}
+
+/// A drag the application started, and what it keeps alive.
+struct OutgoingDrag {
+    source: DragSource,
+    allows_move: bool,
+    data: Rc<Vec<(String, Vec<u8>)>>,
+    icon: Option<(WlSurface, Buffer, SlotPool)>,
 }
 
 impl State {
@@ -102,6 +122,12 @@ impl State {
             data_device_manager_state,
             data_sources: Vec::new(),
             drag_surface: None,
+            drag_mime: None,
+            outgoing: None,
+            outgoing_action: DndAction::empty(),
+            // Only for drag icons; drags work without them.
+            compositor: globals.bind::<WlCompositor, _, _>(queue_handle, 1..=4, ()).ok(),
+            shm: Shm::bind(globals, queue_handle).ok(),
             latest_seat: None,
             loop_handle,
             exit: false,
@@ -238,6 +264,117 @@ impl State {
         });
 
         Ok(())
+    }
+
+    /// Starts `drag` from the surface the pointer button is held on.
+    pub fn start_drag(&mut self, drag: Drag) -> Option<()> {
+        let latest = self.latest_seat.as_ref()?;
+        let seat = self.seats.get(latest)?;
+        let (origin, serial) = seat.pressed.clone()?;
+        let device = seat.data_device.as_ref()?;
+        let mgr = self.data_device_manager_state.as_ref()?;
+        // A drag already under way is replaced.
+        if let Some(previous) = self.outgoing.take() {
+            previous.source.inner().destroy();
+        }
+        let actions =
+            if drag.allow_move { DndAction::Copy | DndAction::Move } else { DndAction::Copy };
+        let source = mgr.create_drag_and_drop_source(
+            &self.queue_handle,
+            drag.data.iter().map(|(mime, _)| mime.as_str()),
+            actions,
+        );
+        let icon = drag.icon.as_ref().and_then(|icon| self.icon_surface(icon));
+        source.start_drag(device, &origin, icon.as_ref().map(|(surface, ..)| surface), serial);
+        if let Some((surface, ..)) = &icon {
+            surface.commit();
+        }
+        self.outgoing_action = DndAction::empty();
+        self.outgoing = Some(OutgoingDrag {
+            source,
+            allows_move: drag.allow_move,
+            data: Rc::new(drag.data),
+            icon,
+        });
+        Some(())
+    }
+
+    /// A surface showing `icon`, placed so the pointer is at its hotspot.
+    fn icon_surface(&self, icon: &dnd::Icon) -> Option<(WlSurface, Buffer, SlotPool)> {
+        let (compositor, shm) = (self.compositor.as_ref()?, self.shm.as_ref()?);
+        let (width, height) = (icon.width as i32, icon.height as i32);
+        if width <= 0 || height <= 0 || icon.rgba.len() != (width * height * 4) as usize {
+            return None;
+        }
+        let mut pool = SlotPool::new((width * height * 4) as usize, shm).ok()?;
+        let (buffer, canvas) =
+            pool.create_buffer(width, height, width * 4, wl_shm::Format::Argb8888).ok()?;
+        canvas.copy_from_slice(&dnd::to_argb8888(&icon.rgba));
+        let surface = compositor.create_surface(&self.queue_handle, ());
+        surface.attach(Some(buffer.wl_buffer()), -icon.hotspot.0, -icon.hotspot.1);
+        surface.damage(0, 0, width, height);
+        Some((surface, buffer, pool))
+    }
+
+    /// Ends the outgoing drag, reporting how.
+    fn end_outgoing(&mut self, dropped: bool) {
+        let Some(drag) = self.outgoing.take() else { return };
+        drag.source.inner().destroy();
+        if let Some((surface, ..)) = drag.icon {
+            surface.destroy();
+        }
+        // As for drops: without a reported action, the modifier keys decide.
+        let moved = if self.outgoing_action.is_empty() {
+            drag.allows_move && dnd::prefer_move()
+        } else {
+            self.outgoing_action.contains(DndAction::Move)
+        };
+        let action = dropped.then_some(if moved { Action::Move } else { Action::Copy });
+        dnd::emit(DragEvent::SourceEnded { action });
+    }
+
+    /// Writes the outgoing drag's data in `mime` to `write_pipe`.
+    fn send_drag_data(&mut self, write_pipe: WritePipe, mime: String) {
+        let Some(drag) = self.outgoing.as_ref() else { return };
+        let data = drag.data.clone();
+        let Some(index) = data.iter().position(|(offered, _)| *offered == mime) else { return };
+        if set_non_blocking(write_pipe.as_raw_fd()).is_err() {
+            return;
+        }
+        let mut written = 0;
+        let _ = self.loop_handle.insert_source(write_pipe, move |_, file, _| {
+            let file = unsafe { file.get_mut() };
+            let contents = &data[index].1;
+            loop {
+                if written == contents.len() {
+                    break PostAction::Remove;
+                }
+                match file.write(&contents[written..]) {
+                    Ok(n) => written += n,
+                    Err(err) if err.kind() == ErrorKind::WouldBlock => break PostAction::Continue,
+                    Err(_) => break PostAction::Remove,
+                }
+            }
+        });
+    }
+
+    /// Takes the drag in the accepted type it offers, with the action the
+    /// user's modifiers ask for.
+    fn accept_drag(&mut self, offer: &DragOffer) {
+        let mime = if dnd::has_handler() {
+            offer.with_mime_types(|mimes| dnd::choose_mime(mimes))
+        } else {
+            None
+        };
+        offer.accept_mime_type(offer.serial, mime.clone());
+        match mime {
+            Some(_) => {
+                let preferred = if dnd::prefer_move() { DndAction::Move } else { DndAction::Copy };
+                offer.set_actions(DndAction::Copy | DndAction::Move, preferred);
+            },
+            None => offer.set_actions(DndAction::empty(), DndAction::empty()),
+        }
+        self.drag_mime = mime;
     }
 
     fn send_request(&mut self, ty: SelectionTarget, write_pipe: WritePipe, mime: String) {
@@ -377,10 +514,16 @@ impl PointerHandler for State {
         let mut updated_serial = false;
         for event in events {
             match event.kind {
-                PointerEventKind::Press { serial, .. }
-                | PointerEventKind::Release { serial, .. } => {
+                PointerEventKind::Press { serial, .. } => {
                     updated_serial = true;
                     seat_state.latest_serial = serial;
+                    // Drags start from the held button's press.
+                    seat_state.pressed = Some((event.surface.clone(), serial));
+                },
+                PointerEventKind::Release { serial, .. } => {
+                    updated_serial = true;
+                    seat_state.latest_serial = serial;
+                    seat_state.pressed = None;
                 },
                 _ => (),
             }
@@ -417,16 +560,8 @@ impl DataDeviceHandler for State {
             dnd::emit(DragEvent::Entered { surface, x, y, accepted: false });
             return;
         };
-        let has_files =
-            offer.with_mime_types(|mimes| mimes.iter().any(|mime| mime == dnd::URI_LIST_MIME));
-        let accepted = has_files && dnd::has_handler();
-        if accepted {
-            offer.accept_mime_type(offer.serial, Some(dnd::URI_LIST_MIME.to_owned()));
-            offer.set_actions(DndAction::Copy, DndAction::Copy);
-        } else {
-            offer.accept_mime_type(offer.serial, None);
-            offer.set_actions(DndAction::empty(), DndAction::empty());
-        }
+        self.accept_drag(&offer);
+        let accepted = self.drag_mime.is_some();
         dnd::emit(DragEvent::Entered { surface, x, y, accepted });
     }
 
@@ -440,10 +575,14 @@ impl DataDeviceHandler for State {
         &mut self,
         _: &Connection,
         _: &QueueHandle<Self>,
-        _: &WlDataDevice,
+        data_device: &WlDataDevice,
         x: f64,
         y: f64,
     ) {
+        // Modifier keys may have changed copy to move.
+        if let Some(offer) = drag_offer(data_device) {
+            self.accept_drag(&offer);
+        }
         if let Some(surface) = self.drag_surface {
             dnd::emit(DragEvent::Moved { surface, x, y });
         }
@@ -461,13 +600,19 @@ impl DataDeviceHandler for State {
         self.drag_surface = None;
         dnd::emit(DragEvent::Left { surface });
 
-        let accepted =
-            offer.with_mime_types(|mimes| mimes.iter().any(|mime| mime == dnd::URI_LIST_MIME));
-        if !accepted || !dnd::has_handler() {
+        let Some(mime) = self.drag_mime.take().filter(|_| dnd::has_handler()) else {
             offer.destroy();
             return;
-        }
-        let read_pipe = match offer.receive(dnd::URI_LIST_MIME.to_owned()) {
+        };
+        // Some compositors (Hyprland) never report the chosen action;
+        // then the user's modifier keys decide, as they would have.
+        let moved = if offer.selected_action.is_empty() {
+            dnd::prefer_move() && offer.source_actions.contains(DndAction::Move)
+        } else {
+            offer.selected_action.contains(DndAction::Move)
+        };
+        let action = if moved { Action::Move } else { Action::Copy };
+        let read_pipe = match offer.receive(mime.clone()) {
             Ok(pipe) => pipe,
             Err(_) => {
                 offer.destroy();
@@ -486,10 +631,11 @@ impl DataDeviceHandler for State {
             loop {
                 match file.read(&mut reader_buffer) {
                     Ok(0) => {
-                        let uris = dnd::parse_uri_list(&String::from_utf8_lossy(&content));
                         offer.finish();
                         offer.destroy();
-                        dnd::emit(DragEvent::Dropped { surface, x, y, uris });
+                        let data = mem::take(&mut content);
+                        let mime = mime.clone();
+                        dnd::emit(DragEvent::Dropped { surface, x, y, mime, data, action });
                         break PostAction::Remove;
                     },
                     Ok(n) => content.extend_from_slice(&reader_buffer[..n]),
@@ -512,14 +658,22 @@ impl DataSourceHandler for State {
         &mut self,
         _: &Connection,
         _: &QueueHandle<Self>,
-        _: &WlDataSource,
+        source: &WlDataSource,
         mime: String,
         write_pipe: WritePipe,
     ) {
-        self.send_request(SelectionTarget::Clipboard, write_pipe, mime)
+        if self.is_outgoing(source) {
+            self.send_drag_data(write_pipe, mime);
+        } else {
+            self.send_request(SelectionTarget::Clipboard, write_pipe, mime)
+        }
     }
 
     fn cancelled(&mut self, _: &Connection, _: &QueueHandle<Self>, deleted: &WlDataSource) {
+        if self.is_outgoing(deleted) {
+            self.end_outgoing(false);
+            return;
+        }
         self.data_sources.retain(|source| source.inner() != deleted)
     }
 
@@ -534,9 +688,59 @@ impl DataSourceHandler for State {
 
     fn dnd_dropped(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource) {}
 
-    fn action(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource, _: DndAction) {}
+    fn action(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        source: &WlDataSource,
+        action: DndAction,
+    ) {
+        if self.is_outgoing(source) {
+            self.outgoing_action = action;
+        }
+    }
 
-    fn dnd_finished(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource) {}
+    fn dnd_finished(&mut self, _: &Connection, _: &QueueHandle<Self>, source: &WlDataSource) {
+        if self.is_outgoing(source) {
+            self.end_outgoing(true);
+        }
+    }
+}
+
+impl State {
+    fn is_outgoing(&self, source: &WlDataSource) -> bool {
+        self.outgoing.as_ref().is_some_and(|drag| drag.source.inner() == source)
+    }
+}
+
+impl ShmHandler for State {
+    fn shm_state(&mut self) -> &mut Shm {
+        self.shm.as_mut().expect("shm events come only once it is bound")
+    }
+}
+
+impl Dispatch<WlCompositor, ()> for State {
+    fn event(
+        _: &mut State,
+        _: &WlCompositor,
+        _: <WlCompositor as Proxy>::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<State>,
+    ) {
+    }
+}
+
+impl Dispatch<WlSurface, ()> for State {
+    fn event(
+        _: &mut State,
+        _: &WlSurface,
+        _: <WlSurface as Proxy>::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<State>,
+    ) {
+    }
 }
 
 impl DataOfferHandler for State {
@@ -633,6 +837,7 @@ impl Dispatch<WlKeyboard, ObjectId, State> for State {
 }
 
 delegate_seat!(State);
+delegate_shm!(State);
 delegate_pointer!(State);
 delegate_data_device!(State);
 delegate_primary_selection!(State);
@@ -656,6 +861,8 @@ struct ClipboardSeatState {
 
     /// The latest serial used to set the selection content.
     latest_serial: u32,
+    /// The surface and serial of the pointer button press held now.
+    pressed: Option<(WlSurface, u32)>,
 }
 
 impl Drop for ClipboardSeatState {

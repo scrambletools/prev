@@ -30,6 +30,10 @@ pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
 };
 
 pub struct Prev {
+    /// The window that started the drag under way, told how it ends.
+    drag_origin: Option<window::Id>,
+    /// Whether Shift is held, which makes dropped images files.
+    shift: bool,
     windows: BTreeMap<window::Id, Window>,
     settings: Settings,
     settings_path: Option<PathBuf>,
@@ -135,6 +139,8 @@ struct Window {
     drag_hover: bool,
     /// The settings dialog, shown over this window.
     settings_open: bool,
+    /// The window's size, for telling when the pointer leaves it.
+    size: Size,
 }
 
 enum Content {
@@ -156,6 +162,21 @@ pub enum Message {
     WindowOpened(window::Id),
     SurfaceKnown(window::Id, Option<usize>),
     WindowClosed(window::Id),
+    /// The window manager or a shortcut asked to close a window.
+    CloseRequested(window::Id),
+    Resized(window::Id, Size),
+    /// The pointer moved, reported while a drag may leave its window.
+    PointerMoved(window::Id, iced::Point),
+    /// A drop was read: where it landed, what it brought, and whether
+    /// Shift made it a drop of files.
+    DropDecoded(
+        window::Id,
+        f32,
+        f32,
+        prev::drag::Action,
+        prev::drag::Dropped,
+        bool,
+    ),
     ScaleFactor(window::Id, f32),
     Frame(std::time::Instant),
     Pdf(window::Id, pdf_window::Message),
@@ -169,8 +190,9 @@ pub enum Message {
     Pointer(window::Id, bool),
     CloseSettings(window::Id),
     CornerRadius(f32),
+    OverlayTransparency(f32),
     AnimationsToggled(bool),
-    CornerRadiusSaved,
+    SliderReleased,
     StorageDraft(Storage, String),
     StorageApply(Storage),
     StorageChoose(Storage),
@@ -200,6 +222,8 @@ impl Prev {
         // Signatures, versions and bookmarks live where the settings say.
         prev_store::paths::set_locations(settings.locations());
         let mut prev = Self {
+            drag_origin: None,
+            shift: false,
             windows: BTreeMap::new(),
             settings,
             settings_path,
@@ -215,6 +239,7 @@ impl Prev {
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
         ui::shape::set_surface(prev.settings.corner_radius);
+        ui::component::set_floating_transparency(prev.settings.overlay_transparency);
         prev.apply_motion();
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
@@ -312,7 +337,19 @@ impl Prev {
         run: impl FnOnce(&mut ImageWindow) -> Task<image_window::Message>,
     ) -> Task<Message> {
         match self.images_mut(id) {
-            Some(images) => run(images).map(move |message| Message::Image(id, message)),
+            Some(images) => {
+                let task = run(images).map(move |message| Message::Image(id, message));
+                let started = images.take_drag_started();
+                let closing = images.take_closing();
+                if started {
+                    self.drag_origin = Some(id);
+                }
+                if closing {
+                    Task::batch([task, window::close(id)])
+                } else {
+                    task
+                }
+            }
             None => Task::none(),
         }
     }
@@ -377,7 +414,11 @@ impl Prev {
             return Task::none();
         };
         let task = run(pdf).map(move |message| Message::Pdf(id, message));
+        let started = pdf.take_drag_started();
         let effects = pdf.take_effects();
+        if started {
+            self.drag_origin = Some(id);
+        }
         let effect_tasks: Vec<Task<Message>> = effects
             .into_iter()
             .map(|effect| match effect {
@@ -421,6 +462,8 @@ impl Prev {
                 application_id: APP_ID.to_owned(),
                 ..PlatformSpecific::default()
             },
+            // Windows with markup that would be lost ask first.
+            exit_on_close_request: false,
             ..window::Settings::default()
         });
         self.windows.insert(
@@ -432,6 +475,7 @@ impl Prev {
                 surface: None,
                 drag_hover: false,
                 settings_open: false,
+                size,
             },
         );
         (id, opened.map(Message::WindowOpened))
@@ -514,6 +558,36 @@ impl Prev {
                 }
                 self.exit_if_done()
             }
+            Message::Resized(id, size) => {
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.size = size;
+                }
+                Task::none()
+            }
+            Message::PointerMoved(id, point) => {
+                let Some(window) = self.windows.get(&id) else {
+                    return Task::none();
+                };
+                let size = window.size;
+                let outside =
+                    point.x < 0.0 || point.y < 0.0 || point.x > size.width || point.y > size.height;
+                if !outside {
+                    return Task::none();
+                }
+                self.with_pdf(id, |pdf| pdf.drag_pages_out())
+            }
+            Message::DropDecoded(id, x, y, action, dropped, as_file) => {
+                self.drop_in(id, x, y, action, dropped, as_file)
+            }
+            Message::CloseRequested(id) => {
+                if self
+                    .images_mut(id)
+                    .is_some_and(|images| !images.request_close())
+                {
+                    return Task::none();
+                }
+                window::close(id)
+            }
             Message::FinalSaveDone => {
                 self.pending_saves = self.pending_saves.saturating_sub(1);
                 self.exit_if_done()
@@ -556,6 +630,10 @@ impl Prev {
                 }
             }
             Message::Modifiers(id, modifiers) => {
+                // Shift moves dropped pages instead of copying them, and
+                // takes dropped images as files.
+                self.shift = modifiers.shift();
+                smithay_clipboard::dnd::set_prefer_move(modifiers.shift());
                 if let Some(pdf) = self.pdf_mut(id) {
                     pdf.set_modifiers(modifiers);
                 }
@@ -611,13 +689,18 @@ impl Prev {
                 self.save_settings();
                 Task::none()
             }
+            Message::OverlayTransparency(percent) => {
+                self.settings.overlay_transparency = percent;
+                ui::component::set_floating_transparency(percent);
+                Task::none()
+            }
             Message::CornerRadius(radius) => {
                 self.settings.corner_radius = radius;
                 ui::shape::set_surface(radius);
                 Task::none()
             }
-            // Saved when the slider is let go, not on every step.
-            Message::CornerRadiusSaved => {
+            // Sliders save when let go, not on every step.
+            Message::SliderReleased => {
                 self.save_settings();
                 Task::none()
             }
@@ -686,6 +769,7 @@ impl Prev {
 
     fn exit_if_done(&self) -> Task<Message> {
         if self.windows.is_empty() && self.pending_saves == 0 {
+            prev::drag::clean_up();
             iced::exit()
         } else {
             Task::none()
@@ -693,11 +777,19 @@ impl Prev {
     }
 
     fn handle_drag(&mut self, event: DragEvent) -> Task<Message> {
+        // The window that started a drag learns how it ended.
+        if let DragEvent::SourceEnded { action } = event {
+            let Some(id) = self.drag_origin.take() else {
+                return Task::none();
+            };
+            return self.with_pdf(id, |pdf| pdf.drag_ended(action));
+        }
         let surface = match event {
             DragEvent::Entered { surface, .. }
             | DragEvent::Moved { surface, .. }
             | DragEvent::Left { surface }
             | DragEvent::Dropped { surface, .. } => surface,
+            DragEvent::SourceEnded { .. } => return Task::none(),
         };
         let Some((&id, window)) = self
             .windows
@@ -706,27 +798,134 @@ impl Prev {
         else {
             return Task::none();
         };
+        let pdf = match &mut window.content {
+            Content::Document(Document { pdf: Some(pdf), .. }) => Some(pdf),
+            _ => None,
+        };
         match event {
-            DragEvent::Entered { accepted, .. } => window.drag_hover = accepted,
-            DragEvent::Left { .. } => window.drag_hover = false,
-            DragEvent::Moved { .. } => {}
-            DragEvent::Dropped { uris, x, .. } => {
-                window.drag_hover = false;
-                let paths: Vec<PathBuf> = uris
-                    .iter()
-                    .filter_map(|uri| dialog::file_uri_to_path(uri))
-                    .collect();
-                // PDFs dropped on the page thumbnails are inserted there.
-                if let Content::Document(Document { pdf: Some(pdf), .. }) = &mut window.content
-                    && pdf.drops_on_pages(x as f32)
-                {
-                    let task = pdf.insert_files(paths);
-                    return task.map(move |message| Message::Pdf(id, message));
+            DragEvent::Entered { accepted, x, y, .. } => {
+                window.drag_hover = accepted;
+                if let Some(pdf) = pdf {
+                    pdf.drag_over(accepted.then_some((x as f32, y as f32)));
                 }
-                return self.open_paths_if_any(paths);
             }
+            DragEvent::Left { .. } => {
+                window.drag_hover = false;
+                if let Some(pdf) = pdf {
+                    pdf.drag_over(None);
+                }
+            }
+            DragEvent::Moved { x, y, .. } => {
+                if let Some(pdf) = pdf
+                    && window.drag_hover
+                {
+                    pdf.drag_over(Some((x as f32, y as f32)));
+                }
+            }
+            DragEvent::Dropped {
+                x,
+                y,
+                mime,
+                data,
+                action,
+                ..
+            } => {
+                window.drag_hover = false;
+                let (x, y) = (x as f32, y as f32);
+                let as_file = self.shift;
+                return Task::perform(
+                    prev::image::editor::spawn(move || {
+                        if as_file {
+                            prev::drag::decode_as_file(&mime, data)
+                        } else {
+                            prev::drag::decode(&mime, data)
+                        }
+                    }),
+                    move |dropped| {
+                        Message::DropDecoded(
+                            id,
+                            x,
+                            y,
+                            action,
+                            dropped.unwrap_or(prev::drag::Dropped::Nothing),
+                            as_file,
+                        )
+                    },
+                );
+            }
+            DragEvent::SourceEnded { .. } => {}
         }
         Task::none()
+    }
+
+    /// Hands a drop to the window it landed on, opening files it leaves.
+    fn drop_in(
+        &mut self,
+        id: window::Id,
+        x: f32,
+        y: f32,
+        action: prev::drag::Action,
+        dropped: prev::drag::Dropped,
+        as_file: bool,
+    ) -> Task<Message> {
+        // With Shift, dropped images are files: they join an image window,
+        // and open in their own window anywhere else. Other files drop as
+        // they would without it.
+        let dropped = match dropped {
+            prev::drag::Dropped::Files(files) if as_file => {
+                let (images, others): (Vec<_>, Vec<_>) = files.into_iter().partition(|path| {
+                    matches!(
+                        filetype::detect_path(path),
+                        Ok(Some(FileKind::Image(_) | FileKind::Svg))
+                    )
+                });
+                let task = match self.images_mut(id) {
+                    Some(images_window) => {
+                        let (task, _) = images_window.add_files(images);
+                        self.with_images(id, |_| task)
+                    }
+                    None => self.open_paths_if_any(images),
+                };
+                if others.is_empty() {
+                    return task;
+                }
+                return Task::batch([
+                    task,
+                    self.drop_in(id, x, y, action, prev::drag::Dropped::Files(others), false),
+                ]);
+            }
+            dropped => dropped,
+        };
+        let from_here = self.drag_origin == Some(id);
+        let Some(window) = self.windows.get_mut(&id) else {
+            return Task::none();
+        };
+        let (task, files) = match &mut window.content {
+            Content::Document(Document { pdf: Some(pdf), .. }) => {
+                let (task, files) = pdf.drop_in(x, y, dropped, action);
+                (task.map(move |message| Message::Pdf(id, message)), files)
+            }
+            // An image dragged out of the sidebar and let go over it again.
+            Content::Document(Document {
+                images: Some(_), ..
+            }) if from_here && matches!(dropped, prev::drag::Dropped::Files(_)) => {
+                (Task::none(), Vec::new())
+            }
+            Content::Document(Document {
+                images: Some(images),
+                ..
+            }) => {
+                let (task, files) = images.drop_in(x, y, dropped, action);
+                (task.map(move |message| Message::Image(id, message)), files)
+            }
+            _ => match dropped {
+                prev::drag::Dropped::Files(files) => (Task::none(), files),
+                _ => (Task::none(), Vec::new()),
+            },
+        };
+        // Updates that start drags or change windows run as usual.
+        let after = self.with_pdf(id, |_| Task::none());
+        Task::batch([task, after, self.open_paths_if_any(files)])
     }
 
     fn open_paths_if_any(&mut self, paths: Vec<PathBuf>) -> Task<Message> {
@@ -742,8 +941,25 @@ impl Prev {
             Action::Open => Task::perform(dialog::open_files(), move |result| {
                 Message::DialogFinished(id, result)
             }),
-            Action::CloseWindow => window::close(id),
-            Action::Quit => iced::exit(),
+            Action::CloseWindow => self.update(Message::CloseRequested(id)),
+            Action::Quit => {
+                // Windows with markup that would be lost ask first.
+                let ids: Vec<window::Id> = self.windows.keys().copied().collect();
+                let asking: Vec<window::Id> = ids
+                    .into_iter()
+                    .filter(|id| {
+                        self.images_mut(*id)
+                            .is_some_and(|images| !images.request_close())
+                    })
+                    .collect();
+                match asking.first() {
+                    Some(first) => window::gain_focus(*first),
+                    None => {
+                        prev::drag::clean_up();
+                        iced::exit()
+                    }
+                }
+            }
             Action::Settings => {
                 self.reset_storage_drafts();
                 if let Some(window) = self.windows.get_mut(&id) {
@@ -830,6 +1046,7 @@ impl Prev {
             iced::system::theme_changes().map(Message::SystemTheme),
             Subscription::run(crate::external_events).map(Message::External),
             window::close_events().map(Message::WindowClosed),
+            window::close_requests().map(Message::CloseRequested),
             event::listen_with(|event, status, id| match (event, status) {
                 (
                     Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }),
@@ -850,6 +1067,14 @@ impl Prev {
                 }
                 (Event::Window(window::Event::Rescaled(scale)), _) => {
                     Some(Message::ScaleFactor(id, scale))
+                }
+                (Event::Window(window::Event::Resized(size)), _) => {
+                    Some(Message::Resized(id, size))
+                }
+                (Event::Mouse(iced::mouse::Event::CursorMoved { position }), _)
+                    if prev::drag::watching_pointer() =>
+                {
+                    Some(Message::PointerMoved(id, position))
                 }
                 _ => None,
             }),
@@ -1092,7 +1317,40 @@ the pointer is outside the window.",
                     Message::CornerRadius
                 )
                 .step(1.0_f32)
-                .on_release(Message::CornerRadiusSaved)
+                .on_release(Message::SliderReleased)
+                .width(160)
+                .height(style::SLIDER_HEIGHT)
+                .style(|theme: &Theme, status| {
+                    style::slider(Backdrop::ContainerHigh.color(&ui::Scheme::of(theme)))(
+                        theme, status,
+                    )
+                }),
+            ]
+            .spacing(16)
+            .align_y(Center),
+            row![
+                column![
+                    ui::styled("Overlay transparency", Type::BodyLarge),
+                    ui::styled(
+                        "How much of the page shows through the floating toolbar.",
+                        Type::BodyMedium
+                    )
+                    .style(style::on_surface_variant),
+                ]
+                .spacing(2)
+                .width(Fill),
+                ui::styled(
+                    format!("{:.0}%", self.settings.overlay_transparency),
+                    Type::LabelLarge
+                )
+                .style(style::on_surface_variant),
+                iced::widget::slider(
+                    0.0..=90.0,
+                    self.settings.overlay_transparency,
+                    Message::OverlayTransparency
+                )
+                .step(5.0_f32)
+                .on_release(Message::SliderReleased)
                 .width(160)
                 .height(style::SLIDER_HEIGHT)
                 .style(|theme: &Theme, status| {

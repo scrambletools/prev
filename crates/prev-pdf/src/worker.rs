@@ -14,8 +14,8 @@ use futures_channel::{mpsc as stream, oneshot};
 
 use crate::annotation::{Annotation, Field, Removed, StampContent};
 use crate::engine::{
-    Bitmap, CropBox, Document, Engine, Error, ExportOptions, Link, OutlineItem, PageDisplay,
-    RemovedPage, Result,
+    Bitmap, CropBox, Document, Engine, Error, ExportOptions, Lifted, Link, Metadata, OutlineItem,
+    PageDisplay, RemovedPage, Result,
 };
 use crate::geometry::{PixelRect, Quad, Rect, Size};
 use crate::text::TextLayout;
@@ -308,6 +308,9 @@ enum Request {
     Save(Writer, oneshot::Sender<Result<()>>),
     Pages(PageEdit, oneshot::Sender<Result<Restructured>>),
     Extract(Vec<usize>, oneshot::Sender<Result<Vec<u8>>>),
+    Lift(usize, String, oneshot::Sender<Result<Lifted>>),
+    AnnotationLayer(usize, oneshot::Sender<Result<Arc<dyn PageDisplay>>>),
+    Metadata(oneshot::Sender<Metadata>),
     Export(ExportOptions, Writer, oneshot::Sender<Result<()>>),
     Authenticate(String, oneshot::Sender<Result<Option<DocumentInfo>>>),
     Display(usize, oneshot::Sender<Result<Arc<dyn PageDisplay>>>),
@@ -418,6 +421,21 @@ impl DocumentHandle {
     /// again afterwards.
     pub fn pages(&self, edit: PageEdit) -> oneshot::Receiver<Result<Restructured>> {
         self.request(|sender| Request::Pages(edit, sender))
+    }
+
+    /// The document information: title, author, dates and so on.
+    pub fn metadata(&self) -> oneshot::Receiver<Metadata> {
+        self.request(Request::Metadata)
+    }
+
+    /// The page split for moving annotation `id` on screen.
+    pub fn lift(&self, page: usize, id: String) -> oneshot::Receiver<Result<Lifted>> {
+        self.request(|sender| Request::Lift(page, id, sender))
+    }
+
+    /// The annotations of `page` alone, on a transparent page.
+    pub fn annotation_layer(&self, page: usize) -> oneshot::Receiver<Result<Arc<dyn PageDisplay>>> {
+        self.request(|sender| Request::AnnotationLayer(page, sender))
     }
 
     /// A new PDF with copies of `pages`, in that order.
@@ -711,6 +729,15 @@ impl DocumentThread {
             }
             Request::Pages(edit, reply) => {
                 let _ = reply.send(self.page_edit(edit));
+            }
+            Request::Metadata(reply) => {
+                let _ = reply.send(self.document.metadata());
+            }
+            Request::Lift(page, id, reply) => {
+                let _ = reply.send(self.document.lift_annotation(page, &id));
+            }
+            Request::AnnotationLayer(page, reply) => {
+                let _ = reply.send(self.document.annotation_layer(page));
             }
             Request::Extract(pages, reply) => {
                 let _ = reply.send(self.document.extract_pages(&pages));

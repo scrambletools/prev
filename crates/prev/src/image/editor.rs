@@ -1,7 +1,7 @@
 //! Editing one image: the edit stack over the decoded original, rendering
 //! results off the UI thread, and saving, exporting and metadata changes.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use iced::futures::channel::oneshot;
@@ -277,6 +277,71 @@ pub fn export(
     prev_store::atomic::write(target, &bytes).map_err(|error| format!("Could not export: {error}"))
 }
 
+/// Longest side, in points, of the page an image is marked up on, so
+/// markup comes out at a size that suits the image whatever its pixels.
+const MARKUP_PAGE: f32 = 800.0;
+
+/// Image pixels per point of the page a `width` by `height` image is
+/// marked up on.
+pub fn markup_scale(width: u32, height: u32) -> f32 {
+    (width.max(height) as f32 / MARKUP_PAGE).max(1.0)
+}
+
+/// Writes a one-page PDF of `frame` to a private temporary file, for
+/// marking it up with the PDF tools. The caller deletes the file.
+pub fn markup_document(frame: &Frame) -> Result<PathBuf, String> {
+    let scale = markup_scale(frame.width, frame.height);
+    let size =
+        prev_pdf::geometry::Size::new(frame.width as f32 / scale, frame.height as f32 / scale);
+    let bitmap = prev_pdf::engine::Bitmap {
+        width: frame.width,
+        height: frame.height,
+        pixels: frame.pixels.clone(),
+    };
+    let bytes = prev_pdf::image_document(&bitmap, size).map_err(|error| error.to_string())?;
+    let file = tempfile::Builder::new()
+        .prefix("prev-markup-")
+        .suffix(".pdf")
+        .tempfile()
+        .map_err(|error| format!("Could not start the markup: {error}"))?;
+    std::fs::write(file.path(), bytes)
+        .map_err(|error| format!("Could not start the markup: {error}"))?;
+    let (_, path) = file
+        .keep()
+        .map_err(|error| format!("Could not start the markup: {error}"))?;
+    Ok(path)
+}
+
+/// `frame` with `layer`, RGBA pixels of the same size, drawn over it.
+pub fn burn_in(frame: &Frame, layer: &[u8]) -> Frame {
+    let mut pixels = frame.pixels.clone();
+    for (under, over) in pixels
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .zip(layer.as_chunks::<4>().0)
+    {
+        let top = f32::from(over[3]) / 255.0;
+        if top == 0.0 {
+            continue;
+        }
+        let bottom = f32::from(under[3]) / 255.0 * (1.0 - top);
+        let alpha = top + bottom;
+        for channel in 0..3 {
+            let value =
+                (f32::from(over[channel]) * top + f32::from(under[channel]) * bottom) / alpha;
+            under[channel] = value.round().clamp(0.0, 255.0) as u8;
+        }
+        under[3] = (alpha * 255.0).round() as u8;
+    }
+    Frame {
+        width: frame.width,
+        height: frame.height,
+        pixels,
+        delay: frame.delay,
+    }
+}
+
 /// Adjust Size: the other dimension for a new width or height, keeping the
 /// aspect ratio of `size`.
 pub fn proportional(size: (u32, u32), width: Option<u32>, height: Option<u32>) -> (u32, u32) {
@@ -312,6 +377,38 @@ pub fn selection_to_crop(selection: (f32, f32, f32, f32), size: (u32, u32)) -> O
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn markup_is_burned_in() {
+        let frame = Frame {
+            width: 3,
+            height: 1,
+            pixels: vec![200, 100, 0, 255, 200, 100, 0, 255, 0, 0, 0, 0],
+            delay: Duration::ZERO,
+        };
+        // Clear, half-covering blue, and blue over a transparent pixel.
+        let layer = [0, 0, 0, 0, 0, 0, 255, 128, 0, 0, 255, 255];
+        let burned = burn_in(&frame, &layer);
+        assert_eq!(&burned.pixels[0..4], &[200, 100, 0, 255]);
+        assert_eq!(&burned.pixels[4..8], &[100, 50, 128, 255]);
+        assert_eq!(&burned.pixels[8..12], &[0, 0, 255, 255]);
+    }
+
+    #[test]
+    fn markup_pages_suit_the_image() {
+        assert_eq!(markup_scale(400, 300), 1.0);
+        assert_eq!(markup_scale(4000, 3000), 5.0);
+        let frame = Frame {
+            width: 1600,
+            height: 1200,
+            pixels: vec![255; 1600 * 1200 * 4],
+            delay: Duration::ZERO,
+        };
+        let path = markup_document(&frame).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert!(bytes.starts_with(b"%PDF"));
+    }
 
     #[test]
     fn export_choices() {

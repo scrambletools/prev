@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use iced::Task;
+use iced::widget::image::Handle as ImageHandle;
 use iced::widget::text_editor;
 use prev_pdf::annotation::{
     Align, Annotation, Field, FieldKind, Font, Kind, Rgb, StampContent, Style, TextMarkup, new_id,
@@ -66,6 +67,17 @@ pub(super) enum Drag {
         from: Point,
         current: Point,
     },
+    /// A press on selected text or a chosen area, which becomes a drag to
+    /// other windows and apps once the pointer moves.
+    Out { start: (f32, f32), out: Outgoing },
+}
+
+/// What a drag out of the document carries.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Outgoing {
+    Text(String),
+    /// An area of a page, as an image.
+    Area(usize, Rect),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +105,32 @@ pub struct Editing {
     pub choice: Option<(usize, Field)>,
     /// An area chosen with the rectangular selection tool.
     pub area: Option<(usize, Rect)>,
+    /// The annotation being moved, drawn from its own images so the page
+    /// underneath does not keep showing it where it was.
+    pub lift: Option<Lift>,
+}
+
+/// Images for moving one annotation: the page without it over where it
+/// was, and the annotation alone, which follows the pointer.
+#[derive(Debug, Clone)]
+pub struct Lift {
+    pub page: usize,
+    pub id: String,
+    /// The page's generation when the move began; the lift ends once the
+    /// page has been drawn anew after the change.
+    generation: u32,
+    /// The area the images cover, in page points: the annotation's rect
+    /// with room for its line.
+    pub area: Rect,
+    pub images: Option<(ImageHandle, ImageHandle)>,
+    /// Where the annotation went, once let go.
+    pub placed: Option<Rect>,
+}
+
+/// Room around an annotation's rect for its line and antialiasing, in
+/// page points.
+fn lift_margin(annotation: &Annotation) -> f32 {
+    annotation.style.line_width + 3.0
 }
 
 impl Default for Editing {
@@ -116,6 +154,7 @@ impl Default for Editing {
             field: None,
             choice: None,
             area: None,
+            lift: None,
         }
     }
 }
@@ -178,9 +217,17 @@ pub enum EditMessage {
         image: Arc<Bitmap>,
         subject: String,
     },
+    /// Pastes an image at its own size where it fits: centered on a point
+    /// in document space, or in the middle of the view.
+    PasteImage(Arc<Bitmap>, Option<(f32, f32)>),
+    /// Pastes text as a text box, placed as images are.
+    PasteText(String, Option<(f32, f32)>),
     LoupeRendered(Box<LoupeRender>),
     /// An area was copied, or could not be.
     Copied(Option<String>),
+    /// The images of an annotation being moved: the page without it, and
+    /// the annotation alone.
+    Lifted(String, Option<(ImageHandle, ImageHandle)>),
 }
 
 /// A loupe's magnified image, ready to add or replace.
@@ -280,7 +327,7 @@ impl PdfViewer {
                 start,
                 current,
             } => Some((*page, redaction(markup::normalized(*start, *current)))),
-            Drag::Create { .. } => None,
+            Drag::Create { .. } | Drag::Out { .. } => None,
             Drag::Move {
                 page,
                 original,
@@ -407,7 +454,7 @@ impl PdfViewer {
                 if clicks >= 2 && self.open_text(page, &annotation) {
                     return Some(Task::batch(tasks));
                 }
-                self.start_move(page, annotation, handle, point);
+                tasks.push(self.start_move(page, annotation, handle, point));
                 return Some(Task::batch(tasks));
             }
         }
@@ -423,7 +470,7 @@ impl PdfViewer {
                 if opens {
                     self.open_text(page, &annotation);
                 } else {
-                    self.start_move(page, annotation, Handle::Body, point);
+                    tasks.push(self.start_move(page, annotation, Handle::Body, point));
                 }
                 return Some(Task::batch(tasks));
             }
@@ -451,20 +498,121 @@ impl PdfViewer {
         }
     }
 
-    fn start_move(&mut self, page: usize, annotation: Annotation, handle: Handle, point: Point) {
+    fn start_move(
+        &mut self,
+        page: usize,
+        annotation: Annotation,
+        handle: Handle,
+        point: Point,
+    ) -> Task<PdfMessage> {
         let allowed = match handle {
             Handle::Body => markup::movable(&annotation),
             Handle::Edge { .. } => markup::resizable(&annotation),
             Handle::LineStart | Handle::LineEnd => true,
         };
-        if allowed {
-            self.edit.drag = Some(Drag::Move {
-                page,
-                original: Box::new(annotation),
-                handle,
-                from: point,
-                current: point,
-            });
+        if !allowed {
+            return Task::none();
+        }
+        // Line ends bend the line, which its image cannot show; masks
+        // cover the page.
+        let lifts = matches!(handle, Handle::Body | Handle::Edge { .. })
+            && annotation.kind.is_editable()
+            && !markup::is_mask(&annotation);
+        let task = if lifts {
+            self.lift(page, &annotation)
+        } else {
+            Task::none()
+        };
+        self.edit.drag = Some(Drag::Move {
+            page,
+            original: Box::new(annotation),
+            handle,
+            from: point,
+            current: point,
+        });
+        task
+    }
+
+    /// Renders the page without `annotation`, and `annotation` alone, over
+    /// its area at the current zoom.
+    fn lift(&mut self, page: usize, annotation: &Annotation) -> Task<PdfMessage> {
+        let margin = lift_margin(annotation);
+        let rect = annotation.rect;
+        let area = Rect::new(
+            rect.x0 - margin,
+            rect.y0 - margin,
+            rect.x1 + margin,
+            rect.y1 + margin,
+        );
+        self.edit.lift = Some(Lift {
+            page,
+            id: annotation.id.clone(),
+            generation: self.generation(page),
+            area,
+            images: None,
+            placed: None,
+        });
+        let scale = self.render_scale();
+        let pixels = PixelRect {
+            x: (area.x0 * scale).floor() as i32,
+            y: (area.y0 * scale).floor() as i32,
+            width: (area.width() * scale).ceil().max(1.0) as u32,
+            height: (area.height() * scale).ceil().max(1.0) as u32,
+        };
+        let receiver = self.handle.lift(page, annotation.id.clone());
+        let pool = std::sync::Arc::clone(&self.pool);
+        let id = annotation.id.clone();
+        self.current(
+            async move {
+                let lifted = receiver.await.ok()?.ok()?;
+                let without = pool.render(lifted.without, scale, pixels, 1, Ticket::new());
+                let alone = pool.render(lifted.alone, scale, pixels, 1, Ticket::new());
+                let (without, alone) = (without.await.ok()?.ok()?, alone.await.ok()?.ok()?);
+                let handle = |bitmap: Bitmap| {
+                    ImageHandle::from_rgba(bitmap.width, bitmap.height, bitmap.pixels)
+                };
+                Some((handle(without), handle(alone)))
+            },
+            move |images| PdfMessage::Editing(EditMessage::Lifted(id, images)),
+        )
+    }
+
+    /// The lift's images and where to draw them on `page`: the page without
+    /// the annotation over its old place, and the annotation where the
+    /// pointer has it.
+    pub fn lift_images(&self, page: usize) -> Option<(&ImageHandle, Rect, &ImageHandle, Rect)> {
+        let lift = self.edit.lift.as_ref().filter(|lift| lift.page == page)?;
+        let (without, alone) = lift.images.as_ref()?;
+        let moved = match (&lift.placed, self.preview()) {
+            (Some(placed), _) => *placed,
+            (None, Some((_, moved))) if moved.id == lift.id => moved.rect,
+            _ => self.annotation(page, &lift.id)?.rect,
+        };
+        let original = self
+            .annotation(page, &lift.id)
+            .map_or(lift.area, |annotation| annotation.rect);
+        let margin_x = (original.x0 - lift.area.x0) * moved.width() / original.width().max(0.01);
+        let margin_y = (original.y0 - lift.area.y0) * moved.height() / original.height().max(0.01);
+        let target = Rect::new(
+            moved.x0 - margin_x,
+            moved.y0 - margin_y,
+            moved.x1 + margin_x,
+            moved.y1 + margin_y,
+        );
+        Some((without, lift.area, alone, target))
+    }
+
+    /// Ends the lift once the page shows the annotation in its new place.
+    pub(super) fn settle_lift(&mut self) {
+        let Some(lift) = &self.edit.lift else {
+            return;
+        };
+        if lift.placed.is_none() {
+            return;
+        }
+        let page = lift.page;
+        if self.generation(page) > lift.generation && self.page_tiles_ready(page) {
+            self.edit.lift = None;
         }
     }
 
@@ -476,11 +624,22 @@ impl PdfViewer {
             Drag::Stroke { page, .. } | Drag::Create { page, .. } | Drag::Move { page, .. } => {
                 *page
             }
+            Drag::Out { start, out } => {
+                // Past a small move, the drag leaves for other windows.
+                if (x - start.0).abs() + (y - start.1).abs() > 4.0 {
+                    let out = out.clone();
+                    self.edit.drag = None;
+                    self.press = None;
+                    self.requests.push(Request::DragOut(out));
+                }
+                return true;
+            }
         };
         let point = self.layout.to_page(page, x, y).unwrap_or_default();
         match drag {
             Drag::Stroke { points, .. } => points.push(point),
             Drag::Create { current, .. } | Drag::Move { current, .. } => *current = point,
+            Drag::Out { .. } => {}
         }
         true
     }
@@ -494,6 +653,16 @@ impl PdfViewer {
             return None;
         };
         let task = match drag {
+            // A click on the selection: it goes, as any click clears it.
+            Drag::Out {
+                out: Outgoing::Text(_),
+                ..
+            } => {
+                self.press = None;
+                self.selection = None;
+                Task::none()
+            }
+            Drag::Out { .. } => Task::none(),
             Drag::Stroke {
                 page,
                 points,
@@ -516,7 +685,16 @@ impl PdfViewer {
                 current,
             } => {
                 let moved = markup::dragged(&original, handle, from, current, self.shift);
-                if (current.x - from.x).hypot(current.y - from.y) < CLICK_DISTANCE / 2.0 {
+                let unmoved = (current.x - from.x).hypot(current.y - from.y) < CLICK_DISTANCE / 2.0;
+                match self.edit.lift.as_mut() {
+                    // Keep showing it where it went until the page is drawn
+                    // anew.
+                    Some(lift) if !unmoved && lift.id == original.id => {
+                        lift.placed = Some(moved.rect)
+                    }
+                    _ => self.edit.lift = None,
+                }
+                if unmoved {
                     Task::none()
                 } else if original.subject.as_deref() == Some("Loupe") {
                     self.render_loupe(page, moved, Some(*original))
@@ -766,6 +944,40 @@ impl PdfViewer {
         self.change(edit.page, before, after, None, None)
     }
 
+    /// The page something pasted at `at`, in document space, goes on: the
+    /// one nearest it, or the current page.
+    fn paste_page(&self, at: Option<(f32, f32)>) -> usize {
+        at.and_then(|(x, y)| self.layout.hit_nearest(x, y))
+            .map_or(self.current, |(page, _)| page)
+            .min(self.page_count().saturating_sub(1))
+    }
+
+    /// A `width` by `height` rect on `page` centered on `at`, in document
+    /// space, or in the middle of what is visible, kept on the page.
+    fn placed(&self, page: usize, width: f32, height: f32, at: Option<(f32, f32)>) -> Rect {
+        let size = self.info.page_sizes[page];
+        let (x, y) = at.unwrap_or((
+            self.view.x + self.view.width / 2.0,
+            self.view.y + self.view.height / 2.0,
+        ));
+        let center = self
+            .layout
+            .to_page(page, x, y)
+            .unwrap_or(Point::new(size.width / 2.0, size.height / 2.0));
+        let x = center
+            .x
+            .clamp(width / 2.0, (size.width - width / 2.0).max(width / 2.0));
+        let y = center
+            .y
+            .clamp(height / 2.0, (size.height - height / 2.0).max(height / 2.0));
+        Rect::new(
+            x - width / 2.0,
+            y - height / 2.0,
+            x + width / 2.0,
+            y + height / 2.0,
+        )
+    }
+
     fn add(
         &mut self,
         page: usize,
@@ -950,6 +1162,48 @@ impl PdfViewer {
 
     /// Copies the chosen area as a PNG image, through wl-copy, since the
     /// window's clipboard only carries text.
+    /// What a press at `x`, `y` in document space would drag out: the
+    /// selected text or the chosen area under it.
+    pub(super) fn drag_out_at(&self, x: f32, y: f32) -> Option<Outgoing> {
+        let (page, point) = self.layout.hit(x, y)?;
+        if self.edit.tool == Tool::Area {
+            let (area_page, rect) = self.edit.area?;
+            return (area_page == page && rect.contains(point))
+                .then_some(Outgoing::Area(page, rect));
+        }
+        let selection = self.page_selection(page)?;
+        let text = self.texts.get(&page)?;
+        text.highlight(selection)
+            .iter()
+            .any(|rect| rect.contains(point))
+            .then(|| self.selected_text())
+            .flatten()
+            .map(Outgoing::Text)
+    }
+
+    /// Renders `rect` of `page` at twice the screen's pixels.
+    pub fn render_area(
+        &self,
+        page: usize,
+        rect: Rect,
+    ) -> Option<impl std::future::Future<Output = Result<Bitmap, String>> + use<>> {
+        let display = self.displays.get(&page).cloned()?;
+        let scale = layout::points_to_pixels(self.layout.zoom) * self.device_scale * 2.0;
+        let area = PixelRect {
+            x: (rect.x0 * scale).round() as i32,
+            y: (rect.y0 * scale).round() as i32,
+            width: (rect.width() * scale).round().max(1.0) as u32,
+            height: (rect.height() * scale).round().max(1.0) as u32,
+        };
+        let receiver = self.pool.render(display, scale, area, 2, Ticket::new());
+        Some(async move {
+            match receiver.await {
+                Ok(Ok(bitmap)) => Ok(bitmap),
+                _ => Err("could not render the area".to_owned()),
+            }
+        })
+    }
+
     pub fn copy_area(&mut self) -> Option<Task<PdfMessage>> {
         let (page, rect) = self.edit.area?;
         let display = self.displays.get(&page).cloned()?;
@@ -1104,23 +1358,7 @@ impl PdfViewer {
                 let size = self.info.page_sizes[page];
                 let width = SIGNATURE_WIDTH.min(size.width * 0.6);
                 let height = width * image.height as f32 / image.width.max(1) as f32;
-                // In the middle of what is visible of the page.
-                let center = self
-                    .layout
-                    .to_page(
-                        page,
-                        self.view.x + self.view.width / 2.0,
-                        self.view.y + self.view.height / 2.0,
-                    )
-                    .unwrap_or(Point::new(size.width / 2.0, size.height / 2.0));
-                let x = center.x.clamp(width / 2.0, size.width - width / 2.0);
-                let y = center.y.clamp(height / 2.0, size.height - height / 2.0);
-                let rect = Rect::new(
-                    x - width / 2.0,
-                    y - height / 2.0,
-                    x + width / 2.0,
-                    y + height / 2.0,
-                );
+                let rect = self.placed(page, width, height, None);
                 let mut annotation = Annotation::new(new_id(), Kind::Stamp, rect);
                 annotation.subject = Some(subject);
                 self.edit.tool = Tool::Select;
@@ -1130,6 +1368,43 @@ impl PdfViewer {
                     border: None,
                 };
                 self.add(page, annotation, Some(content), false)
+            }
+            EditMessage::PasteImage(image, at) => {
+                let page = self.paste_page(at);
+                let size = self.info.page_sizes[page];
+                // Pixels at 96 dpi, made smaller to fit the page.
+                let (width, height) = (image.width as f32 * 0.75, image.height as f32 * 0.75);
+                let fit = (size.width * 0.8 / width.max(1.0))
+                    .min(size.height * 0.8 / height.max(1.0))
+                    .min(1.0);
+                let rect = self.placed(page, width * fit, height * fit, at);
+                let mut annotation = Annotation::new(new_id(), Kind::Stamp, rect);
+                annotation.subject = Some("Image".into());
+                self.edit.tool = Tool::Select;
+                let content = StampContent::Image {
+                    image,
+                    round: false,
+                    border: None,
+                };
+                self.add(page, annotation, Some(content), false)
+            }
+            EditMessage::PasteText(text, at) => {
+                let page = self.paste_page(at);
+                let text = text.replace("\r\n", "\n");
+                let mut annotation = Annotation::new(new_id(), Kind::FreeText, Rect::default());
+                annotation.style = self.edit.text_style;
+                annotation.subject = Some("Text Box".into());
+                annotation.contents = text.trim_end().to_owned();
+                let fitted = fit_text(&annotation);
+                let size = self.info.page_sizes[page];
+                annotation.rect = self.placed(
+                    page,
+                    fitted.width().min(size.width * 0.9),
+                    fitted.height().min(size.height * 0.9),
+                    at,
+                );
+                self.edit.tool = Tool::Select;
+                self.add(page, annotation, None, false)
             }
             EditMessage::LoupeRendered(render) => {
                 let LoupeRender {
@@ -1150,6 +1425,16 @@ impl PdfViewer {
                     None => self.add(page, annotation, Some(content), false),
                     Some(before) => self.change(page, before, annotation, None, Some(content)),
                 }
+            }
+            EditMessage::Lifted(id, images) => {
+                match self.edit.lift.as_mut() {
+                    Some(lift) if lift.id == id => match images {
+                        Some(images) => lift.images = Some(images),
+                        None => self.edit.lift = None,
+                    },
+                    _ => {}
+                }
+                Task::none()
             }
             EditMessage::Copied(error) => {
                 if let Some(error) = error {

@@ -58,13 +58,24 @@ fn bar<'a, Message: 'a>(
         .align_y(Center)
         .style(|theme: &Theme| {
             let scheme = Scheme::of(theme);
+            // Only the bar shows the page through it; its buttons stay
+            // solid.
+            let opacity = 1.0 - floating_transparency();
+            let mut shadow = super::elevation::shadow(&scheme, 3);
+            shadow.color.a *= opacity;
             container::Style {
-                background: Some(scheme.surface_container.into()),
+                background: Some(
+                    iced::Color {
+                        a: opacity,
+                        ..scheme.surface_container
+                    }
+                    .into(),
+                ),
                 text_color: Some(scheme.on_surface),
                 // A pill at the most, since the radius is at most half the
                 // bar's height.
                 border: iced::border::rounded(shape::surface()),
-                shadow: super::elevation::shadow(&scheme, 3),
+                shadow,
                 ..container::Style::default()
             }
         })
@@ -81,6 +92,19 @@ pub fn set_floating_bars(floating: bool) {
 
 pub fn floating_bars_enabled() -> bool {
     FLOATING_BARS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// How see-through floating bars are, 0 (opaque) to 0.9, from the
+/// settings' percent.
+static FLOATING_TRANSPARENCY: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+pub fn set_floating_transparency(percent: f32) {
+    let fraction = (percent / 100.0).clamp(0.0, 0.9);
+    FLOATING_TRANSPARENCY.store(fraction.to_bits(), std::sync::atomic::Ordering::Relaxed);
+}
+
+fn floating_transparency() -> f32 {
+    f32::from_bits(FLOATING_TRANSPARENCY.load(std::sync::atomic::Ordering::Relaxed))
 }
 
 /// A window's bars around its content. Docked, the top bar and then the
@@ -245,7 +269,9 @@ pub fn overflow<'a, Message: Clone + 'a>(
             .spacing(4),
         )
     });
-    super::popover::popover(anchor, content, on_close).into()
+    super::popover::popover(anchor, content, on_close)
+        .close_on_choice()
+        .into()
 }
 
 /// A standard button group: related buttons with a small gap.

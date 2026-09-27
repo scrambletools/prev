@@ -168,8 +168,11 @@ pub fn encode(frame: &Frame, format: SaveFormat) -> Result<Vec<u8>, EncodeError>
 
 /// Copies EXIF, the ICC color profile and XMP from `original` into
 /// `encoded`, and resets the EXIF orientation because edits apply to the
-/// upright image. JPEG, PNG and WebP only; other formats keep none.
+/// upright image. JPEG, PNG, WebP and TIFF; other formats keep none.
 pub fn carry_metadata(original: &[u8], encoded: Vec<u8>) -> Vec<u8> {
+    if crate::tiff_meta::is_tiff(original) && crate::tiff_meta::is_tiff(&encoded) {
+        return crate::tiff_meta::carry(original, &encoded).unwrap_or(encoded);
+    }
     let Some(source) = DynImage::from_bytes(Bytes::copy_from_slice(original))
         .ok()
         .flatten()

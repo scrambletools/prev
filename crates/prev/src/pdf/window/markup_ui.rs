@@ -27,6 +27,9 @@ use crate::ui::component::{self, Backdrop};
 use crate::ui::popover::{self, popover};
 use crate::ui::{self, Icon, Scheme, Type, icon, shape, style};
 
+/// Where the redaction tools are among the markup bar's slots.
+const REDACT_SLOT: usize = 3;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Menu {
     Pages,
@@ -668,40 +671,54 @@ impl PdfWindow {
         let group = |items: Vec<Element<'a, Message>>| -> Element<'a, Message> {
             row(items).spacing(4).align_y(Center).into()
         };
+        let mut drawing_tools = vec![
+            tool_button(Icon::Gesture, "Sketch", Tool::Sketch),
+            tool_button(Icon::Draw, "Draw", Tool::Draw),
+            menu_button(
+                shape_tool.map_or(Icon::Shapes, shape_icon),
+                "Shapes",
+                Menu::Shapes,
+                shape_tool.is_some(),
+                shapes.into(),
+            ),
+            tool_button(Icon::TextFields, "Text box", Tool::TextBox),
+        ];
+        // Images have no text to highlight.
+        if !self.image_mode {
+            drawing_tools.push(menu_button(
+                highlight_tool.map_or(Icon::InkHighlighter, |style| markup_label(style).1),
+                "Highlight",
+                Menu::Highlight,
+                highlight_tool.is_some(),
+                highlight.into(),
+            ));
+        }
+        drawing_tools.push(tool_button(Icon::StickyNote, "Note", Tool::Note));
+        let drawing_tools_count = drawing_tools.len() as f32;
         // Each slot: its content, its width, when it moves into "More", and
         // whether a divider goes before it in the bar.
-        let slots: Vec<(Element<'a, Message>, f32, Option<u8>, bool)> = vec![
-            (
-                group(vec![
+        let mut slots: Vec<(Element<'a, Message>, f32, Option<u8>, bool)> = vec![
+            if self.image_mode {
+                (
                     tool_button(Icon::ArrowSelector, "Select", Tool::Select),
-                    tool_button(Icon::HighlightAlt, "Rectangular selection", Tool::Area),
-                ]),
-                tools(2.0),
-                None,
-                false,
-            ),
+                    tools(1.0),
+                    None,
+                    false,
+                )
+            } else {
+                (
+                    group(vec![
+                        tool_button(Icon::ArrowSelector, "Select", Tool::Select),
+                        tool_button(Icon::HighlightAlt, "Rectangular selection", Tool::Area),
+                    ]),
+                    tools(2.0),
+                    None,
+                    false,
+                )
+            },
             (
-                group(vec![
-                    tool_button(Icon::Gesture, "Sketch", Tool::Sketch),
-                    tool_button(Icon::Draw, "Draw", Tool::Draw),
-                    menu_button(
-                        shape_tool.map_or(Icon::Shapes, shape_icon),
-                        "Shapes",
-                        Menu::Shapes,
-                        shape_tool.is_some(),
-                        shapes.into(),
-                    ),
-                    tool_button(Icon::TextFields, "Text box", Tool::TextBox),
-                    menu_button(
-                        highlight_tool.map_or(Icon::InkHighlighter, |style| markup_label(style).1),
-                        "Highlight",
-                        Menu::Highlight,
-                        highlight_tool.is_some(),
-                        highlight.into(),
-                    ),
-                    tool_button(Icon::StickyNote, "Note", Tool::Note),
-                ]),
-                tools(6.0) + DIVIDER_WIDTH + 4.0,
+                group(drawing_tools),
+                tools(drawing_tools_count) + DIVIDER_WIDTH + 4.0,
                 Some(1),
                 true,
             ),
@@ -792,6 +809,11 @@ impl PdfWindow {
                 false,
             ),
         ];
+        // An image's markup is burned in on export; redacting means
+        // drawing a filled box.
+        if self.image_mode {
+            slots.remove(REDACT_SLOT);
+        }
         let widths: Vec<(f32, Option<u8>)> = slots
             .iter()
             .map(|(_, width, order, _)| (*width, *order))
@@ -1232,6 +1254,23 @@ fn pen_controls<'a>(dialog: &SignatureDialog, width: bool) -> Element<'a, Messag
     controls.width(PAD.width).into()
 }
 
+/// Ink on a note: the note is always yellow, so its icons use a fixed dark
+/// color rather than the theme's, which is faint on yellow in dark mode.
+const NOTE_INK: Color = Color::from_rgb(0.24, 0.22, 0.1);
+
+/// A small icon button on a note.
+fn note_button<'a>(glyph: Icon, message: Message) -> Element<'a, Message> {
+    button::custom(
+        ButtonKind::Standard,
+        icon::icon(glyph, 20).style(|_| text::Style {
+            color: Some(NOTE_INK),
+        }),
+    )
+    .size(button::Size::ExtraSmall)
+    .on_press(message)
+    .into()
+}
+
 fn note_card<'a>(
     editor: iced::widget::TextEditor<'a, iced::advanced::text::highlighter::PlainText, Message>,
     page: usize,
@@ -1242,22 +1281,20 @@ fn note_card<'a>(
     container(
         column![
             row![
-                icon::icon(Icon::StickyNote, 18),
+                icon::icon(Icon::StickyNote, 18).style(|_| text::Style {
+                    color: Some(NOTE_INK)
+                }),
                 ui::styled(
                     annotation.author.as_deref().unwrap_or("Note"),
                     Type::LabelLarge
                 )
                 .width(Fill),
                 component::tip(
-                    ui::icon_button(Icon::Delete)
-                        .size(button::Size::ExtraSmall)
-                        .on_press(edit(EditMessage::Delete)),
+                    note_button(Icon::Delete, edit(EditMessage::Delete)),
                     "Delete note"
                 ),
                 component::tip(
-                    ui::icon_button(Icon::Check)
-                        .size(button::Size::ExtraSmall)
-                        .on_press(edit(EditMessage::CommitText)),
+                    note_button(Icon::Check, edit(EditMessage::CommitText)),
                     "Done"
                 ),
             ]

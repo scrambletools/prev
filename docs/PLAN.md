@@ -110,10 +110,10 @@ design).
     insert at the start. prev keeps labels as they were for moves and
     removes invented ones.
   - Merging between windows is copy and paste (Ctrl+C and Ctrl+V after
-    clicking a thumbnail): the pages travel as a PDF inside the one prev
-    process. Dragging thumbnails between windows is not possible on
-    Wayland without a drag source in the vendored clipboard; dropping PDF
-    files on the thumbnails inserts them.
+    clicking a thumbnail), with the pages travelling as a PDF inside the
+    one prev process, or, since the drag and drop work after M7, dragging
+    thumbnails from one window to another (Shift moves them). Dropping
+    PDF files on the thumbnails inserts them.
   - Redaction marks are standard Redact annotations until applied. Applying
     removes text, image pixels and drawings covered by a mark and draws
     black boxes; the next save rewrites the whole file with unused objects
@@ -161,6 +161,72 @@ design).
 - **Metadata (Preview parity):** inspector for EXIF/XMP/IPTC/GPS, Remove
   Location Info, edit keywords and description.
 - **Export:** PNG, JPEG, JPEG 2000, TIFF, OpenEXR, WebP; HEIC never.
+
+- **As built (M7):**
+  - RAW is developed by rawler to linear light (demosaic, white balance,
+    camera matrix), then given the camera's look with a tone curve per
+    channel, each matching that channel's histogram to the camera's
+    embedded JPEG (the largest of its full, preview and thumbnail
+    images, with black bars trimmed). This follows RawTherapee's
+    auto-matched tone curve; the curves are monotone cubics through 32
+    quantiles, pinned at black and white. Files without a preview get a
+    standard contrast curve. Scored against the camera JPEGs of Sony,
+    Canon and Fuji samples, per channel curves came closest (mean
+    difference 1.2, 3.1 and 13.9 on a 0 to 255 scale, from 27 to 34 for
+    rawler's plain development); Fuji's film simulations are beyond a
+    global curve. `examples/raw_look.rs` and `raw_score.rs` in
+    `prev-image` reproduce the comparison.
+  - Edited TIFFs are rewritten with kamadak-exif's writer so they keep
+    the original's EXIF, GPS, ICC profile, XMP and descriptive tags, with
+    the layout tags of the new pixels and the orientation reset. XMP is
+    read from TIFF tag 700; keywords stay read-only in TIFF.
+
+- **As built (after M7):**
+  - Markup on images reuses the PDF markup: the image becomes a one-page
+    PDF (its long side 800 points, so markup sizes suit any resolution),
+    shown by an embedded PDF window without saving, page tools, text
+    highlighting or redaction. The markup lasts while the window is
+    open; image edits wait until it is gone. Export renders the
+    annotations alone on a transparent page at the image's resolution
+    and draws them over the original pixels. Closing a window (or
+    quitting) with markup not yet exported asks first.
+  - Paste (Ctrl+V) reads the system clipboard with wl-paste: an image
+    (PNG first, then JPEG, WebP and others, or an image file from a
+    `text/uri-list`) becomes an image stamp, text a text box, whatever
+    tool is chosen. Copying pages offers `application/x-prev-pages` on
+    the clipboard, so pages paste when they were copied last; after a
+    thumbnail click they always do. Without wl-clipboard, text still
+    pastes through iced.
+  - Drag and drop, both ways, through the vendored smithay-clipboard
+    (see `vendor/PATCHES.md`): drops are accepted in Paste's types, most
+    preferred first (prev pages, images, Chromium's named file contents,
+    file lists, text; web addresses in file lists are fetched with curl
+    when their names say picture or PDF, and arrive as text otherwise or
+    when fetching fails), read off the UI thread and handed to the
+    window under them with their position,
+    found from where the canvas and thumbnails were last drawn (a `Probe`
+    widget). Drags out start from a press on selected text, a chosen
+    area, an image sidebar entry, or when a thumbnail drag leaves its
+    window (the app watches the pointer only then). Pages go as prev's
+    type, `text/uri-list` of a temp PDF and `application/pdf`; sidebar
+    images as their file only, so file managers copy the file. Hyprland
+    reports no DnD action, so Shift decides move on both ends; the source
+    removes moved pages once the drag ends, unless it took them itself.
+    Shift while dropping images takes them as files (added to an image
+    window, opened elsewhere); picture data without a file is saved to
+    the Downloads folder (`user-dirs.dirs`), numbered if the name is
+    taken. prev sees Shift during drags from other apps only because
+    Hyprland moves keyboard focus with the pointer.
+  - Toolbars: the PDF and image toolbars share one layout and icon set
+    (context and view on the left; undo, editing, panels, search and an
+    export icon button on the right), with Undo and Redo on the main bar
+    unless the markup bar shows its own. Actual size joined the PDF fit
+    group, Rotate left the Pages menu, Adjust Size got a resize icon, and
+    the search field takes the room the other slots leave. "More" menus
+    close once a choice is made, unless the click opens a nested menu.
+  - Inspectors: the PDF window gained one (Ctrl+I) with the file, the
+    document information and page size; the image inspector shows the
+    file's name, folder, size and date too.
 
 ### SVG
 
@@ -358,7 +424,7 @@ Each milestone ends with a usable build.
 | M4.1 | Material 3 design | M3 Expressive color scheme from the Omarchy accent, Roboto Flex and the M3 type scale, Material Symbols, M3 components for toolbar, sidebar, panels, dialogs, menus and fields, state layers and focus, spring motion; screenshots and README updated |
 | M5 | PDF markup | All markup tools, notes, form filling, signatures, undo/redo, annotation round-trip tests (MuPDF and Poppler), highlights and notes sidebar |
 | M6 | PDF page editing | Reorder, delete, rotate, crop, insert, merge between windows (copy and paste), extract, redaction, encryption, reduce file size, export to images |
-| M7 | Image polish | RAW tone curve matched to the camera's embedded JPEG (RawTherapee's auto-matched curve, in Rust), keep EXIF in edited TIFFs, read XMP from TIFF |
+| M7 | Image polish | RAW tone curves matched to the camera's embedded JPEG (after RawTherapee's auto-matched curve, in Rust), keep EXIF in edited TIFFs, read XMP from TIFF (done) |
 | M8 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 |
 
 Later: cryptographic signatures, OCR, markup on SVG.
@@ -371,8 +437,8 @@ Later: cryptographic signatures, OCR, markup on SVG.
 | MuPDF weaker on JBIG2 refinement and halftone scans ([ADR 0001](decisions/0001-pdf-engine.md)) | Track upstream jbig2dec; keep such files in the regression corpus |
 | MuPDF license change by Artifex | Engine trait; pin versions; released AGPL versions remain usable |
 | iced multi-window or text input gaps on Wayland | Checked on Hyprland 0.56: native Wayland windows, per-window titles and app id, per-window shortcuts, exit on last close. Text input and IME still to be tried by hand; contribute fixes upstream |
-| No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. Page drag between windows needs a drag source there too; M6 uses copy and paste instead |
-| Metadata lost or altered by image edits | Saving carries EXIF, ICC and XMP for JPEG, PNG and WebP and resets the EXIF orientation; EXIF edits (orientation, GPS removal, which overwrites the data) are done in place by prev's own code. Not yet: EXIF in edited TIFF files, XMP inside TIFF |
+| No file drag and drop on Wayland: winit 0.30 implements it only for X11, and Hyprland sends drag events only to a client's first `wl_data_device`, which iced's clipboard (smithay-clipboard) owns | Handled in that same device: smithay-clipboard is vendored with a drag and drop patch (`vendor/PATCHES.md`); offer it upstream. The patch now also starts drags (with an icon) and takes any drop type, so pages, text, areas and images drag both ways. Hyprland reports no copy or move action, so prev goes by Shift |
+| Metadata lost or altered by image edits | Saving carries EXIF, ICC and XMP for JPEG, PNG and WebP and resets the EXIF orientation; EXIF edits (orientation, GPS removal, which overwrites the data) are done in place by prev's own code. TIFF too since M7 (keywords are read-only there) |
 | Autosave damaging files | Atomic writes, original kept as a version before the first write, fuzzed save paths. PDFs are reopened after every incremental save, and a test checks every cross-reference offset after repeated saves |
 | Redaction leaking content | Dedicated test suite; full rewrite only, never incremental |
 | Memory during heavy use, largely MuPDF's store | Keep MuPDF's 256 MB default. If memory becomes a problem, add a store size limit to the `mupdf` crate upstream and remeasure with `PREV_BENCH` |

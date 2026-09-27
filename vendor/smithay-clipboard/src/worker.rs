@@ -26,8 +26,9 @@ pub fn spawn(
 }
 
 /// Clipboard worker thread command.
-#[derive(Eq, PartialEq)]
 pub enum Command {
+    /// Start dragging from the surface the pointer button is held on.
+    StartDrag(Box<crate::dnd::Drag>),
     /// Store data to a clipboard.
     Store(String),
     /// Store data to a primary selection.
@@ -84,6 +85,11 @@ fn worker_impl(
                         let _ = state
                             .reply_tx
                             .send(Err(Error::other("requested selection is not supported")));
+                    },
+                    Command::StartDrag(drag) => {
+                        if state.start_drag(*drag).is_none() {
+                            crate::dnd::emit(crate::dnd::DragEvent::SourceEnded { action: None });
+                        }
                     },
                     Command::Exit => state.exit = true,
                 }

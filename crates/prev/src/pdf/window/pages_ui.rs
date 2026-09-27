@@ -30,6 +30,11 @@ fn clipboard() -> Option<(Arc<Vec<u8>>, usize)> {
     CLIPBOARD.lock().ok()?.clone()
 }
 
+/// Whether pages were copied in this run of prev.
+pub(super) fn has_copied_pages() -> bool {
+    clipboard().is_some()
+}
+
 /// How far the pointer moves before a press on a thumbnail becomes a drag.
 const DRAG_THRESHOLD: f32 = 6.0;
 
@@ -181,6 +186,9 @@ impl PdfWindow {
                 if let Ok(mut clipboard) = CLIPBOARD.lock() {
                     *clipboard = Some((Arc::new(bytes), count));
                 }
+                // Pages are now the latest thing copied, ahead of any text
+                // or image on the clipboard.
+                std::thread::spawn(crate::paste::mark_pages);
                 self.notice = Some(match count {
                     1 => "Copied 1 page.".to_owned(),
                     count => format!("Copied {count} pages."),
@@ -225,11 +233,12 @@ impl PdfWindow {
                 return Task::none();
             }
         };
+        let insert_at = self.insert_at.take();
         let Some(viewer) = self.viewer_mut() else {
             return Task::none();
         };
         // Each goes in front of the next, so insert the last first.
-        let at = viewer.insertion_point();
+        let at = insert_at.unwrap_or_else(|| viewer.insertion_point());
         let tasks: Vec<_> = documents
             .into_iter()
             .rev()
@@ -287,12 +296,33 @@ impl PdfWindow {
         };
         let start = *drag.start.get_or_insert(y);
         drag.current = y;
-        if (y - start).abs() > DRAG_THRESHOLD {
+        if (y - start).abs() > DRAG_THRESHOLD && !drag.dragging {
             drag.dragging = true;
+            // Leaving the window takes the pages to other windows and apps.
+            crate::drag::watch_pointer(true);
         }
     }
 
+    /// The pointer left the window while dragging thumbnails: the drag
+    /// goes on as one other windows and apps can take, carrying the pages
+    /// as a PDF.
+    pub fn drag_pages_out(&mut self) -> Task<Message> {
+        crate::drag::watch_pointer(false);
+        let Some(drag) = self.thumbnail_drag.take().filter(|drag| drag.dragging) else {
+            return Task::none();
+        };
+        let State::Ready(viewer) = &self.state else {
+            return Task::none();
+        };
+        let pages = drag.pages;
+        let receiver = viewer.handle.extract(pages.clone());
+        Task::perform(receiver, move |result| {
+            Message::PagesDragReady(pages, flatten(result).map_err(|error| error.to_string()))
+        })
+    }
+
     pub(super) fn thumbnails_released(&mut self) -> Task<Message> {
+        crate::drag::watch_pointer(false);
         let Some(drag) = self.thumbnail_drag.take() else {
             return Task::none();
         };
@@ -316,7 +346,7 @@ impl PdfWindow {
 
     /// The gap between thumbnails nearest to height `y` in the list: the
     /// page a drop there goes in front of.
-    fn drop_gap(&self, y: f32) -> Option<usize> {
+    pub(super) fn drop_gap(&self, y: f32) -> Option<usize> {
         let State::Ready(viewer) = &self.state else {
             return None;
         };
@@ -334,8 +364,11 @@ impl PdfWindow {
 
     /// The gap a drag would drop into now, for drawing the marker.
     pub(super) fn dragging_gap(&self) -> Option<usize> {
-        let drag = self.thumbnail_drag.as_ref().filter(|drag| drag.dragging)?;
-        self.drop_gap(drag.current)
+        match self.thumbnail_drag.as_ref().filter(|drag| drag.dragging) {
+            Some(drag) => self.drop_gap(drag.current),
+            // Something dragged in from another window or app.
+            None => self.drop_hover,
+        }
     }
 
     pub(super) fn is_dragged(&self, page: usize) -> bool {
@@ -360,9 +393,8 @@ impl PdfWindow {
             menu_item(Some(glyph), label, false, Message::PageAction(action))
         };
         let pasteable = clipboard();
+        // Rotating is on the toolbar beside this menu.
         let mut items = vec![
-            item(Icon::RotateLeft, "Rotate Left", PageAction::RotateLeft),
-            item(Icon::RotateRight, "Rotate Right", PageAction::RotateRight),
             item(Icon::NoteAdd, "Insert Blank Page", PageAction::InsertBlank),
             item(Icon::FileOpen, "Insert from File…", PageAction::InsertFile),
             item(
@@ -396,7 +428,6 @@ impl PdfWindow {
             plural("Delete Page", "Delete Pages"),
             PageAction::Delete,
         ));
-        items.push(item(Icon::FileExport, "Export…", PageAction::Export));
         if self.redaction_count() > 0 {
             items.push(item(
                 Icon::RemoveSelection,

@@ -21,6 +21,7 @@ use super::layout::{Fit, ViewMode};
 use super::viewer::editing::EditMessage;
 use super::viewer::{PdfMessage, PdfViewer, Request, Zoom};
 
+mod drag_ui;
 mod markup_ui;
 mod pages_ui;
 use crate::image::editor::spawn;
@@ -59,6 +60,13 @@ fn render_pool() -> Arc<RenderPool> {
     static POOL: OnceLock<Arc<RenderPool>> = OnceLock::new();
     Arc::clone(POOL.get_or_init(|| RenderPool::new(RenderPool::default_threads())))
 }
+
+/// The search field in the toolbar, and how much wider it grows when
+/// there is room.
+const SEARCH_WIDTH: f32 = 200.0;
+const SEARCH_GROWTH: f32 = 160.0;
+/// When the search field moves into "More", among the toolbar's slots.
+const SEARCH_SLOT_ORDER: u8 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bar {
@@ -145,6 +153,18 @@ pub enum Message {
     ToggleFloatingBars,
     /// Opens the settings window; the app handles it.
     OpenSettings,
+    ToggleInspector,
+    MetadataLoaded(prev_pdf::engine::Metadata),
+    /// What the clipboard held when Paste was pressed.
+    Pasted(Result<crate::paste::Clip, String>),
+    /// Clipboard text, read without wl-clipboard.
+    PastedText(Option<String>),
+    /// An area dragged out of the document, rendered.
+    AreaDragReady(Result<prev_pdf::engine::Bitmap, String>),
+    /// Pages dragged out of the window, as a PDF.
+    PagesDragReady(Vec<usize>, Result<Vec<u8>, String>),
+    /// An image file dropped on a page, decoded, and where it goes.
+    DroppedImage(Option<prev_pdf::engine::Bitmap>, Option<(f32, f32)>),
 }
 
 /// Changes the app applies to the window itself.
@@ -223,6 +243,31 @@ pub struct PdfWindow {
     redact_confirm: bool,
     /// Whether the pointer is over the window, for floating toolbars.
     pointer_inside: bool,
+    /// The inspector panel, with the document information once loaded.
+    inspector: Option<Option<prev_pdf::engine::Metadata>>,
+    /// Marking up an image: the document is a page made from the image,
+    /// never saved, shown inside the image window with the markup bar.
+    image_mode: bool,
+    /// Where the page canvas and the page thumbnails were drawn, for
+    /// placing drops.
+    canvas_bounds: std::cell::Cell<iced::Rectangle>,
+    thumbnails_bounds: std::cell::Cell<iced::Rectangle>,
+    /// Pages being dragged out of the window.
+    outgoing_pages: Option<drag_ui::OutgoingPages>,
+    /// A drag started since the app last asked.
+    drag_started: bool,
+    /// Where the next inserted pages go, instead of after the selection.
+    insert_at: Option<usize>,
+    /// Where among the thumbnails something dragged over them would go.
+    drop_hover: Option<usize>,
+}
+
+/// What an image window shows of a PDF window marking up its image.
+pub struct MarkupParts<'a> {
+    pub canvas: Element<'a, Message>,
+    pub bar: Option<Element<'a, Message>>,
+    /// Dialogs and notices, over the whole window.
+    pub overlay: Element<'a, Message>,
 }
 
 impl PdfWindow {
@@ -263,11 +308,118 @@ impl PdfWindow {
             export_dialog: None,
             redact_confirm: false,
             pointer_inside: true,
+            inspector: None,
+            image_mode: false,
+            canvas_bounds: std::cell::Cell::default(),
+            thumbnails_bounds: std::cell::Cell::default(),
+            outgoing_pages: None,
+            drag_started: false,
+            insert_at: None,
+            drop_hover: None,
         };
         let task = Task::perform(opened, |result| {
             Message::Opened(flatten(result).map_err(|error| error.to_string()))
         });
         (window, task)
+    }
+
+    /// A window for marking up an image, from `path`, a PDF made of it
+    /// with `prev_pdf::image_document`. It shows one page fitted to the
+    /// view with the markup bar, and never writes the file.
+    pub fn open_image_markup(path: PathBuf) -> (Self, Task<Message>) {
+        let (mut window, task) = Self::open(path);
+        window.image_mode = true;
+        window.markup_bar = true;
+        (window, task)
+    }
+
+    /// Whether the page has any annotations.
+    pub fn has_annotations(&self) -> bool {
+        match &self.state {
+            State::Ready(viewer) => viewer
+                .markup
+                .values()
+                .any(|markup| !markup.annotations.is_empty()),
+            _ => false,
+        }
+    }
+
+    /// The document, once open.
+    pub fn document(&self) -> Option<&DocumentHandle> {
+        match &self.state {
+            State::Ready(viewer) => Some(&viewer.handle),
+            _ => None,
+        }
+    }
+
+    /// Counts changes to the document, to tell whether any came after a
+    /// point in time.
+    pub fn edits(&self) -> u64 {
+        self.save_generation
+    }
+
+    /// The zoom, in view pixels per page point.
+    pub fn zoom(&self) -> Option<f32> {
+        match &self.state {
+            State::Ready(viewer) => Some(viewer.layout.zoom),
+            _ => None,
+        }
+    }
+
+    /// Whether an edit can be undone, and redone.
+    pub fn can_undo(&self) -> (bool, bool) {
+        match &self.state {
+            State::Ready(viewer) => (
+                viewer.edit.history.can_undo(),
+                viewer.edit.history.can_redo(),
+            ),
+            _ => (false, false),
+        }
+    }
+
+    /// Whether the page is fitted to the view.
+    pub fn fits_page(&self) -> bool {
+        matches!(&self.state, State::Ready(viewer) if viewer.fit == Fit::Page)
+    }
+
+    /// Zooms to `zoom` around the middle of the view.
+    pub fn zoom_to(&mut self, zoom: f32) -> Task<Message> {
+        let State::Ready(viewer) = &self.state else {
+            return Task::none();
+        };
+        let factor = zoom / viewer.layout.zoom.max(1e-3);
+        let anchor = (viewer.view.width / 2.0, viewer.view.height / 2.0);
+        self.viewer_update(PdfMessage::Zoom(Zoom::By { factor, anchor }))
+    }
+
+    pub fn markup_bar_shown(&self) -> bool {
+        self.markup_bar
+    }
+
+    /// The canvas, markup bar and dialogs, for an image window to place.
+    pub fn markup_parts(&self) -> Option<MarkupParts<'_>> {
+        let State::Ready(viewer) = &self.state else {
+            return None;
+        };
+        let full = || Element::from(space().width(Fill).height(Fill));
+        let overlay = if self.signature_dialog.is_some() {
+            self.signature_dialog_view(full())
+        } else if let Some(notice) = &self.notice {
+            component::snackbar(full(), notice, Message::DismissNotice)
+        } else {
+            space().into()
+        };
+        Some(MarkupParts {
+            canvas: self.canvas(viewer, None),
+            bar: self.markup_bar.then(|| self.markup_toolbar(viewer)),
+            overlay,
+        })
+    }
+
+    /// Whether menus or dialogs opened from the markup bar are open, so a
+    /// floating bar stays.
+    pub fn holds_bars(&self) -> bool {
+        self.menu.is_some() || self.overflow.is_some() || self.signature_dialog.is_some()
     }
 
     pub fn title(&self) -> Option<String> {
@@ -426,6 +578,10 @@ impl PdfWindow {
                 },
             ),
             Request::OpenUri(uri) => Task::perform(portal::open_uri(uri), Message::OpenUriFinished),
+            Request::Changed if self.image_mode => {
+                self.save_generation += 1;
+                self.load_notes()
+            }
             Request::Changed => {
                 let notes = self.load_notes();
                 self.save_generation += 1;
@@ -442,6 +598,7 @@ impl PdfWindow {
                 self.notice = Some(notice);
                 Task::none()
             }
+            Request::DragOut(out) => self.drag_out(out),
             Request::PagesChanged => {
                 let State::Ready(viewer) = &self.state else {
                     return Task::none();
@@ -461,7 +618,7 @@ impl PdfWindow {
 
     /// Saves edits the autosave has not written yet, for a closing window.
     pub fn flush(&mut self) -> Option<Task<Message>> {
-        (self.save_generation > self.saved_generation).then(|| {
+        (!self.image_mode && self.save_generation > self.saved_generation).then(|| {
             let generation = self.save_generation;
             self.autosave(generation)
         })
@@ -610,6 +767,17 @@ impl PdfWindow {
                 Task::perform(portal::print(path, title), Message::PrintFinished)
             }
             Message::AutosaveDue(generation) => self.autosave(generation),
+            Message::Pasted(result) => self.pasted(result),
+            Message::AreaDragReady(result) => self.area_drag_ready(result),
+            Message::PagesDragReady(pages, result) => self.pages_drag_ready(pages, result),
+            Message::DroppedImage(image, at) => self.dropped_image(image, at),
+            Message::PastedText(Some(text)) if !text.trim().is_empty() => {
+                self.viewer_update(PdfMessage::Editing(EditMessage::PasteText(text, None)))
+            }
+            Message::PastedText(_) => {
+                self.notice = Some("There is nothing to paste.".into());
+                Task::none()
+            }
             Message::Saved(generation, result) => {
                 match result {
                     Ok(()) => {
@@ -683,6 +851,13 @@ impl PdfWindow {
             }
             Message::ApplyRedactions => self.apply_redactions(),
             Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
+            Message::ToggleInspector => self.toggle_inspector(),
+            Message::MetadataLoaded(metadata) => {
+                if let Some(inspector) = self.inspector.as_mut() {
+                    *inspector = Some(metadata);
+                }
+                Task::none()
+            }
             Message::PrintFinished(result) | Message::OpenUriFinished(result) => {
                 self.notice = result.err();
                 Task::none()
@@ -717,11 +892,20 @@ impl PdfWindow {
             }
             None => Task::none(),
         };
+        let image = if self.image_mode {
+            Task::batch([
+                self.viewer_update(PdfMessage::SetMode(ViewMode::SinglePage)),
+                self.viewer_update(PdfMessage::Zoom(Zoom::FitPage)),
+            ])
+        } else {
+            Task::none()
+        };
         Task::batch([
             self.viewer_update(PdfMessage::DeviceScale(scale)),
             self.thumbnails_for(0.0, 1000.0),
             outline,
             bench,
+            image,
         ])
     }
 
@@ -749,17 +933,36 @@ impl PdfWindow {
     /// Handles a shortcut meant for this window. Returns `None` for actions
     /// that it does not handle.
     pub fn shortcut(&mut self, action: Action) -> Option<Task<Message>> {
+        // Marking up an image, the image window handles everything but
+        // editing the markup.
+        if self.image_mode
+            && !matches!(
+                action,
+                Action::Undo
+                    | Action::Redo
+                    | Action::Paste
+                    | Action::Escape
+                    | Action::ShowMarkup
+                    | Action::ZoomIn
+                    | Action::ZoomOut
+                    | Action::ActualSize
+                    | Action::ZoomToFit
+            )
+        {
+            return None;
+        }
         let State::Ready(viewer) = &mut self.state else {
             return None;
         };
         let task = match action {
             Action::Copy if self.pages_focus => self.page_action(PageAction::Copy),
-            Action::Paste => self.page_action(PageAction::Paste),
+            Action::Paste => self.paste(),
             Action::SelectAll if self.pages_focus => self.page_action(PageAction::SelectAll),
             Action::RotateLeft => self.page_action(PageAction::RotateLeft),
             Action::RotateRight => self.page_action(PageAction::RotateRight),
             Action::Crop => self.page_action(PageAction::Crop),
             Action::Export => self.page_action(PageAction::Export),
+            Action::Inspector => self.toggle_inspector(),
             Action::Escape if self.export_dialog.is_some() => {
                 self.export_dialog = None;
                 Task::none()
@@ -845,6 +1048,39 @@ impl PdfWindow {
         Some(task)
     }
 
+    /// Pastes what the clipboard holds, whatever tool is chosen: an image
+    /// or text onto the current page, or pages copied in prev after the
+    /// selected page. Pages go first once their thumbnails were clicked.
+    fn paste(&mut self) -> Task<Message> {
+        if self.pages_focus && !self.image_mode && pages_ui::has_copied_pages() {
+            return self.page_action(PageAction::Paste);
+        }
+        Task::perform(spawn(crate::paste::read), |result| {
+            Message::Pasted(result.unwrap_or_else(|_| Err("pasting stopped".into())))
+        })
+    }
+
+    fn pasted(&mut self, result: Result<crate::paste::Clip, String>) -> Task<Message> {
+        use crate::paste::Clip;
+        match result {
+            Ok(Clip::Image(image)) => self.viewer_update(PdfMessage::Editing(
+                EditMessage::PasteImage(Arc::new(image), None),
+            )),
+            Ok(Clip::Text(text)) => {
+                self.viewer_update(PdfMessage::Editing(EditMessage::PasteText(text, None)))
+            }
+            Ok(Clip::Pages | Clip::Nothing) if !self.image_mode && pages_ui::has_copied_pages() => {
+                self.page_action(PageAction::Paste)
+            }
+            Ok(_) => {
+                self.notice = Some("There is nothing to paste.".into());
+                Task::none()
+            }
+            // Without wl-clipboard, text still comes through iced.
+            Err(_) => iced::clipboard::read().map(Message::PastedText),
+        }
+    }
+
     /// Adds or removes a bookmark, rereading the file first so other windows'
     /// changes are kept.
     fn toggle_bookmark(&mut self, page: usize) {
@@ -910,6 +1146,9 @@ impl PdfWindow {
         }
         if deletes && self.pages_focus && self.sidebar == Some(Sidebar::Thumbnails) {
             return Some(self.page_action(PageAction::Delete));
+        }
+        if self.image_mode {
+            return None;
         }
         let paged = self.slideshow.is_some() || viewer.mode != ViewMode::Continuous;
         let page_height = viewer.view.height * 0.9;
@@ -1002,11 +1241,20 @@ impl PdfWindow {
                     component::floating_room(true),
                     component::floating_room(self.markup_bar),
                 );
-                let content = row![
+                let mut content = row![
                     component::between_bars(sidebar, top, bottom),
                     component::between_bars(handle, top, bottom),
                     self.canvas(viewer, None)
                 ];
+                // Last, so opening it leaves the canvas where it is in the
+                // widget tree.
+                if let Some(metadata) = &self.inspector {
+                    content = content.push(component::between_bars(
+                        self.inspector_view(viewer, metadata.as_ref()),
+                        top,
+                        bottom,
+                    ));
+                }
                 component::window_bars(
                     self.toolbar(viewer),
                     markup,
@@ -1098,6 +1346,7 @@ impl PdfWindow {
         if backdrop.is_some() {
             return scroll.into();
         }
+        let scroll = ui::probe::probe(scroll, &self.canvas_bounds);
         let editors = self.page_editors(viewer).unwrap_or_else(|| space().into());
         iced::widget::stack![scroll, editors].into()
     }
@@ -1135,8 +1384,9 @@ impl PdfWindow {
                 .padding([6, 4])
                 .width(52),
         );
-        let pages = ui::styled(format!("of {}", viewer.page_count()), Type::BodyMedium)
-            .style(style::on_surface_variant);
+        let pages_label = format!("of {}", viewer.page_count());
+        let pages_width = pages_label.chars().count() as f32 * 7.0;
+        let pages = ui::styled(pages_label, Type::BodyMedium).style(style::on_surface_variant);
         let zoom = |glyph: Icon, label: &'static str, zoom: Zoom| {
             component::tool(glyph, label, Some(Message::Viewer(PdfMessage::Zoom(zoom))))
         };
@@ -1146,14 +1396,15 @@ impl PdfWindow {
         )
         .width(48)
         .align_x(Center);
-        let fit = |glyph: Icon, label: &'static str, fit: Fit, zoom: Zoom| {
+        let fit = |glyph: Icon, label: &'static str, selected: bool, zoom: Zoom| {
             component::tip(
                 ui::icon_button(glyph)
-                    .selected(viewer.fit == fit)
+                    .selected(selected)
                     .on_press(Message::Viewer(PdfMessage::Zoom(zoom))),
                 label,
             )
         };
+        let actual_size = matches!(viewer.fit, Fit::Zoom(zoom) if (zoom - 1.0).abs() < 1e-3);
         let modes = component::connected_with_tips(
             MODES
                 .iter()
@@ -1183,33 +1434,37 @@ impl PdfWindow {
             format!("{current} of {}{more}", search.matches.len())
         };
         let has_matches = !search.matches.is_empty();
-        let search_bar = component::search_bar(
-            text_input("Search", &search.query)
-                .id(self.search_id.clone())
-                .on_input(|query| Message::Viewer(PdfMessage::SearchChanged(query)))
-                .on_submit(Message::Viewer(PdfMessage::NextMatch)),
-            vec![
-                ui::styled(matches, Type::LabelMedium)
-                    .style(style::on_surface_variant)
-                    .wrapping(text::Wrapping::None)
-                    .into(),
-                ui::icon_button(Icon::KeyboardArrowUp)
-                    .size(button::Size::ExtraSmall)
-                    .on_press_maybe(
-                        has_matches.then_some(Message::Viewer(PdfMessage::PreviousMatch)),
-                    )
-                    .into(),
-                ui::icon_button(Icon::KeyboardArrowDown)
-                    .size(button::Size::ExtraSmall)
-                    .on_press_maybe(has_matches.then_some(Message::Viewer(PdfMessage::NextMatch)))
-                    .into(),
-            ],
-            280.0,
-        );
+        let search_bar = |width: f32| {
+            component::search_bar(
+                text_input("Search", &search.query)
+                    .id(self.search_id.clone())
+                    .on_input(|query| Message::Viewer(PdfMessage::SearchChanged(query)))
+                    .on_submit(Message::Viewer(PdfMessage::NextMatch)),
+                vec![
+                    ui::styled(matches, Type::LabelMedium)
+                        .style(style::on_surface_variant)
+                        .wrapping(text::Wrapping::None)
+                        .into(),
+                    ui::icon_button(Icon::KeyboardArrowUp)
+                        .size(button::Size::ExtraSmall)
+                        .on_press_maybe(
+                            has_matches.then_some(Message::Viewer(PdfMessage::PreviousMatch)),
+                        )
+                        .into(),
+                    ui::icon_button(Icon::KeyboardArrowDown)
+                        .size(button::Size::ExtraSmall)
+                        .on_press_maybe(
+                            has_matches.then_some(Message::Viewer(PdfMessage::NextMatch)),
+                        )
+                        .into(),
+                ],
+                width,
+            )
+        };
 
         use component::{DIVIDER_WIDTH, TOOL_WIDTH};
         // Each slot: its content, its width, and when it moves into "More".
-        let slots: Vec<(Element<'a, Message>, f32, Option<u8>)> = vec![
+        let mut slots: Vec<(Element<'a, Message>, f32, Option<u8>)> = vec![
             (
                 row![sidebar_toggle, component::toolbar_divider()]
                     .spacing(8)
@@ -1223,7 +1478,8 @@ impl PdfWindow {
                     .spacing(8)
                     .align_y(Center)
                     .into(),
-                52.0 + 40.0 + DIVIDER_WIDTH + 16.0,
+                // "of 6": about 7 pixels a character.
+                52.0 + pages_width + DIVIDER_WIDTH + 16.0,
                 None,
             ),
             (
@@ -1237,13 +1493,51 @@ impl PdfWindow {
             ),
             (
                 component::group([
-                    fit(Icon::FitPage, "Fit page", Fit::Page, Zoom::FitPage),
-                    fit(Icon::FitWidth, "Fit width", Fit::Width, Zoom::FitWidth),
+                    fit(
+                        Icon::FitPage,
+                        "Fit page",
+                        viewer.fit == Fit::Page,
+                        Zoom::FitPage,
+                    ),
+                    fit(
+                        Icon::FitWidth,
+                        "Fit width",
+                        viewer.fit == Fit::Width,
+                        Zoom::FitWidth,
+                    ),
+                    fit(Icon::OneToOne, "Actual size", actual_size, Zoom::ActualSize),
                 ]),
-                TOOL_WIDTH * 2.0 + 4.0,
+                TOOL_WIDTH * 3.0 + 8.0,
                 Some(1),
             ),
             (modes, 3.0 * 32.0 + 4.0, Some(0)),
+        ];
+        // Undo and redo, unless the markup bar shows its own.
+        let undo = !self.markup_bar;
+        if undo {
+            let history = &viewer.edit.history;
+            slots.push((
+                row![
+                    component::tool(
+                        Icon::Undo,
+                        "Undo",
+                        history.can_undo().then(|| Message::Edit(EditMessage::Undo)),
+                    ),
+                    component::tool(
+                        Icon::Redo,
+                        "Redo",
+                        history.can_redo().then(|| Message::Edit(EditMessage::Redo)),
+                    ),
+                    component::toolbar_divider(),
+                ]
+                .spacing(4)
+                .align_y(Center)
+                .into(),
+                TOOL_WIDTH * 2.0 + DIVIDER_WIDTH + 8.0,
+                None,
+            ));
+        }
+        slots.extend([
             (
                 component::group([
                     component::tool(
@@ -1262,16 +1556,35 @@ impl PdfWindow {
                 Some(2),
             ),
             (
-                component::toggle_tool(
-                    Icon::EditDocument,
-                    "Markup",
-                    self.markup_bar,
-                    Message::ToggleMarkupBar,
-                ),
-                TOOL_WIDTH,
+                component::group([
+                    component::toggle_tool(
+                        Icon::Info,
+                        "Inspector",
+                        self.inspector.is_some(),
+                        Message::ToggleInspector,
+                    ),
+                    component::toggle_tool(
+                        Icon::EditDocument,
+                        "Markup",
+                        self.markup_bar,
+                        Message::ToggleMarkupBar,
+                    ),
+                ]),
+                DIVIDER_WIDTH + TOOL_WIDTH * 2.0 + 12.0,
                 None,
             ),
-            (search_bar, 280.0, Some(4)),
+            // Made once the room left over is known.
+            (space().into(), SEARCH_WIDTH, Some(SEARCH_SLOT_ORDER)),
+            (
+                component::tip(
+                    ui::icon_button(Icon::FileExport)
+                        .kind(Kind::Tonal)
+                        .on_press(Message::PageAction(PageAction::Export)),
+                    "Export",
+                ),
+                component::TOOL_WIDTH,
+                Some(5),
+            ),
             (
                 component::group([
                     component::floating_bars_toggle(Message::ToggleFloatingBars),
@@ -1280,18 +1593,46 @@ impl PdfWindow {
                 TOOL_WIDTH * 2.0 + 4.0,
                 None,
             ),
-        ];
+        ]);
         let widths: Vec<(f32, Option<u8>)> = slots
             .iter()
             .map(|(_, width, order)| (*width, *order))
             .collect();
         let shown = component::fitting_slots(width, &widths);
+        // The search field takes room the other slots leave, so a query
+        // shows beside its match count.
+        let used: f32 = widths
+            .iter()
+            .zip(&shown)
+            .filter(|(_, shown)| **shown)
+            .map(|((width, _), _)| width + component::TOOLBAR_GAP)
+            .sum();
+        let more = if shown.contains(&false) {
+            TOOL_WIDTH + component::TOOLBAR_GAP
+        } else {
+            0.0
+        };
+        let search_width = SEARCH_WIDTH + (width - used - more).clamp(0.0, SEARCH_GROWTH);
+        if let Some(slot) = slots
+            .iter_mut()
+            .find(|(_, _, order)| *order == Some(SEARCH_SLOT_ORDER))
+        {
+            slot.0 = search_bar(search_width);
+        }
+        // The right side: undo, page tools, then the panels, set apart
+        // from the page tools while both are shown.
+        let right = 5;
+        let page_tools = right + usize::from(undo);
+        let page_tools_shown = shown[page_tools];
         let mut bar = row![].spacing(8).align_y(Center);
         let mut hidden = Vec::new();
         for (index, ((element, _, _), shown)) in slots.into_iter().zip(shown).enumerate() {
             // Page tools, the markup button and search bar sit on the right.
-            if index == 5 {
+            if index == right {
                 bar = bar.push(space::horizontal());
+            }
+            if index == page_tools + 1 && page_tools_shown {
+                bar = bar.push(component::toolbar_divider());
             }
             if shown {
                 bar = bar.push(element);
@@ -1310,6 +1651,85 @@ impl PdfWindow {
         }
         // The bar fills the toolbar's height; keep the buttons in its middle.
         container(bar).height(Fill).align_y(Center).into()
+    }
+
+    fn toggle_inspector(&mut self) -> Task<Message> {
+        if self.inspector.take().is_some() {
+            return Task::none();
+        }
+        let State::Ready(viewer) = &self.state else {
+            return Task::none();
+        };
+        self.inspector = Some(None);
+        Task::perform(viewer.handle.metadata(), |result| {
+            Message::MetadataLoaded(result.unwrap_or_default())
+        })
+    }
+
+    /// Everything about the document: the file, its information entries,
+    /// and its pages.
+    fn inspector_view<'a>(
+        &'a self,
+        viewer: &'a PdfViewer,
+        metadata: Option<&'a prev_pdf::engine::Metadata>,
+    ) -> Element<'a, Message> {
+        use crate::info::{self, Fact};
+        let fact = |label: &str, value: String| -> Fact { (label.to_owned(), value) };
+        let mut document = Vec::new();
+        if let Some(metadata) = metadata {
+            document.extend([
+                fact("Title", metadata.title.clone()),
+                fact("Author", metadata.author.clone()),
+                fact("Subject", metadata.subject.clone()),
+                fact("Keywords", metadata.keywords.clone()),
+                fact("Created", info::pdf_date(&metadata.created)),
+                fact("Modified", info::pdf_date(&metadata.modified)),
+                fact("Application", metadata.creator.clone()),
+                fact("PDF producer", metadata.producer.clone()),
+                fact("Version", metadata.format.clone()),
+                fact(
+                    "Security",
+                    match metadata.encryption.as_str() {
+                        "" | "None" => "Not encrypted".to_owned(),
+                        other => format!("Encrypted ({other})"),
+                    },
+                ),
+            ]);
+        }
+        let count = viewer.page_count();
+        let mut pages = vec![fact(
+            "Pages",
+            if count == 1 {
+                "1 page".to_owned()
+            } else {
+                format!("{count} pages")
+            },
+        )];
+        if let Some(size) = viewer.info.page_sizes.get(viewer.current) {
+            let millimetres = |points: f32| points / 72.0 * 25.4;
+            pages.push(fact(
+                "Page size",
+                format!(
+                    "{:.0} × {:.0} mm ({:.2} × {:.2} in)",
+                    millimetres(size.width),
+                    millimetres(size.height),
+                    size.width / 72.0,
+                    size.height / 72.0
+                ),
+            ));
+        }
+        let content: Element<'a, Message> = if metadata.is_none() {
+            ui::styled("Loading…", Type::BodyMedium)
+                .style(style::on_surface_variant)
+                .into()
+        } else {
+            info::sections_view(vec![
+                ("File", info::file_facts(&self.path)),
+                ("Document", document),
+                ("Pages", pages),
+            ])
+        };
+        component::side_sheet("Inspector", Message::ToggleInspector, content)
     }
 
     fn sidebar_view<'a>(&'a self, viewer: &'a PdfViewer, sidebar: Sidebar) -> Element<'a, Message> {
@@ -1352,11 +1772,13 @@ impl PdfWindow {
                     .align_x(Center);
                 let list =
                     mouse_area(container(list).padding([0, 16])).on_move(Message::ThumbnailsMoved);
-                component::scroll(list)
-                    .on_scroll(Message::ThumbnailsScrolled)
-                    .id(self.thumbnails_id.clone())
-                    .height(Fill)
-                    .into()
+                ui::probe::probe(
+                    component::scroll(list)
+                        .on_scroll(Message::ThumbnailsScrolled)
+                        .id(self.thumbnails_id.clone())
+                        .height(Fill),
+                    &self.thumbnails_bounds,
+                )
             }
             Sidebar::Contents if !self.outline_loaded => {
                 component::empty_state(Icon::Toc, "Loading…", "")

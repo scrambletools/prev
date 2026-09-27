@@ -13,10 +13,17 @@ use super::{Scheme, elevation, shape};
 
 const GAP: f32 = 4.0;
 
+thread_local! {
+    /// Set when a click lands on a popover's anchor, so a menu holding
+    /// that anchor stays open for the menu it opens.
+    static ANCHOR_CLICKED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 pub struct Popover<'a, Message> {
     anchor: Element<'a, Message>,
     content: Option<Element<'a, Message>>,
     on_dismiss: Message,
+    close_on_choice: bool,
 }
 
 /// Shows `content` below `anchor` while it is `Some`.
@@ -29,6 +36,16 @@ pub fn popover<'a, Message: Clone + 'a>(
         anchor: anchor.into(),
         content,
         on_dismiss,
+        close_on_choice: false,
+    }
+}
+
+impl<Message> Popover<'_, Message> {
+    /// Closes once a click inside chooses something, as menus of actions
+    /// do, unless the click opens a menu of its own.
+    pub fn close_on_choice(mut self) -> Self {
+        self.close_on_choice = true;
+        self
     }
 }
 
@@ -107,6 +124,12 @@ impl<'a, Message: Clone + 'a> Widget<Message, Theme, iced::Renderer> for Popover
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
+        if let Event::Mouse(mouse::Event::ButtonPressed(_) | mouse::Event::ButtonReleased(_)) =
+            event
+            && cursor.is_over(layout.bounds())
+        {
+            ANCHOR_CLICKED.with(|clicked| clicked.set(true));
+        }
         self.anchor.as_widget_mut().update(
             &mut tree.children[0],
             event,
@@ -185,6 +208,7 @@ impl<'a, Message: Clone + 'a> Widget<Message, Theme, iced::Renderer> for Popover
                 ..bounds
             },
             on_dismiss: self.on_dismiss.clone(),
+            close_on_choice: self.close_on_choice,
         })))
     }
 }
@@ -194,6 +218,7 @@ struct PopoverOverlay<'a, 'b, Message> {
     tree: &'a mut Tree,
     anchor: Rectangle,
     on_dismiss: Message,
+    close_on_choice: bool,
 }
 
 impl<Message: Clone> overlay::Overlay<Message, Theme, iced::Renderer>
@@ -270,9 +295,21 @@ impl<Message: Clone> overlay::Overlay<Message, Theme, iced::Renderer>
             }
             _ => {}
         }
+        let choosing = self.close_on_choice
+            && matches!(
+                event,
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+            )
+            && cursor.is_over(bounds)
+            && shell.is_empty();
+        ANCHOR_CLICKED.with(|clicked| clicked.set(false));
         self.content.as_widget_mut().update(
             self.tree, event, layout, cursor, renderer, clipboard, shell, &bounds,
         );
+        // A button chose something; a menu button inside keeps this open.
+        if choosing && !shell.is_empty() && !ANCHOR_CLICKED.with(std::cell::Cell::get) {
+            shell.publish(self.on_dismiss.clone());
+        }
         if let Event::Mouse(_) = event
             && cursor.is_over(bounds)
         {

@@ -203,6 +203,11 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 let (x, y) = to_document(position);
                 shell.publish((self.on_message)(PdfMessage::Drag { x, y }));
             }
+            // A drag out of the window took the pointer, and with it the
+            // release; the press is over.
+            Event::Mouse(mouse::Event::CursorLeft) if state.pressed => {
+                state.pressed = false;
+            }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.pressed => {
                 state.pressed = false;
                 let (x, y) = cursor.position().map_or((0.0, 0.0), to_document);
@@ -363,6 +368,29 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                     );
                 }
             }
+            // An annotation being moved: the page without it where it was,
+            // then the annotation where it is going.
+            if let Some((without, from, alone, to)) = viewer.lift_images(page) {
+                let on_page = |rect: prev_pdf::geometry::Rect| {
+                    Rectangle::new(
+                        iced::Point::new(
+                            page_rect.x + rect.x0 * points_to_pixels,
+                            page_rect.y + rect.y0 * points_to_pixels,
+                        ),
+                        Size::new(
+                            rect.width() * points_to_pixels,
+                            rect.height() * points_to_pixels,
+                        ),
+                    )
+                };
+                for (handle, rect) in [(without, from), (alone, to)] {
+                    renderer.draw_image(
+                        Image::new(handle.clone()).filter_method(FilterMethod::Linear),
+                        on_page(rect),
+                        page_rect,
+                    );
+                }
+            }
         }
 
         // Quads draw before images within a layer, so highlights need their own.
@@ -455,8 +483,17 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             })
         };
         let preview = viewer.preview();
+        // A moved annotation shows as its own image once that is ready.
+        let lifted = |page: usize, id: &str| {
+            viewer
+                .edit
+                .lift
+                .as_ref()
+                .is_some_and(|lift| lift.page == page && lift.id == id && lift.images.is_some())
+        };
         if let Some((page, annotation)) = &preview
             && let Some(mapping) = mapping_for(*page)
+            && !lifted(*page, &annotation.id)
         {
             overlay::paint(&mut frame, annotation, &mapping);
         }

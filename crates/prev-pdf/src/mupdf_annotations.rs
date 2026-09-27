@@ -661,7 +661,7 @@ fn set_stamp_appearance(
     write_rect(page, annot, rect, space)
 }
 
-fn rgba_pixmap(bitmap: &crate::engine::Bitmap) -> Result<Pixmap> {
+pub(crate) fn rgba_pixmap(bitmap: &crate::engine::Bitmap) -> Result<Pixmap> {
     let mut pixmap = Pixmap::new_with_w_h(
         &Colorspace::device_rgb(),
         bitmap.width as i32,

@@ -41,6 +41,7 @@ fn main() -> iced::Result {
     }
     {
         let sender = sender.clone();
+        smithay_clipboard::dnd::set_accepted_mimes(prev::drag::accepted_types());
         smithay_clipboard::dnd::set_drag_handler(move |event| send(&sender, External::Drag(event)));
     }
     *EXTERNAL_EVENTS.lock().unwrap() = Some(receiver);

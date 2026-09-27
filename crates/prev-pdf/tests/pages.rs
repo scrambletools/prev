@@ -610,3 +610,109 @@ fn flatten_block<T>(
 ) -> T {
     flatten(block_on(receiver)).unwrap()
 }
+
+#[test]
+fn lifting_an_annotation_splits_the_page() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _, _) = open(&dir, &common::navigation_fixture());
+    let mut square = Annotation::new(
+        new_id(),
+        Kind::Square,
+        Rect::new(300.0, 300.0, 400.0, 400.0),
+    );
+    square.style.fill = Some(prev_pdf::annotation::Rgb::new(0.0, 0.0, 1.0));
+    flatten(block_on(handle.edit(0, Edit::Add(square.clone(), None)))).unwrap();
+    let lifted = flatten(block_on(handle.lift(0, square.id.clone()))).unwrap();
+    let pixel = |display: &std::sync::Arc<dyn prev_pdf::engine::PageDisplay>, x: i32, y: i32| {
+        let bitmap = display
+            .render(
+                1.0,
+                prev_pdf::geometry::PixelRect {
+                    x,
+                    y,
+                    width: 1,
+                    height: 1,
+                },
+            )
+            .unwrap();
+        [
+            bitmap.pixels[0],
+            bitmap.pixels[1],
+            bitmap.pixels[2],
+            bitmap.pixels[3],
+        ]
+    };
+    // Without it, the page shows through where the square was; the text
+    // at the top is still there.
+    assert_eq!(pixel(&lifted.without, 350, 350), [255, 255, 255, 255]);
+    let text = lifted.without.text().unwrap();
+    assert!(!text.lines.is_empty());
+    // Alone, the square is opaque blue on a transparent page.
+    assert_eq!(pixel(&lifted.alone, 350, 350), [0, 0, 255, 255]);
+    assert_eq!(pixel(&lifted.alone, 100, 100)[3], 0);
+    assert!(
+        lifted.alone.text().unwrap().lines.is_empty(),
+        "no page content"
+    );
+    // The document itself is unchanged.
+    let markup = flatten(block_on(handle.markup(0))).unwrap();
+    assert!(
+        markup
+            .annotations
+            .iter()
+            .any(|annotation| annotation.id == square.id)
+    );
+}
+
+#[test]
+fn images_become_pages_that_take_markup() {
+    // A 4 x 2 image, left half red and right half green, on a 40 x 20 page.
+    let mut pixels = Vec::new();
+    for _ in 0..2 {
+        for x in 0..4 {
+            pixels.extend_from_slice(if x < 2 {
+                &[255, 0, 0, 255]
+            } else {
+                &[0, 255, 0, 255]
+            });
+        }
+    }
+    let image = prev_pdf::engine::Bitmap {
+        width: 4,
+        height: 2,
+        pixels,
+    };
+    let bytes = prev_pdf::image_document(&image, Size::new(40.0, 20.0)).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, info, _) = open(&dir, &bytes);
+    assert_eq!(info.page_sizes, vec![Size::new(40.0, 20.0)]);
+    let pixel = |display: &Arc<dyn prev_pdf::engine::PageDisplay>, x: i32, y: i32| {
+        let bitmap = display
+            .render(
+                1.0,
+                prev_pdf::geometry::PixelRect {
+                    x,
+                    y,
+                    width: 1,
+                    height: 1,
+                },
+            )
+            .unwrap();
+        [
+            bitmap.pixels[0],
+            bitmap.pixels[1],
+            bitmap.pixels[2],
+            bitmap.pixels[3],
+        ]
+    };
+    let page = flatten(block_on(handle.display(0))).unwrap();
+    assert_eq!(pixel(&page, 5, 10), [255, 0, 0, 255]);
+    assert_eq!(pixel(&page, 35, 10), [0, 255, 0, 255]);
+    // The markup layer holds the annotations and nothing of the image.
+    let mut square = Annotation::new(new_id(), Kind::Square, Rect::new(2.0, 2.0, 12.0, 18.0));
+    square.style.fill = Some(prev_pdf::annotation::Rgb::new(0.0, 0.0, 1.0));
+    flatten(block_on(handle.edit(0, Edit::Add(square, None)))).unwrap();
+    let layer = flatten(block_on(handle.annotation_layer(0))).unwrap();
+    assert_eq!(pixel(&layer, 7, 10), [0, 0, 255, 255]);
+    assert_eq!(pixel(&layer, 35, 10)[3], 0);
+}
