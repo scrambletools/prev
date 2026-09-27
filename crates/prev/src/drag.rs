@@ -358,16 +358,36 @@ fn sanitize(name: &str) -> String {
 /// A `text/uri-list` naming `path`.
 pub fn uri_list(path: &Path) -> Vec<u8> {
     let mut uri = String::from("file://");
-    for byte in path.as_os_str().as_encoded_bytes() {
+    for byte in uri_path(path) {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b'-' | b'_' | b'.' | b'~' => {
-                uri.push(*byte as char)
+                uri.push(byte as char)
             }
+            b':' if cfg!(windows) => uri.push(':'),
             _ => uri.push_str(&format!("%{byte:02X}")),
         }
     }
     uri.push_str("\r\n");
     uri.into_bytes()
+}
+
+/// The bytes of `path` as a URI writes them.
+#[cfg(unix)]
+fn uri_path(path: &Path) -> Vec<u8> {
+    path.as_os_str().as_encoded_bytes().to_vec()
+}
+
+/// `C:\Users\me` as `/C:/Users/me`, for `file:///C:/Users/me`.
+#[cfg(not(unix))]
+fn uri_path(path: &Path) -> Vec<u8> {
+    let path = path.to_string_lossy().replace('\\', "/");
+    let path = if path.starts_with('/') {
+        path
+    } else {
+        format!("/{path}")
+    };
+    // The drive's colon stays as it is; the rest is escaped as usual.
+    path.into_bytes()
 }
 
 /// The data for dragging a file: its path only, so file managers copy

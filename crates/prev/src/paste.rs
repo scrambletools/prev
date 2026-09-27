@@ -178,7 +178,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("copied.png");
         std::fs::write(&path, png()).unwrap();
-        let uris = format!("file://{}\r\n", path.display());
+        let uris = String::from_utf8(crate::drag::uri_list(&path)).unwrap();
         let clip = choose(&["text/uri-list", "text/plain"], |kind| match kind {
             "text/uri-list" => uris.clone().into_bytes(),
             _ => path.display().to_string().into_bytes(),
