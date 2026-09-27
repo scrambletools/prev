@@ -483,13 +483,15 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             })
         };
         let preview = viewer.preview();
-        // A moved annotation shows as its own image once that is ready.
+        // A moved annotation shows as its own image. Until that is ready it
+        // stays as the page shows it, rather than as an outline, which is
+        // all text boxes and images would get here.
         let lifted = |page: usize, id: &str| {
             viewer
                 .edit
                 .lift
                 .as_ref()
-                .is_some_and(|lift| lift.page == page && lift.id == id && lift.images.is_some())
+                .is_some_and(|lift| lift.page == page && lift.id == id)
         };
         if let Some((page, annotation)) = &preview
             && let Some(mapping) = mapping_for(*page)

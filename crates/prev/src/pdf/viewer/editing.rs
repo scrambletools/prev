@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use iced::Task;
+use iced::advanced::image::Allocation;
 use iced::widget::image::Handle as ImageHandle;
 use iced::widget::text_editor;
 use prev_pdf::annotation::{
@@ -108,6 +109,9 @@ pub struct Editing {
     /// The annotation being moved, drawn from its own images so the page
     /// underneath does not keep showing it where it was.
     pub lift: Option<Lift>,
+    /// The images of the annotation last clicked without moving it, kept
+    /// so dragging it next starts with them ready.
+    lift_kept: Option<Lift>,
 }
 
 /// Images for moving one annotation: the page without it over where it
@@ -120,9 +124,16 @@ pub struct Lift {
     /// page has been drawn anew after the change.
     generation: u32,
     /// The area the images cover, in page points: the annotation's rect
-    /// with room for its line.
+    /// with room for its line, out to whole device pixels as rendered.
     pub area: Rect,
+    /// The annotation's rect when the move began. Once the change is
+    /// saved, the page's annotations already have the new one.
+    original: Rect,
+    /// Device pixels per point the images were rendered at.
+    scale: f32,
     pub images: Option<(ImageHandle, ImageHandle)>,
+    /// Keeps the images on the GPU while they are shown.
+    uploaded: Option<(Allocation, Allocation)>,
     /// Where the annotation went, once let go.
     pub placed: Option<Rect>,
 }
@@ -131,6 +142,13 @@ pub struct Lift {
 /// page points.
 fn lift_margin(annotation: &Annotation) -> f32 {
     annotation.style.line_width + 3.0
+}
+
+impl Editing {
+    /// Drops images kept for a drag, when page numbers change.
+    pub(super) fn forget_kept_lift(&mut self) {
+        self.lift_kept = None;
+    }
 }
 
 impl Default for Editing {
@@ -155,6 +173,7 @@ impl Default for Editing {
             choice: None,
             area: None,
             lift: None,
+            lift_kept: None,
         }
     }
 }
@@ -228,6 +247,9 @@ pub enum EditMessage {
     /// The images of an annotation being moved: the page without it, and
     /// the annotation alone.
     Lifted(String, Option<(ImageHandle, ImageHandle)>),
+    /// Those images, now on the GPU, so the first frame that shows them
+    /// draws them both.
+    LiftUploaded(String, Option<(Allocation, Allocation)>),
 }
 
 /// A loupe's magnified image, ready to add or replace.
@@ -279,8 +301,34 @@ impl PdfViewer {
         Some((*page, self.annotation(*page, id)?))
     }
 
-    /// The annotation being created or moved, as it would look now.
+    /// Whether the annotation being pressed on has moved far enough to
+    /// count as a move rather than a click.
+    fn moving(&self) -> bool {
+        match &self.edit.drag {
+            Some(Drag::Move { from, current, .. }) => {
+                (current.x - from.x).hypot(current.y - from.y) >= CLICK_DISTANCE / 2.0
+            }
+            _ => false,
+        }
+    }
+
+    /// The annotation being created or moved, as it would look now. A
+    /// press that has not moved yet shows nothing new.
     pub fn preview(&self) -> Option<(usize, Annotation)> {
+        if matches!(self.edit.drag, Some(Drag::Move { .. })) && !self.moving() {
+            return None;
+        }
+        // A lifted annotation moves once its images are ready, so the
+        // handles and the annotation go together.
+        if let Some(Drag::Move { original, .. }) = &self.edit.drag
+            && self
+                .edit
+                .lift
+                .as_ref()
+                .is_some_and(|lift| lift.id == original.id && lift.images.is_none())
+        {
+            return None;
+        }
         match self.edit.drag.as_ref()? {
             Drag::Stroke {
                 page,
@@ -536,6 +584,18 @@ impl PdfViewer {
     /// Renders the page without `annotation`, and `annotation` alone, over
     /// its area at the current zoom.
     fn lift(&mut self, page: usize, annotation: &Annotation) -> Task<PdfMessage> {
+        // The same annotation, unchanged, at the same zoom: its images are
+        // still good.
+        if let Some(kept) = self.edit.lift_kept.take()
+            && kept.page == page
+            && kept.id == annotation.id
+            && kept.original == annotation.rect
+            && kept.generation == self.generation(page)
+            && kept.scale == self.render_scale()
+        {
+            self.edit.lift = Some(kept);
+            return Task::none();
+        }
         let margin = lift_margin(annotation);
         let rect = annotation.rect;
         let area = Rect::new(
@@ -549,16 +609,30 @@ impl PdfViewer {
             id: annotation.id.clone(),
             generation: self.generation(page),
             area,
+            original: rect,
+            scale: self.render_scale(),
             images: None,
+            uploaded: None,
             placed: None,
         });
         let scale = self.render_scale();
         let pixels = PixelRect {
             x: (area.x0 * scale).floor() as i32,
             y: (area.y0 * scale).floor() as i32,
-            width: (area.width() * scale).ceil().max(1.0) as u32,
-            height: (area.height() * scale).ceil().max(1.0) as u32,
+            width: (area.width() * scale).ceil().max(1.0) as u32 + 1,
+            height: (area.height() * scale).ceil().max(1.0) as u32 + 1,
         };
+        // Drawn exactly over the pixels it was rendered from, so the page
+        // and the lifted annotation line up when the page takes over.
+        let area = Rect::new(
+            pixels.x as f32 / scale,
+            pixels.y as f32 / scale,
+            (pixels.x + pixels.width as i32) as f32 / scale,
+            (pixels.y + pixels.height as i32) as f32 / scale,
+        );
+        if let Some(lift) = self.edit.lift.as_mut() {
+            lift.area = area;
+        }
         let receiver = self.handle.lift(page, annotation.id.clone());
         let pool = std::sync::Arc::clone(&self.pool);
         let id = annotation.id.clone();
@@ -582,22 +656,26 @@ impl PdfViewer {
     /// pointer has it.
     pub fn lift_images(&self, page: usize) -> Option<(&ImageHandle, Rect, &ImageHandle, Rect)> {
         let lift = self.edit.lift.as_ref().filter(|lift| lift.page == page)?;
+        // A press is not a move until the pointer goes somewhere.
+        if lift.placed.is_none() && !self.moving() {
+            return None;
+        }
         let (without, alone) = lift.images.as_ref()?;
         let moved = match (&lift.placed, self.preview()) {
             (Some(placed), _) => *placed,
             (None, Some((_, moved))) if moved.id == lift.id => moved.rect,
             _ => self.annotation(page, &lift.id)?.rect,
         };
-        let original = self
-            .annotation(page, &lift.id)
-            .map_or(lift.area, |annotation| annotation.rect);
-        let margin_x = (original.x0 - lift.area.x0) * moved.width() / original.width().max(0.01);
-        let margin_y = (original.y0 - lift.area.y0) * moved.height() / original.height().max(0.01);
+        // Each side of the images keeps its room around the annotation,
+        // scaled with it when it was resized.
+        let (original, area) = (lift.original, lift.area);
+        let scale_x = moved.width() / original.width().max(0.01);
+        let scale_y = moved.height() / original.height().max(0.01);
         let target = Rect::new(
-            moved.x0 - margin_x,
-            moved.y0 - margin_y,
-            moved.x1 + margin_x,
-            moved.y1 + margin_y,
+            moved.x0 - (original.x0 - area.x0) * scale_x,
+            moved.y0 - (original.y0 - area.y0) * scale_y,
+            moved.x1 + (area.x1 - original.x1) * scale_x,
+            moved.y1 + (area.y1 - original.y1) * scale_y,
         );
         Some((without, lift.area, alone, target))
     }
@@ -692,7 +770,23 @@ impl PdfViewer {
                     Some(lift) if !unmoved && lift.id == original.id => {
                         lift.placed = Some(moved.rect)
                     }
+                    // A click: keep the images for a drag that may follow.
+                    Some(lift) if unmoved && lift.id == original.id => {
+                        self.edit.lift_kept = self.edit.lift.take();
+                    }
                     _ => self.edit.lift = None,
+                }
+                // The selection handles show the new place at once, not the
+                // old one until the document thread answers.
+                if !unmoved
+                    && let Some(annotation) = self.markup.get_mut(&page).and_then(|markup| {
+                        markup
+                            .annotations
+                            .iter_mut()
+                            .find(|annotation| annotation.id == moved.id)
+                    })
+                {
+                    *annotation = moved.clone();
                 }
                 if unmoved {
                     Task::none()
@@ -1427,12 +1521,39 @@ impl PdfViewer {
                 }
             }
             EditMessage::Lifted(id, images) => {
-                match self.edit.lift.as_mut() {
-                    Some(lift) if lift.id == id => match images {
-                        Some(images) => lift.images = Some(images),
-                        None => self.edit.lift = None,
-                    },
-                    _ => {}
+                let Some((without, alone)) = images else {
+                    return self.editing(EditMessage::LiftUploaded(id, None));
+                };
+                // Both go to the GPU before either is shown: a large image
+                // uploaded while drawing would miss its first frame, and the
+                // page without the annotation would show on its own.
+                let upload =
+                    |handle: ImageHandle| iced_runtime::image::allocate(handle).map(Result::ok);
+                upload(without).then(move |without| {
+                    let id = id.clone();
+                    upload(alone.clone()).map(move |alone| {
+                        PdfMessage::Editing(EditMessage::LiftUploaded(
+                            id.clone(),
+                            without.clone().zip(alone),
+                        ))
+                    })
+                })
+            }
+            EditMessage::LiftUploaded(id, uploaded) => {
+                // They may arrive after the click that asked for them.
+                for slot in [&mut self.edit.lift, &mut self.edit.lift_kept] {
+                    match slot.as_mut() {
+                        Some(lift) if lift.id == id && lift.images.is_none() => match uploaded {
+                            Some((without, alone)) => {
+                                lift.images =
+                                    Some((without.handle().clone(), alone.handle().clone()));
+                                lift.uploaded = Some((without, alone));
+                                break;
+                            }
+                            None => *slot = None,
+                        },
+                        _ => {}
+                    }
                 }
                 Task::none()
             }
