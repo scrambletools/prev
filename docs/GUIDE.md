@@ -176,8 +176,10 @@ toolbar rotates, flips, crops and resizes (Adjust Size). Adjust Color
 (Ctrl+Shift+C) has exposure, contrast, saturation, temperature, tint,
 sepia, sharpness and levels. Undo and redo are on the toolbar. The
 inspector (Ctrl+I) shows the file and camera details and can remove
-location info and edit keywords and a description. Export writes PNG,
-JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR. Drop more image files
+location info and edit keywords and a description. Export asks for the
+format (PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR) and, for
+JPEG, the quality, then where to save; the choices are kept for the next
+export from the window. Drop more image files
 on the window to add them to its thumbnail sidebar.
 
 ![A photo marked up with an oval, an arrow and a text box](screenshots/image-markup.png)
@@ -196,7 +198,8 @@ you haven't exported asks first, with a button to export.
 SVG drawings open sharp at any zoom, in the image window. They can't be
 edited, so the tools that change pixels are greyed out, but Export saves
 the drawing as a picture in any of the image formats, at its actual size
-or two or four times larger (the Size menu in the save dialog).
+or two or four times larger (Size in the Export dialog, which shows the
+picture's size in pixels).
 
 Markdown files show with tables, task lists, syntax highlighted code and
 images, and reload when the file changes on disk. The toolbar makes the
@@ -204,7 +207,10 @@ text larger or smaller (Ctrl+= and Ctrl+-, Ctrl+0 for the normal size),
 searches the document (Ctrl+F, then Enter or the arrows for the next and
 previous match) and opens the Inspector with the file's details and word
 count. Code is colored to suit the light or dark look, and pictures show
-at their own size, shrunk only to fit the page.
+at their own size, shrunk only to fit the page. Export saves the whole
+document as one picture, in any of the image formats, at its actual size
+or twice as sharp; very long documents are scaled down to fit the
+16,383 pixel height some formats allow.
 
 ## Drag and drop
 
