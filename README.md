@@ -1,3 +1,5 @@
+<img src="data/icons/hicolor/scalable/apps/io.github.scrambletools.prev.svg" width="128" alt="The prev icon: a signed document with a beach photo on it">
+
 # prev
 
 A fast, open source document and image viewer for Linux, modelled on macOS
@@ -5,9 +7,10 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 [MuPDF](https://mupdf.com), for Wayland desktops such as Hyprland and
 [Omarchy](https://omarchy.org).
 
-> **Status:** early development. PDF, image, SVG and Markdown viewing, image
-> editing, PDF markup, form filling, signatures, page editing and redaction
-> work today. See the [development plan](docs/PLAN.md).
+> **Status:** the first release, [1.0.0](https://github.com/scrambletools/prev/releases/tag/v1.0.0),
+> is out. PDF, image, SVG and Markdown viewing, image editing, PDF markup,
+> form filling, signatures, page editing and redaction all work. See the
+> [development plan](docs/PLAN.md) for what comes next.
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
 
