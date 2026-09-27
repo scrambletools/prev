@@ -42,7 +42,14 @@ pub fn claim_or_forward(name: &str, paths: &[PathBuf]) -> io::Result<Role> {
         let pipe = name.to_ns_name::<GenericNamespaced>()?;
         match ListenerOptions::new().name(pipe).create_sync() {
             Ok(listener) => return Ok(Role::Primary(Listener { listener })),
-            Err(error) if error.kind() == io::ErrorKind::AddrInUse => {
+            // Windows refuses a second pipe of the same name with "access
+            // is denied", other systems with "address in use".
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::AddrInUse | io::ErrorKind::PermissionDenied
+                ) =>
+            {
                 match forward(name, &request) {
                     Ok(()) => return Ok(Role::Forwarded),
                     // The owner may have just quit; try to take over.
