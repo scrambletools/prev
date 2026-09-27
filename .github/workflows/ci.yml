@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             clang libclang-dev pkg-config libfontconfig1-dev libfreetype-dev \
-            libxkbcommon-dev libwayland-dev desktop-file-utils
+            libxkbcommon-dev libwayland-dev desktop-file-utils appstream
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -34,6 +34,7 @@ jobs:
           PREV_CORPUS: ${{ runner.temp }}/corpus
           PREV_CORPUS_REQUIRED: 1
       - run: desktop-file-validate data/*.desktop
+      - run: appstreamcli validate --no-net data/*.metainfo.xml
 
   msrv:
     runs-on: ubuntu-24.04

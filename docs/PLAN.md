@@ -425,7 +425,7 @@ Each milestone ends with a usable build.
 | M5 | PDF markup | All markup tools, notes, form filling, signatures, undo/redo, annotation round-trip tests (MuPDF and Poppler), highlights and notes sidebar |
 | M6 | PDF page editing | Reorder, delete, rotate, crop, insert, merge between windows (copy and paste), extract, redaction, encryption, reduce file size, export to images |
 | M7 | Image polish | RAW tone curves matched to the camera's embedded JPEG (after RawTherapee's auto-matched curve, in Rust), keep EXIF in edited TIFFs, read XMP from TIFF (done) |
-| M8 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 |
+| M8 | Release | AUR, Flatpak, AppImage, .deb/.rpm, release workflow, user docs, 1.0 (packaging built; see docs/RELEASING.md) |
 
 Later: cryptographic signatures, OCR, markup on SVG.
 

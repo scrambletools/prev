@@ -1,0 +1,49 @@
+# Maintainer: Scramble Tools <https://github.com/scrambletools>
+pkgname=prev
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='View, mark up and sign PDFs and images'
+arch=('x86_64' 'aarch64')
+url='https://github.com/scrambletools/prev'
+license=('AGPL-3.0-or-later')
+depends=('fontconfig' 'gcc-libs' 'glibc' 'libxkbcommon' 'vulkan-icd-loader' 'wayland')
+makedepends=('cargo' 'clang' 'pkgconf')
+optdepends=('wl-clipboard: copy and paste images'
+            'libheif: HEIC and AVIF images'
+            'curl: pictures dropped from a browser as a web address'
+            'libx11: running under X11'
+            'libxcursor: running under X11'
+            'libxi: running under X11')
+# MuPDF's C code is linked by Rust's linker, which cannot read GCC's LTO
+# objects.
+options=('!lto')
+install=prev.install
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    # The installed copy, with its own settings and data, not a dev build.
+    export PREV_PRODUCTION=1
+    cargo build --frozen --release -p prev
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo test --frozen --workspace
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    scripts/dist-install.sh target/release/prev "$pkgdir" /usr
+}

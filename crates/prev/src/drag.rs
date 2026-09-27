@@ -326,10 +326,20 @@ pub fn icon_from_handle(handle: &iced::widget::image::Handle) -> Option<Icon> {
     }
 }
 
-/// Writes `bytes` to a file called `name` in a fresh private folder, for
-/// drops that want a file. Earlier drag files are removed first.
+/// Where files for drags are written: the cache folder, which other apps
+/// can read even when prev runs in a sandbox (a Flatpak's own temporary
+/// folder is private), else the temporary folder.
+fn drag_folder() -> PathBuf {
+    match prev_store::paths::cache_dir() {
+        Some(cache) => cache.join("drag"),
+        None => std::env::temp_dir().join(format!("prev-drag-{}", std::process::id())),
+    }
+}
+
+/// Writes `bytes` to a file called `name` in a fresh folder, for drops
+/// that want a file. Earlier drag files are removed first.
 pub fn temp_file(name: &str, bytes: &[u8]) -> Option<PathBuf> {
-    let base = std::env::temp_dir().join(format!("prev-drag-{}", std::process::id()));
+    let base = drag_folder();
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(&base).ok()?;
     let path = base.join(sanitize(name));
@@ -339,8 +349,7 @@ pub fn temp_file(name: &str, bytes: &[u8]) -> Option<PathBuf> {
 
 /// Removes the folder of drag files, for when prev quits.
 pub fn clean_up() {
-    let base = std::env::temp_dir().join(format!("prev-drag-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(base);
+    let _ = std::fs::remove_dir_all(drag_folder());
 }
 
 fn sanitize(name: &str) -> String {

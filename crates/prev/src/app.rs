@@ -123,6 +123,16 @@ fn check_storage(storage: Storage, path: &std::path::Path) -> Result<(), String>
     }
 }
 
+/// The app icon for window systems that take it from the window (X11);
+/// Wayland compositors use the desktop entry's.
+fn window_icon() -> Option<window::Icon> {
+    let png =
+        include_bytes!("../../../data/icons/hicolor/64x64/apps/io.github.scrambletools.prev.png");
+    let image = image::load_from_memory(png).ok()?.into_rgba8();
+    let (width, height) = image.dimensions();
+    window::icon::from_rgba(image.into_raw(), width, height).ok()
+}
+
 /// A path as the settings dialog shows it, with `~` for the home folder.
 fn shown_path(path: &std::path::Path) -> String {
     prev_store::paths::abbreviate_home(path)
@@ -464,6 +474,7 @@ impl Prev {
             },
             // Windows with markup that would be lost ask first.
             exit_on_close_request: false,
+            icon: window_icon(),
             ..window::Settings::default()
         });
         self.windows.insert(

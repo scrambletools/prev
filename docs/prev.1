@@ -1,0 +1,64 @@
+.TH PREV 1 "2026-09-27" "prev 1.0.0" "User Commands"
+.SH NAME
+prev \- view, mark up and sign PDFs and images
+.SH SYNOPSIS
+.B prev
+[\fIOPTION\fR]... [\fIFILE\fR]...
+.SH DESCRIPTION
+.B prev
+is a document and image viewer and editor modelled on macOS Preview. It
+opens PDFs, images (PNG, JPEG, GIF, WebP, AVIF, HEIC, TIFF, BMP, ICO, TGA,
+PNM, QOI, JPEG 2000, OpenEXR, Radiance HDR and camera RAW), SVG drawings
+and Markdown.
+.PP
+Each document opens in its own window; images given together share one
+window. A single instance runs per user: running
+.B prev
+again opens the files in the running instance and exits.
+.PP
+Edits to PDFs and images are saved in place a moment after they are
+made. Before the first save, the original is kept in the version
+history, from which the image inspector's Revert To restores it.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show a short help and exit.
+.TP
+.BR \-V ", " \-\-version
+Show the version and exit.
+.TP
+.B \-\-
+Treat every following argument as a file, even if it starts with a dash.
+.SH FILES
+.TP
+.I ~/.config/prev.toml
+Settings, including where the files below are kept.
+.TP
+.I ~/.local/share/prev/signatures
+Saved signatures.
+.TP
+.I ~/.local/share/prev/versions
+Earlier versions of edited files.
+.TP
+.I ~/.local/share/prev/bookmarks.toml
+PDF bookmarks.
+.SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME\fR, \fBXDG_DATA_HOME\fR, \fBXDG_RUNTIME_DIR
+Where settings, data and the instance socket go, when set.
+.SH NOTES
+prev uses these programs when they are installed:
+.B wl-copy
+and
+.B wl-paste
+for copying and pasting images,
+.B curl
+for pictures dropped from a browser as a web address only, and the
+.B libheif
+library for HEIC and AVIF.
+.SH SEE ALSO
+The tour of every feature: https://github.com/scrambletools/prev/blob/main/docs/GUIDE.md
+.SH BUGS
+Report bugs at https://github.com/scrambletools/prev/issues
+.SH LICENSE
+GNU Affero General Public License, version 3 or later.

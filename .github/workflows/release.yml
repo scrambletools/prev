@@ -1,0 +1,138 @@
+name: Release
+
+# A tag such as v1.0.0 builds every package and drafts a GitHub release
+# with them. Running the workflow by hand builds the same packages
+# without a release, to try the packaging.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  NFPM_VERSION: 2.43.0
+
+jobs:
+  packages:
+    # Built on an older system so the packages run on newer ones too.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang libclang-dev pkg-config libfontconfig1-dev libfreetype-dev \
+            libxkbcommon-dev libwayland-dev desktop-file-utils appstream \
+            file libfuse2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Version
+        id: version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ "${GITHUB_REF_TYPE}" = tag ] && [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match version $version in Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+      - name: Check the metadata
+        run: |
+          desktop-file-validate data/*.desktop
+          appstreamcli validate --no-net data/*.metainfo.xml
+      - name: Build
+        run: cargo build --release --locked -p prev
+        env:
+          PREV_PRODUCTION: '1'
+      - name: Stage
+        run: scripts/dist-install.sh target/release/prev stage /usr
+      - name: Debian and RPM packages
+        run: |
+          curl -sSLf -o nfpm.deb \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
+          sudo dpkg -i nfpm.deb
+          mkdir -p dist
+          export VERSION=${{ steps.version.outputs.version }}
+          ARCH=amd64 nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+          ARCH=x86_64 nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
+      - name: AppImage
+        run: |
+          curl -sSLf -o appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          APPIMAGE_EXTRACT_AND_RUN=1 APPIMAGETOOL=$PWD/appimagetool packaging/appimage/build.sh \
+            target/release/prev ${{ steps.version.outputs.version }} dist
+      - name: Plain binary
+        run: |
+          tar -C stage -czf dist/prev-${{ steps.version.outputs.version }}-x86_64-linux.tar.gz usr
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*
+
+  flatpak:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: prev.flatpak
+          manifest-path: packaging/flatpak/io.github.scrambletools.prev.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: prev.flatpak
+
+  aur:
+    # The AUR package builds from GitHub's source archive of the tag; its
+    # checksum is only known once the tag exists.
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: PKGBUILD with the source checksum
+        run: |
+          curl -sSLf -o source.tar.gz \
+            "https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
+          sum=$(sha256sum source.tar.gz | cut -d' ' -f1)
+          mkdir -p aur
+          sed "s/^sha256sums=('SKIP')/sha256sums=('$sum')/" packaging/arch/prev/PKGBUILD >aur/PKGBUILD
+          cp packaging/arch/prev/prev.install aur/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aur
+          path: aur/*
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [packages, flatpak, aur]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect files and notes
+        run: |
+          mkdir -p upload
+          cp artifacts/packages/* artifacts/flatpak/* upload/
+          cp artifacts/aur/PKGBUILD upload/PKGBUILD
+          (cd upload && sha256sum * >SHA256SUMS)
+          version=${GITHUB_REF_NAME#v}
+          # This version's section of the changelog, without its heading.
+          awk -v version="$version" '
+            /^## / { found = index($0, "[" version "]") > 0; next }
+            found' CHANGELOG.md >notes.md
+      - name: Draft the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" upload/* \
+            --draft --title "prev ${GITHUB_REF_NAME#v}" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

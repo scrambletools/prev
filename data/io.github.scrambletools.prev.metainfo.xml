@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.scrambletools.prev</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+
+  <name>prev</name>
+  <summary>View, mark up and sign PDFs and images</summary>
+
+  <developer id="io.github.scrambletools">
+    <name>Scramble Tools</name>
+  </developer>
+
+  <description>
+    <p>
+      prev is a fast document and image viewer and editor, modelled on
+      macOS Preview. It opens PDFs, images, camera RAW photos, SVG drawings
+      and Markdown, and edits them in place.
+    </p>
+    <ul>
+      <li>Read PDFs with continuous, single and two-page layouts, sharp at any zoom, with search, a table of contents, thumbnails and bookmarks</li>
+      <li>Mark up with Preview's tools: highlights, drawing, shapes, text boxes, notes and signatures, saved as standard annotations</li>
+      <li>Fill in forms, sign documents, and redact content for good</li>
+      <li>Reorder, rotate, insert, delete, crop and merge pages, and export to PDF or images</li>
+      <li>Edit photos: rotate, flip, crop, resize and adjust color, keeping their metadata, and mark them up</li>
+      <li>Drag and drop, copy and paste with other apps both ways</li>
+      <li>Autosave with versions kept, Material 3 design, and colors from the Omarchy theme</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.scrambletools.prev.desktop</launchable>
+
+  <url type="homepage">https://github.com/scrambletools/prev</url>
+  <url type="bugtracker">https://github.com/scrambletools/prev/issues</url>
+  <url type="vcs-browser">https://github.com/scrambletools/prev</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>A form filled in, marked up and signed</caption>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.0.0/docs/screenshots/markup.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Search with every match highlighted</caption>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.0.0/docs/screenshots/search.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Reordering pages in the thumbnails</caption>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.0.0/docs/screenshots/pages.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Adjusting the color of a photo</caption>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.0.0/docs/screenshots/image-editing.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Drawing a signature</caption>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.0.0/docs/screenshots/signature-draw.png</image>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#a9c4f5</color>
+    <color type="primary" scheme_preference="dark">#1e4aa8</color>
+  </branding>
+
+  <categories>
+    <category>Graphics</category>
+    <category>Viewer</category>
+  </categories>
+
+  <keywords>
+    <keyword>PDF</keyword>
+    <keyword>image</keyword>
+    <keyword>photo</keyword>
+    <keyword>annotate</keyword>
+    <keyword>sign</keyword>
+    <keyword>redact</keyword>
+  </keywords>
+
+  <provides>
+    <binary>prev</binary>
+  </provides>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="1.0.0" date="2026-09-27">
+      <description>
+        <p>The first release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

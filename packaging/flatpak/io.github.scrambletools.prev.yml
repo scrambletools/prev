@@ -1,0 +1,94 @@
+# Flatpak build of prev. From the repository root:
+#
+#   flatpak-builder --user --install --force-clean build-dir \
+#       packaging/flatpak/io.github.scrambletools.prev.yml
+#
+# cargo-sources.json lists every crate in Cargo.lock; regenerate it with
+# flatpak-builder-tools' flatpak-cargo-generator.py after changing
+# dependencies. For Flathub, the prev source below becomes a git source
+# pinned to the release tag.
+id: io.github.scrambletools.prev
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm18
+command: prev
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Edits are saved in place, dropped or opened files can be anywhere in
+  # the home folder, and the Omarchy theme is read from it.
+  - --filesystem=home
+  # Pictures dropped from a browser as a web address are fetched.
+  - --share=network
+
+modules:
+  # Copying and pasting images goes through wl-copy and wl-paste.
+  - name: wl-clipboard
+    buildsystem: meson
+    config-opts:
+      - -Dzshcompletiondir=no
+      - -Dfishcompletiondir=no
+    sources:
+      - type: archive
+        url: https://github.com/bugaevc/wl-clipboard/archive/refs/tags/v2.2.1.tar.gz
+        sha256: 6eb8081207fb5581d1d82c4bcd9587205a31a3d47bea3ebeb7f41aa1143783eb
+
+  # HEIC and AVIF, which prev loads at run time.
+  - name: libde265
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_SDL=OFF
+      - -DENABLE_DECODER=OFF
+      - -DENABLE_ENCODER=OFF
+    cleanup:
+      - /bin
+    sources:
+      - type: archive
+        url: https://github.com/strukturag/libde265/releases/download/v1.0.15/libde265-1.0.15.tar.gz
+        sha256: 00251986c29d34d3af7117ed05874950c875dd9292d016be29d3b3762666511d
+
+  - name: libheif
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DWITH_EXAMPLES=OFF
+      - -DWITH_GDK_PIXBUF=OFF
+      - -DBUILD_TESTING=OFF
+      - -DWITH_X265=OFF
+      - -DWITH_LIBDE265=ON
+      - -DWITH_DAV1D=ON
+      - -DWITH_AOM_ENCODER=OFF
+    cleanup:
+      - /bin
+      - /share/thumbnailers
+    sources:
+      - type: archive
+        url: https://github.com/strukturag/libheif/releases/download/v1.19.5/libheif-1.19.5.tar.gz
+        sha256: d3cf0a76076115a070f9bc87cf5259b333a1f05806500045338798486d0afbaf
+
+  - name: prev
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm18/lib
+      env:
+        CARGO_HOME: /run/build/prev/cargo
+        CARGO_NET_OFFLINE: 'true'
+        LIBCLANG_PATH: /usr/lib/sdk/llvm18/lib
+        PREV_PRODUCTION: '1'
+    build-commands:
+      - cargo --offline build --release --locked -p prev
+      - scripts/dist-install.sh target/release/prev "" /app
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - target
+          - .git
+      - cargo-sources.json

@@ -98,6 +98,12 @@ pub fn state_dir() -> Option<PathBuf> {
     xdg_dir("XDG_STATE_HOME", ".local/state").map(|dir| dir.join(APP_DIR))
 }
 
+/// `$XDG_CACHE_HOME/prev`, for files made for other apps, such as pages
+/// dragged out as a PDF.
+pub fn cache_dir() -> Option<PathBuf> {
+    xdg_dir("XDG_CACHE_HOME", ".cache").map(|dir| dir.join(APP_DIR))
+}
+
 /// `$XDG_RUNTIME_DIR/prev`, for the single instance socket.
 pub fn runtime_dir() -> Option<PathBuf> {
     env::var_os("XDG_RUNTIME_DIR")

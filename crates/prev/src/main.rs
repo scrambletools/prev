@@ -17,8 +17,49 @@ pub enum External {
 
 static EXTERNAL_EVENTS: Mutex<Option<UnboundedReceiver<External>>> = Mutex::new(None);
 
+const USAGE: &str = "\
+Usage: prev [FILE]...
+
+View and edit PDFs and images. Files open in windows of the running prev,
+which starts if needed.
+
+Options:
+  -h, --help     Show this help
+  -V, --version  Show the version
+";
+
 fn main() -> iced::Result {
-    let paths: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
+    let mut paths: Vec<PathBuf> = Vec::new();
+    let mut options_done = false;
+    for argument in std::env::args_os().skip(1) {
+        if !options_done {
+            match argument.to_str() {
+                Some("-h" | "--help") => {
+                    print!("{USAGE}");
+                    return Ok(());
+                }
+                Some("-V" | "--version") => {
+                    let build = if prev_store::paths::PRODUCTION {
+                        ""
+                    } else {
+                        " (development build)"
+                    };
+                    println!("prev {}{build}", env!("CARGO_PKG_VERSION"));
+                    return Ok(());
+                }
+                Some("--") => {
+                    options_done = true;
+                    continue;
+                }
+                Some(option) if option.starts_with('-') && option.len() > 1 => {
+                    eprintln!("prev: unknown option {option}\n\n{USAGE}");
+                    std::process::exit(2);
+                }
+                _ => {}
+            }
+        }
+        paths.push(PathBuf::from(argument));
+    }
     let (sender, receiver) = mpsc::unbounded();
 
     if let Some(socket) =

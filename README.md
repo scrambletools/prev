@@ -146,7 +146,59 @@ For a walkthrough of every feature with more screenshots, see
 
 ### Planned
 
-- **Release:** packages for Arch, Flatpak, AppImage, Debian and Fedora.
+- Publishing on Flathub.
+- Revert To for PDFs, as images have it.
+- Dragging annotations between documents.
+
+## Install
+
+prev runs on Linux under Wayland (X11 works too) and needs a Vulkan
+capable GPU driver. Each [release](https://github.com/scrambletools/prev/releases)
+has these packages:
+
+| System | How |
+|---|---|
+| Arch and Omarchy | `yay -S prev` from the AUR, or `prev-git` for the latest development |
+| Debian and Ubuntu | `sudo apt install ./prev_1.0.0-1_amd64.deb` |
+| Fedora | `sudo dnf install ./prev-1.0.0-1.x86_64.rpm` |
+| Flatpak | `flatpak install --user prev.flatpak` |
+| Any distribution | the AppImage: `chmod +x prev-1.0.0-x86_64.AppImage`, then run it |
+| Any distribution | `prev-1.0.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
+
+The packages suggest wl-clipboard, libheif and curl, which prev uses
+when they are installed (see [Building](#building)); the Flatpak has them
+built in. The Flatpak keeps its settings and data under
+`~/.var/app/io.github.scrambletools.prev`.
+
+### What differs between packages
+
+Every package has every feature. Some depend on where prev runs:
+
+- **Wayland or X11:** drag and drop, pasting images and copying an area
+  as an image need Wayland. Under X11, text still copies and pastes.
+- **HEIC and AVIF** need libheif with its decoders: on Debian and Ubuntu
+  the `libheif-plugin-*` packages, on Fedora `libheif-freeworld` from RPM
+  Fusion (Fedora's own libheif leaves out HEIC).
+- **Flatpak:** prev reaches the home folder; files elsewhere (other
+  drives, `/tmp`) open through the file dialog, but dropping them from
+  the file manager does not work. Its settings, signatures and versions
+  are its own, apart from a non-Flatpak install's.
+- **AppImage:** not wired into the desktop by itself, so there is no
+  launcher entry or "Open With" unless a tool such as AppImageLauncher
+  adds one. It needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12,
+  Fedora 36 and later), as do the .deb and .rpm.
+- **Holding Shift** during a drop from another app is seen only under
+  compositors that move keyboard focus with the pointer, such as
+  Hyprland.
+- Only x86_64 packages are built; on ARM, build from the AUR or source.
+
+On Omarchy, windows are slightly see-through by default, which dims
+photos and pages. `scripts/install.sh` adds a Hyprland rule keeping prev
+opaque; with a package, add it to `~/.config/hypr/hyprland.lua`:
+
+```lua
+o.window("^io\\.github\\.scrambletools\\.prev$", { tag = "-default-opacity", opacity = "1 1" })
+```
 
 ## Building
 
@@ -184,12 +236,16 @@ launcher and "Open With":
 ./scripts/install.sh
 ```
 
-This puts the binary in `~/.local/bin`. Settings are in
+This puts the binary in `~/.local/bin` and the desktop entry, icons and
+man page under `~/.local/share`, and on Omarchy adds the opacity rule
+above (set `PREV_NO_HYPRLAND=1` to skip it). Settings are in
 `~/.config/prev.toml`, which also says where signatures, version history
 and bookmarks are kept. Builds made with plain `cargo build` or
 `cargo run` are development builds: they keep their own settings
-(`~/.config/prev-dev.toml`) and data under `prev-dev`, show "(dev)" in window titles, and run alongside
-the installed copy without handing files to it.
+(`~/.config/prev-dev.toml`) and data under `prev-dev`, show "(dev)" in
+window titles, and run alongside the installed copy without handing files
+to it. Packages are built with `PREV_PRODUCTION=1`; see
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Keyboard shortcuts
 

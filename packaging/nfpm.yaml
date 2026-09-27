@@ -1,0 +1,61 @@
+# Debian and RPM packages, made with nfpm (https://nfpm.goreleaser.com)
+# from a tree staged by scripts/dist-install.sh:
+#
+#   scripts/dist-install.sh target/release/prev stage /usr
+#   VERSION=1.0.0 ARCH=amd64 nfpm package -f packaging/nfpm.yaml -p deb
+#   VERSION=1.0.0 ARCH=amd64 nfpm package -f packaging/nfpm.yaml -p rpm
+name: prev
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: 1
+section: graphics
+priority: optional
+maintainer: Scramble Tools <https://github.com/scrambletools>
+vendor: Scramble Tools
+homepage: https://github.com/scrambletools/prev
+license: AGPL-3.0-or-later
+description: |-
+  View, mark up and sign PDFs and images
+  prev is a document and image viewer and editor modelled on macOS
+  Preview: PDF reading, markup, forms, signatures, redaction and page
+  editing, photo editing with metadata kept, and drag and drop with other
+  apps.
+
+contents:
+  - src: ./stage/usr/
+    dst: /usr
+    type: tree
+
+overrides:
+  deb:
+    depends:
+      - libc6
+      - libgcc-s1
+      - libfontconfig1
+      - libwayland-client0
+      - libxkbcommon0
+      - libvulkan1
+    recommends:
+      - wl-clipboard
+      - libheif1
+      # Newer Debian and Ubuntu split libheif's decoders into plugins.
+      - libheif-plugin-libde265
+      - libheif-plugin-dav1d
+      - curl
+      - mesa-vulkan-drivers
+  rpm:
+    depends:
+      - fontconfig
+      - libwayland-client
+      - libxkbcommon
+      - vulkan-loader
+    recommends:
+      - wl-clipboard
+      - libheif
+      - curl
+      - mesa-vulkan-drivers
+
+rpm:
+  group: Applications/Graphics
+  summary: View, mark up and sign PDFs and images

@@ -1,0 +1,18 @@
+post_install() {
+    cat <<'NOTE'
+prev: optional helpers
+  wl-clipboard  copy and paste images
+  libheif       HEIC and AVIF images
+  curl          pictures dropped from a browser as a web address
+
+On Omarchy, windows are slightly see-through by default, which dims
+photos and pages. To keep prev opaque, add this line to
+~/.config/hypr/hyprland.lua:
+
+  o.window("^io\\.github\\.scrambletools\\.prev$", { tag = "-default-opacity", opacity = "1 1" })
+NOTE
+}
+
+post_upgrade() {
+    :
+}

@@ -3396,7 +3396,7 @@ checksum = "e8cf8e6a8aa66ce33f63993ffc4ea4271eb5b0530a9002db8455ea6050c77bfa"
 
 [[package]]
 name = "prev"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ashpd",
  "bytes",
@@ -3421,7 +3421,7 @@ dependencies = [
 
 [[package]]
 name = "prev-image"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bytes",
  "flate2",
@@ -3439,7 +3439,7 @@ dependencies = [
 
 [[package]]
 name = "prev-pdf"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures",
  "futures-channel",
@@ -3450,7 +3450,7 @@ dependencies = [
 
 [[package]]
 name = "prev-store"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "tempfile",
