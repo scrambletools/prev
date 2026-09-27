@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn paths_under_home_use_a_tilde() {
-        let home = std::env::var_os("HOME").map(PathBuf::from).unwrap();
+        let home = crate::paths::home().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("prev.toml");
         let settings = Settings {

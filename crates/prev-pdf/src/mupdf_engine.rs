@@ -28,8 +28,14 @@ pub struct MupdfEngine;
 
 impl Engine for MupdfEngine {
     fn open(&self, path: &Path) -> Result<Box<dyn Document>> {
-        let document =
-            PdfDocument::open(path.as_os_str()).map_err(|error| Error::Open(error.to_string()))?;
+        // MuPDF takes Windows paths as UTF-8 and widens them itself.
+        #[cfg(windows)]
+        let path = path
+            .to_str()
+            .ok_or_else(|| Error::Open(format!("{} is not a valid file name", path.display())))?;
+        #[cfg(not(windows))]
+        let path = path.as_os_str();
+        let document = PdfDocument::open(path).map_err(|error| Error::Open(error.to_string()))?;
         Ok(Box::new(MupdfDocument {
             document,
             rewrite: false,

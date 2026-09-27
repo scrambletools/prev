@@ -1,15 +1,14 @@
 //! Drag and drop, both ways: what drops onto prev bring, in the types
 //! Paste reads, and the drags prev starts, of pages, text and images.
-//! The Wayland side is in the vendored smithay-clipboard (`dnd`).
+//! The platform side is in `dnd`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::dnd;
+pub use crate::dnd::{Action, DragEvent, Icon};
 use prev_pdf::engine::Bitmap;
-use smithay_clipboard::dnd;
-
-pub use smithay_clipboard::dnd::{Action, DragEvent, Icon};
 
 use crate::paste::{IMAGE_TYPES, PAGES_TYPE, TEXT_TYPES};
 
@@ -167,9 +166,7 @@ fn web_name(uri: &str) -> String {
 /// The user's Downloads folder, as `user-dirs.dirs` names it, or
 /// `~/Downloads`, or the home folder.
 fn downloads_dir() -> PathBuf {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
+    let home = prev_store::paths::home().unwrap_or_else(std::env::temp_dir);
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| home.join(".config"));

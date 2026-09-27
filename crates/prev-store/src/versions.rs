@@ -46,6 +46,23 @@ fn now() -> u64 {
         .map_or(0, |elapsed| elapsed.as_secs())
 }
 
+/// The bytes of a path, for naming its version folder.
+#[cfg(unix)]
+fn path_bytes(path: &Path) -> Vec<u8> {
+    use std::os::unix::ffi::OsStrExt;
+    path.as_os_str().as_bytes().to_vec()
+}
+
+/// The UTF-16 units of a path, as little-endian bytes.
+#[cfg(windows)]
+fn path_bytes(path: &Path) -> Vec<u8> {
+    use std::os::windows::ffi::OsStrExt;
+    path.as_os_str()
+        .encode_wide()
+        .flat_map(u16::to_le_bytes)
+        .collect()
+}
+
 impl VersionStore {
     pub fn new(root: PathBuf) -> Self {
         Self { root }
@@ -56,11 +73,8 @@ impl VersionStore {
     }
 
     fn folder(&self, document: &Path) -> PathBuf {
-        use std::os::unix::ffi::OsStrExt;
-        self.root.join(format!(
-            "{:016x}",
-            stable_hash(document.as_os_str().as_bytes())
-        ))
+        self.root
+            .join(format!("{:016x}", stable_hash(&path_bytes(document))))
     }
 
     fn load_index(&self, document: &Path) -> Index {

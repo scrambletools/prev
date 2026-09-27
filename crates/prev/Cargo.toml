@@ -10,7 +10,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "open_uri", "print", "settings"] }
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 iced = { version = "0.14", features = ["advanced", "canvas", "highlighter", "image-without-codecs", "markdown"] }
@@ -20,7 +19,6 @@ material-colors = { version = "0.4", default-features = false, features = ["std"
 raw-window-handle = "0.6"
 resvg = "0.46"
 serde = { version = "1", features = ["derive"] }
-smithay-clipboard = "0.7"
 tempfile = "3"
 tiff = { version = "0.11", default-features = false, features = ["lzw"] }
 tiny-skia = "0.11"
@@ -30,3 +28,15 @@ prev-image.workspace = true
 prev-pdf.workspace = true
 prev-store.workspace = true
 
+
+# The desktop portal and Wayland drag and drop; Windows has its own side
+# in each module that uses them.
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "open_uri", "print", "settings"] }
+smithay-clipboard = "0.7"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+rfd = { version = "0.15", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }

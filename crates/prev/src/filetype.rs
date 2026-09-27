@@ -82,7 +82,7 @@ pub fn supported_mime_types() -> impl Iterator<Item = &'static str> {
     .copied()
 }
 
-const MARKDOWN_EXTENSIONS: &[&str] = &["md", "markdown", "mdown", "mkd", "mkdn"];
+pub const MARKDOWN_EXTENSIONS: &[&str] = &["md", "markdown", "mdown", "mkd", "mkdn"];
 
 pub fn detect_path(path: &Path) -> io::Result<Option<FileKind>> {
     let mut header = Vec::with_capacity(SNIFF_LEN);

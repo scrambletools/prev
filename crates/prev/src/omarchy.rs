@@ -1,6 +1,5 @@
 //! Reads the active Omarchy theme's palette and notices when it changes.
 
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -46,6 +45,14 @@ struct ColorsFile {
 }
 
 /// `~/.local/state/omarchy/current/theme`; Omarchy uses this fixed path.
+/// Omarchy is Linux only.
+#[cfg(not(unix))]
+pub fn current_theme_dir() -> Option<PathBuf> {
+    None
+}
+
+/// `~/.local/state/omarchy/current/theme`; Omarchy uses this fixed path.
+#[cfg(unix)]
 pub fn current_theme_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .map(|home| PathBuf::from(home).join(".local/state/omarchy/current/theme"))
@@ -112,7 +119,9 @@ fn luminance(color: Rgb) -> f32 {
 
 /// Identity of the colors file; changes when a theme is applied, because
 /// Omarchy swaps the whole theme directory.
+#[cfg(unix)]
 fn file_signature(theme_dir: &Path) -> Option<(u64, u64, i64, i64)> {
+    use std::os::unix::fs::MetadataExt;
     let metadata = std::fs::metadata(theme_dir.join("colors.toml")).ok()?;
     Some((
         metadata.ino(),
@@ -120,6 +129,12 @@ fn file_signature(theme_dir: &Path) -> Option<(u64, u64, i64, i64)> {
         metadata.mtime(),
         metadata.mtime_nsec(),
     ))
+}
+
+#[cfg(not(unix))]
+fn file_signature(theme_dir: &Path) -> Option<(u64, std::time::SystemTime)> {
+    let metadata = std::fs::metadata(theme_dir.join("colors.toml")).ok()?;
+    Some((metadata.len(), metadata.modified().ok()?))
 }
 
 /// Polls the theme on a background thread and calls `on_change` after it

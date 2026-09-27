@@ -1,10 +1,12 @@
 //! Shared pieces of the prev application.
 
 pub mod dialog;
+pub mod dnd;
 pub mod drag;
 pub mod filetype;
 pub mod image;
 pub mod info;
+#[cfg(unix)]
 pub mod instance;
 pub mod markdown;
 pub mod omarchy;
