@@ -214,17 +214,18 @@ mod tests {
         let home = crate::paths::home().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("prev.toml");
+        let versions = home.join("Archive").join("versions");
         let settings = Settings {
-            versions: home.join("Archive/versions"),
+            versions: versions.clone(),
             ..Settings::default()
         };
         settings.save_to(&path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains("versions = \"~/Archive/versions\""), "{text}");
-        assert_eq!(
-            Settings::load_from(&path).unwrap().versions,
-            home.join("Archive/versions")
-        );
+        // The separator after the tilde is the system's own.
+        let separator = std::path::MAIN_SEPARATOR.escape_default();
+        let written = format!("versions = \"~{separator}Archive{separator}versions\"");
+        assert!(text.contains(&written), "{text}");
+        assert_eq!(Settings::load_from(&path).unwrap().versions, versions);
     }
 
     #[test]
