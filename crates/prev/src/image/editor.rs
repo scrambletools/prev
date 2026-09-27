@@ -184,8 +184,8 @@ pub const EXPORT_FORMATS: &[(&str, &str, &str)] = &[
 /// point of the drawing).
 pub const SVG_SIZES: &[(&str, &str, f32)] = &[
     ("1", "Actual size", 1.0),
-    ("2", "Twice the size", 2.0),
-    ("4", "Four times the size", 4.0),
+    ("2", "2×", 2.0),
+    ("4", "4×", 4.0),
 ];
 
 pub fn svg_scale_for_choice(choice: &str) -> f32 {
@@ -193,15 +193,6 @@ pub fn svg_scale_for_choice(choice: &str) -> f32 {
         .iter()
         .find(|(id, ..)| *id == choice)
         .map_or(1.0, |(.., scale)| *scale)
-}
-
-/// The suggested name for an SVG drawing exported as a picture.
-pub fn svg_export_name(path: &Path) -> String {
-    let stem = path
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "drawing".into());
-    format!("{stem}.png")
 }
 
 /// JPEG quality choices as (choice id, menu label, quality).
@@ -266,6 +257,14 @@ pub fn extension_matches(path: &Path, format: SaveFormat) -> bool {
 }
 
 /// The menu label of a format choice, for messages.
+/// The file extension for an export format choice.
+pub fn format_extension(choice: &str) -> &'static str {
+    EXPORT_FORMATS
+        .iter()
+        .find(|(id, ..)| *id == choice)
+        .map_or("png", |(.., extension)| extension)
+}
+
 pub fn format_label(choice: &str) -> &'static str {
     EXPORT_FORMATS
         .iter()
@@ -273,18 +272,13 @@ pub fn format_label(choice: &str) -> &'static str {
         .map_or("image", |(_, label, _)| label)
 }
 
-/// The suggested export name for `path` in the suggested format.
-pub fn export_name(path: &Path, format: ImageFormat, animated: bool) -> String {
+/// The suggested export name for `path` in the format `choice`.
+pub fn export_name(path: &Path, choice: &str) -> String {
     let stem = path
         .file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
         .unwrap_or_else(|| "image".into());
-    let choice = default_format_choice(format, animated);
-    let extension = EXPORT_FORMATS
-        .iter()
-        .find(|(id, ..)| *id == choice)
-        .map_or("jpg", |(.., ext)| ext);
-    format!("{stem}.{extension}")
+    format!("{stem}.{}", format_extension(choice))
 }
 
 pub fn export(
@@ -451,13 +445,10 @@ mod tests {
         assert_eq!(default_format_choice(ImageFormat::Raw, false), "jpeg");
         assert_eq!(default_format_choice(ImageFormat::Png, false), "png");
         assert_eq!(default_format_choice(ImageFormat::Gif, true), "jpeg");
+        assert_eq!(export_name(Path::new("/p/IMG_1.CR2"), "jpeg"), "IMG_1.jpg");
         assert_eq!(
-            export_name(Path::new("/p/IMG_1.CR2"), ImageFormat::Raw, false),
-            "IMG_1.jpg"
-        );
-        assert_eq!(
-            export_name(Path::new("/p/shot.png"), ImageFormat::Png, false),
-            "shot.png"
+            export_name(Path::new("/p/drawing.svg"), "png"),
+            "drawing.png"
         );
         for (id, ..) in EXPORT_FORMATS {
             assert!(

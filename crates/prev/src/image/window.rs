@@ -243,6 +243,12 @@ pub enum Message {
     Revert(Version),
     Reverted(Result<(), String>),
     Export,
+    /// Choices in prev's export dialog, before the save dialog.
+    ExportFormat(&'static str),
+    ExportQuality(&'static str),
+    ExportSize(&'static str),
+    ExportChoose,
+    ExportCancel,
     ExportAsIs,
     ExportChooseAgain,
     ExportTarget(Result<Option<dialog::SavedWithMenus>, String>),
@@ -266,13 +272,21 @@ pub enum Message {
 
 /// An export waiting for the user to confirm a name whose extension does
 /// not match the chosen format.
+/// What prev's export dialog asks: the format, the JPEG quality and, for
+/// SVG drawings, the size.
+#[derive(Debug, Clone)]
+struct ExportChoice {
+    format: String,
+    quality: String,
+    size: String,
+    open: bool,
+}
+
 struct PendingExport {
     path: PathBuf,
     format: SaveFormat,
     format_choice: String,
-    quality_choice: String,
-    /// For SVG drawings: the chosen size and how many pixels per point.
-    size_choice: Option<String>,
+    /// For SVG drawings: how many pixels per point of the drawing.
     scale: Option<f32>,
 }
 
@@ -310,6 +324,9 @@ pub struct ImageWindow {
     keep_proportions: bool,
     inspector: Option<Inspector>,
     pending_export: Option<PendingExport>,
+    /// The export choices, kept for the next export from this window, and
+    /// whether their dialog is showing.
+    export_choice: Option<ExportChoice>,
     notice: Option<String>,
     /// Asking whether to close with markup not exported.
     close_prompt: bool,
@@ -451,6 +468,7 @@ impl ImageWindow {
             keep_proportions: true,
             inspector: None,
             pending_export: None,
+            export_choice: None,
             notice: None,
             close_prompt: false,
             closing: false,
@@ -872,28 +890,22 @@ impl ImageWindow {
                 Task::none()
             }
             Message::Export => self.export(),
-            Message::ExportTarget(Ok(Some((chosen, choices)))) => {
-                let selected = |menu: &str| {
-                    choices
-                        .iter()
-                        .find(|(id, _)| id == menu)
-                        .map(|(_, value)| value.clone())
+            Message::ExportTarget(Ok(Some((chosen, _)))) => {
+                let Some(choice) = self.export_choice.clone() else {
+                    return Task::none();
                 };
-                let format_choice = selected("format").unwrap_or_else(|| "png".into());
-                let quality_choice =
-                    selected("quality").unwrap_or_else(|| editor::DEFAULT_QUALITY_CHOICE.into());
+                let format_choice = choice.format;
+                let quality_choice = choice.quality;
                 let Some(format) = editor::format_for_choice(&format_choice, &quality_choice)
                 else {
                     return Task::none();
                 };
-                let size_choice = selected("size");
-                let scale = size_choice.as_deref().map(editor::svg_scale_for_choice);
+                let svg = matches!(self.items[self.current].source, Source::Svg);
+                let scale = svg.then(|| editor::svg_scale_for_choice(&choice.size));
                 let pending = PendingExport {
                     path: chosen,
                     format,
                     format_choice,
-                    quality_choice,
-                    size_choice,
                     scale,
                 };
                 if editor::extension_matches(&pending.path, format) {
@@ -902,6 +914,36 @@ impl ImageWindow {
                 // Ask before saving under a name that does not fit the format.
                 self.pending_export = Some(pending);
                 Task::none()
+            }
+            Message::ExportFormat(format) => {
+                if let Some(choice) = &mut self.export_choice {
+                    choice.format = format.to_owned();
+                }
+                Task::none()
+            }
+            Message::ExportQuality(quality) => {
+                if let Some(choice) = &mut self.export_choice {
+                    choice.quality = quality.to_owned();
+                }
+                Task::none()
+            }
+            Message::ExportSize(size) => {
+                if let Some(choice) = &mut self.export_choice {
+                    choice.size = size.to_owned();
+                }
+                Task::none()
+            }
+            Message::ExportCancel => {
+                if let Some(choice) = &mut self.export_choice {
+                    choice.open = false;
+                }
+                Task::none()
+            }
+            Message::ExportChoose => {
+                if let Some(choice) = &mut self.export_choice {
+                    choice.open = false;
+                }
+                self.open_export_dialog(None, None)
             }
             Message::ExportAsIs => match self.pending_export.take() {
                 Some(pending) => self.run_export(pending),
@@ -914,9 +956,6 @@ impl ImageWindow {
                         .file_name()
                         .map(|name| name.to_string_lossy().into_owned()),
                     pending.path.parent().map(Path::to_path_buf),
-                    Some(pending.format_choice),
-                    Some(pending.quality_choice),
-                    pending.size_choice,
                 ),
                 None => Task::none(),
             },
@@ -1429,70 +1468,39 @@ impl ImageWindow {
         let Some(shown) = self.shown() else {
             return Task::none();
         };
-        if matches!(self.items[self.current].source, Source::Svg) {
-            return self.open_export_dialog(None, None, None, None, None);
-        }
-        if !shown.is_editable() {
-            self.notice = Some("Animations can't be exported yet.".into());
-            return Task::none();
-        }
-        self.open_export_dialog(None, None, None, None, None)
+        let format = match self.items[self.current].source {
+            Source::Svg => "png",
+            Source::Raster(_) if !shown.is_editable() => {
+                self.notice = Some("Animations can't be exported yet.".into());
+                return Task::none();
+            }
+            Source::Raster(format) => editor::default_format_choice(format, false),
+        };
+        let choice = self.export_choice.get_or_insert_with(|| ExportChoice {
+            format: format.to_owned(),
+            quality: editor::DEFAULT_QUALITY_CHOICE.to_owned(),
+            size: editor::SVG_SIZES[0].0.to_owned(),
+            open: false,
+        });
+        choice.open = true;
+        Task::none()
     }
 
-    /// Opens the save dialog with the Format and JPEG quality menus.
-    /// `None` arguments fall back to the suggestions for the current image.
+    /// Opens the save dialog, suggesting a name with the chosen format's
+    /// extension, or `name` in `folder` when choosing again.
     fn open_export_dialog(
         &mut self,
         name: Option<String>,
         folder: Option<PathBuf>,
-        format_choice: Option<String>,
-        quality_choice: Option<String>,
-        size_choice: Option<String>,
     ) -> Task<Message> {
-        let item = &self.items[self.current];
-        // SVG drawings export as pictures, PNG unless chosen otherwise.
-        let (name_default, format_default) = match item.source {
-            Source::Raster(format) => (
-                editor::export_name(&item.path, format, false),
-                editor::default_format_choice(format, false),
-            ),
-            Source::Svg => (editor::svg_export_name(&item.path), "png"),
-        };
-        let name = name.unwrap_or(name_default);
-        let mut menus = vec![
-            dialog::Menu {
-                id: "format",
-                label: "Format",
-                initial: format_choice.unwrap_or_else(|| format_default.to_owned()),
-                options: editor::EXPORT_FORMATS
-                    .iter()
-                    .map(|(id, label, _)| (*id, *label))
-                    .collect(),
-            },
-            dialog::Menu {
-                id: "quality",
-                label: "JPEG quality",
-                initial: quality_choice
-                    .unwrap_or_else(|| editor::DEFAULT_QUALITY_CHOICE.to_owned()),
-                options: editor::JPEG_QUALITIES
-                    .iter()
-                    .map(|(id, label, _)| (*id, *label))
-                    .collect(),
-            },
-        ];
-        if matches!(item.source, Source::Svg) {
-            menus.push(dialog::Menu {
-                id: "size",
-                label: "Size",
-                initial: size_choice.unwrap_or_else(|| editor::SVG_SIZES[0].0.to_owned()),
-                options: editor::SVG_SIZES
-                    .iter()
-                    .map(|(id, label, _)| (*id, *label))
-                    .collect(),
-            });
-        }
+        let format = self
+            .export_choice
+            .as_ref()
+            .map_or("png", |choice| choice.format.as_str());
+        let name =
+            name.unwrap_or_else(|| editor::export_name(&self.items[self.current].path, format));
         Task::perform(
-            dialog::save_file_with_menus("Export".into(), name, folder, menus),
+            dialog::save_file_with_menus("Export".into(), name, folder, Vec::new()),
             Message::ExportTarget,
         )
     }
@@ -1593,6 +1601,7 @@ impl ImageWindow {
             Action::AdjustColor => self.update(Message::TogglePanel(Panel::AdjustColor)),
             Action::Inspector => self.update(Message::TogglePanel(Panel::Inspector)),
             Action::Export => self.export(),
+            Action::Escape if self.export_dialog_open() => self.update(Message::ExportCancel),
             Action::Escape if self.overflow_open => {
                 self.overflow_open = false;
                 Task::none()
@@ -1715,6 +1724,7 @@ impl ImageWindow {
         let shown = self.pointer_inside
             || self.overflow_open
             || self.pending_export.is_some()
+            || self.export_dialog_open()
             || self.close_prompt
             || self.markup_holds_bars();
         let page = container(component::window_bars(
@@ -1734,12 +1744,60 @@ impl ImageWindow {
             Some(pending) => self.export_prompt(page, pending),
             None => page,
         };
+        let page = match self.export_choice.as_ref().filter(|choice| choice.open) {
+            Some(choice) => self.export_dialog_view(page, choice),
+            None => page,
+        };
         let page = if self.close_prompt {
             self.close_prompt_view(page)
         } else {
             page
         };
         iced::widget::stack![page, overlay].into()
+    }
+
+    fn export_dialog_open(&self) -> bool {
+        self.export_choice
+            .as_ref()
+            .is_some_and(|choice| choice.open)
+    }
+
+    /// prev's export dialog: the format, the JPEG quality and, for SVG
+    /// drawings, the size.
+    fn export_dialog_view<'a>(
+        &'a self,
+        page: Element<'a, Message>,
+        choice: &'a ExportChoice,
+    ) -> Element<'a, Message> {
+        let sizes = self
+            .shown()
+            .and_then(|shown| shown.image.svg.as_ref())
+            .map(|svg| {
+                let scale = svg.effective_scale(editor::svg_scale_for_choice(&choice.size));
+                let (width, height) = svg.size();
+                ui::export::Sizes {
+                    options: editor::SVG_SIZES,
+                    chosen: &choice.size,
+                    note: format!(
+                        "{:.0} × {:.0} pixels",
+                        (width * scale).round(),
+                        (height * scale).round()
+                    ),
+                }
+            });
+        ui::export::dialog(
+            page,
+            ui::export::Dialog {
+                format: &choice.format,
+                quality: &choice.quality,
+                sizes,
+                on_format: Message::ExportFormat,
+                on_quality: Message::ExportQuality,
+                on_size: Message::ExportSize,
+                on_cancel: Message::ExportCancel,
+                on_choose: Message::ExportChoose,
+            },
+        )
     }
 
     fn export_prompt<'a>(
