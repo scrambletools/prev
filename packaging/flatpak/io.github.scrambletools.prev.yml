@@ -5,8 +5,8 @@
 #
 # cargo-sources.json lists every crate in Cargo.lock; regenerate it with
 # flatpak-builder-tools' flatpak-cargo-generator.py after changing
-# dependencies. For Flathub, the prev source below becomes a git source
-# pinned to the release tag.
+# dependencies. The release workflow builds it into the prev.flatpak
+# bundle attached to each release.
 id: io.github.scrambletools.prev
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'

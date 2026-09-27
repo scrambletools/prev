@@ -146,7 +146,6 @@ For a walkthrough of every feature with more screenshots, see
 
 ### Planned
 
-- Publishing on Flathub.
 - Revert To for PDFs, as images have it.
 - Dragging annotations between documents.
 
@@ -179,7 +178,9 @@ This builds prev from the release's source, which takes a few minutes
 
 The packages suggest wl-clipboard, libheif and curl, which prev uses
 when they are installed (see [Building](#building)); the Flatpak has them
-built in. The Flatpak keeps its settings and data under
+built in. prev is not on Flathub, but its Flatpak takes the Freedesktop
+runtime from there and offers to add the Flathub remote when it is
+missing. The Flatpak keeps its settings and data under
 `~/.var/app/io.github.scrambletools.prev`.
 
 ### What differs between packages

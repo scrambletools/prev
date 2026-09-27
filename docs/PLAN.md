@@ -408,7 +408,7 @@ smaller tile cache saved little memory and cost CPU in re-rendering.
 - On every push and PR: `cargo fmt --check`, `cargo clippy -D warnings`,
   `cargo test`, `cargo deny check`, render regression suite.
 - On tags: build release artifacts (AppImage, .deb, .rpm), update the AUR
-  package, publish the Flatpak manifest.
+  package, attach the Flatpak bundle.
 
 ## Milestones
 

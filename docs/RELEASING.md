@@ -44,11 +44,8 @@ copy: settings in `~/.config/prev.toml`, data under `prev`, app id
    `packaging/arch/prev/prev.install`, run `makepkg --printsrcinfo >.SRCINFO`,
    build it once with `makepkg`, commit and push. `prev-git` needs this
    only when its PKGBUILD changes.
-7. Flathub (first time): open a pull request against
-   `flathub/flathub` adding the manifest, with the prev source changed to
-   a `git` source pinned to the tag and commit, and `cargo-sources.json`
-   beside it. Later releases go to the `flathub/io.github.scrambletools.prev`
-   repository Flathub creates.
+7. The Flatpak is offered only as `prev.flatpak` on the release; prev is
+   not published on Flathub.
 
 ## The Hyprland rule
 
