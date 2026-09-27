@@ -121,7 +121,7 @@ For a walkthrough of every feature with more screenshots, see
   other image formats at one, two or four times their size.
 - **Markdown** with tables, task lists, syntax highlighted code and images;
   reloads when the file changes on disk. Text size, search and an
-  inspector, as in the other windows.
+  inspector, as in the other windows, and export as a picture.
 - **Material Design 3 interface:** an
   [M3 Expressive](https://m3.material.io) look with Roboto Flex, Material
   Symbols icons, spring motion and keyboard focus (Tab and Shift+Tab).

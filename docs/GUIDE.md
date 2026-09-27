@@ -207,7 +207,10 @@ text larger or smaller (Ctrl+= and Ctrl+-, Ctrl+0 for the normal size),
 searches the document (Ctrl+F, then Enter or the arrows for the next and
 previous match) and opens the Inspector with the file's details and word
 count. Code is colored to suit the light or dark look, and pictures show
-at their own size, shrunk only to fit the page.
+at their own size, shrunk only to fit the page. Export saves the whole
+document as one picture, in any of the image formats, at its actual size
+or twice as sharp; very long documents are scaled down to fit the
+16,383 pixel height some formats allow.
 
 ## Drag and drop
 

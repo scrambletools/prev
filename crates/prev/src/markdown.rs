@@ -5,7 +5,7 @@
 mod code;
 mod find;
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,9 +21,9 @@ use iced::{Center, Element, Fill, Padding, Task, Theme, padding};
 
 use crate::filetype::{self, FileKind};
 use crate::info;
-use crate::portal;
 use crate::shortcuts::Action;
 use crate::ui::{self, Icon, Type, button, component, style};
+use crate::{dialog, portal};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(700);
 /// Widest the text runs at the normal size; it grows with the text.
@@ -32,6 +32,10 @@ const MAX_WIDTH: f32 = 860.0;
 const SIZES: &[f32] = &[10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 32.0, 40.0];
 const NORMAL_SIZE: usize = 3;
 const SEARCH_WIDTH: f32 = 240.0;
+/// Sizes a document exports at, as (choice id, label, pixels per point).
+const PICTURE_SIZES: &[(&str, &str, f32)] = &[("1", "Actual size", 1.0), ("2", "2×", 2.0)];
+/// The longest side a picture may have; WebP allows no more.
+const PICTURE_SIDE: f32 = 16383.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -53,6 +57,25 @@ pub enum Message {
     /// Handled by the app, as in the other windows.
     ToggleFloatingBars,
     OpenSettings,
+    /// Exporting the document as a picture: the dialog and its choices,
+    /// the save dialog, and the result.
+    Export,
+    ExportFormat(&'static str),
+    ExportQuality(&'static str),
+    ExportSize(&'static str),
+    ExportCancel,
+    ExportChoose,
+    ExportTarget(Result<Option<PathBuf>, String>),
+    Exported(Result<PathBuf, String>),
+}
+
+/// The export choices, kept for the next export from the window.
+#[derive(Debug, Clone)]
+struct ExportChoice {
+    format: String,
+    quality: String,
+    size: String,
+    open: bool,
 }
 
 /// Changes the app applies on the window's behalf.
@@ -82,6 +105,14 @@ pub struct MarkdownWindow {
     pointer_inside: bool,
     scroll_id: Id,
     search_id: Id,
+    export: Option<ExportChoice>,
+    /// The document's height at the normal text size, measured when the
+    /// export dialog opens, for the size it shows.
+    export_height: f32,
+    /// The theme the window was last drawn in, which pictures are drawn in.
+    theme: RefCell<Option<Theme>>,
+    /// Matches counted while drawing a picture, which has none marked.
+    picture_found: Cell<usize>,
 }
 
 impl Drop for MarkdownWindow {
@@ -214,6 +245,10 @@ impl MarkdownWindow {
             pointer_inside: true,
             scroll_id: Id::unique(),
             search_id: Id::unique(),
+            export: None,
+            export_height: 0.0,
+            theme: RefCell::new(None),
+            picture_found: Cell::new(0),
         };
         let load = Task::perform(read(path.clone()), |result| {
             Message::Loaded(result.unwrap_or_else(|_| Err("reading stopped".into())))
@@ -310,6 +345,68 @@ impl MarkdownWindow {
                 Task::none()
             }
             Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
+            Message::Export => {
+                if self.items.is_empty() {
+                    return Task::none();
+                }
+                self.export_height = self.measure().unwrap_or(0.0);
+                let choice = self.export.get_or_insert_with(|| ExportChoice {
+                    format: "png".to_owned(),
+                    quality: crate::image::editor::DEFAULT_QUALITY_CHOICE.to_owned(),
+                    size: PICTURE_SIZES[1].0.to_owned(),
+                    open: false,
+                });
+                choice.open = true;
+                Task::none()
+            }
+            Message::ExportFormat(format) => {
+                if let Some(choice) = &mut self.export {
+                    choice.format = format.to_owned();
+                }
+                Task::none()
+            }
+            Message::ExportQuality(quality) => {
+                if let Some(choice) = &mut self.export {
+                    choice.quality = quality.to_owned();
+                }
+                Task::none()
+            }
+            Message::ExportSize(size) => {
+                if let Some(choice) = &mut self.export {
+                    choice.size = size.to_owned();
+                }
+                Task::none()
+            }
+            Message::ExportCancel => {
+                if let Some(choice) = &mut self.export {
+                    choice.open = false;
+                }
+                Task::none()
+            }
+            Message::ExportChoose => {
+                let Some(choice) = &mut self.export else {
+                    return Task::none();
+                };
+                choice.open = false;
+                let name = crate::image::editor::export_name(&self.path, &choice.format);
+                Task::perform(
+                    dialog::save_file("Export".into(), name),
+                    Message::ExportTarget,
+                )
+            }
+            Message::ExportTarget(Ok(Some(target))) => self.export_to(target),
+            Message::ExportTarget(Ok(None)) => Task::none(),
+            Message::ExportTarget(Err(error)) => {
+                self.notice = Some(format!("Could not show the save dialog: {error}"));
+                Task::none()
+            }
+            Message::Exported(result) => {
+                self.notice = Some(match result {
+                    Ok(path) => format!("Exported {}", path.display()),
+                    Err(error) => error,
+                });
+                Task::none()
+            }
         }
     }
 
@@ -343,6 +440,8 @@ impl MarkdownWindow {
             Action::FindNext => self.update(Message::NextMatch),
             Action::FindPrevious => self.update(Message::PreviousMatch),
             Action::Inspector => self.update(Message::ToggleInspector),
+            Action::Export => self.update(Message::Export),
+            Action::Escape if self.export_open() => self.update(Message::ExportCancel),
             Action::Escape if self.inspector => {
                 self.inspector = false;
                 Task::none()
@@ -397,34 +496,180 @@ impl MarkdownWindow {
             self.toolbar(),
             None,
             content.into(),
-            self.pointer_inside,
+            self.pointer_inside || self.export_open(),
         ))
         .width(Fill)
         .height(Fill)
         .style(style::surface);
-        match &self.notice {
+        let page: Element<'_, Message> = match &self.notice {
             Some(notice) => component::snackbar(page, notice, Message::DismissNotice),
             None => page.into(),
+        };
+        match self.export.as_ref().filter(|choice| choice.open) {
+            Some(choice) => self.export_dialog(page, choice),
+            None => page,
         }
     }
 
-    fn document(&self, theme: &Theme) -> Element<'_, Message> {
+    fn export_open(&self) -> bool {
+        self.export.as_ref().is_some_and(|choice| choice.open)
+    }
+
+    fn export_dialog<'a>(
+        &'a self,
+        page: Element<'a, Message>,
+        choice: &'a ExportChoice,
+    ) -> Element<'a, Message> {
+        let (width, height) = self.picture_size(picture_scale(&choice.size));
+        ui::export::dialog(
+            page,
+            ui::export::Dialog {
+                format: &choice.format,
+                quality: &choice.quality,
+                sizes: Some(ui::export::Sizes {
+                    options: PICTURE_SIZES,
+                    chosen: &choice.size,
+                    note: format!("The whole document, {width:.0} × {height:.0} pixels"),
+                }),
+                on_format: Message::ExportFormat,
+                on_quality: Message::ExportQuality,
+                on_size: Message::ExportSize,
+                on_cancel: Message::ExportCancel,
+                on_choose: Message::ExportChoose,
+            },
+        )
+    }
+
+    /// The picture's size in pixels at `scale`, scaled down to the longest
+    /// side a picture may have.
+    fn picture_size(&self, scale: f32) -> (f32, f32) {
+        let scale = fitting_scale(self.export_height, scale);
+        (
+            (MAX_WIDTH * self.zoom() * scale).round(),
+            (self.export_height * scale).round(),
+        )
+    }
+
+    /// The document as the picture draws it: the page at its full width
+    /// on the page color, without matches marked.
+    fn picture_page(&self, theme: &Theme) -> Element<'_, Message> {
+        container(self.rendered(theme, "", &self.picture_found))
+            .width(MAX_WIDTH * self.zoom())
+            .padding([32, 40])
+            .style(style::surface)
+            .into()
+    }
+
+    /// How tall the picture is, in points.
+    fn measure(&self) -> Option<f32> {
+        let theme = self.theme.borrow().clone()?;
+        let renderer = picture_renderer()?;
+        let mut page = self.picture_page(&theme);
+        let mut tree = iced::advanced::widget::Tree::new(&page);
+        let node = page.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &iced::advanced::layout::Limits::new(
+                iced::Size::ZERO,
+                iced::Size::new(MAX_WIDTH * self.zoom(), f32::INFINITY),
+            ),
+        );
+        Some(node.size().height.ceil())
+    }
+
+    /// Draws the document into a picture and saves it at `target`.
+    fn export_to(&mut self, target: PathBuf) -> Task<Message> {
+        let Some(choice) = self.export.clone() else {
+            return Task::none();
+        };
+        let Some(format) = crate::image::editor::format_for_choice(&choice.format, &choice.quality)
+        else {
+            return Task::none();
+        };
+        let frame = match self.draw_picture(picture_scale(&choice.size)) {
+            Ok(frame) => frame,
+            Err(error) => {
+                self.notice = Some(error);
+                return Task::none();
+            }
+        };
+        let original = self.path.clone();
+        Task::perform(
+            crate::image::editor::spawn(move || {
+                crate::image::editor::export(&original, &frame, &target, format).map(|()| target)
+            }),
+            |result| Message::Exported(result.unwrap_or_else(|_| Err("exporting stopped".into()))),
+        )
+    }
+
+    fn draw_picture(&self, scale: f32) -> Result<prev_image::decode::Frame, String> {
+        use iced::advanced::renderer::Headless;
+        let failed = || "Could not draw the document".to_owned();
+        let theme = self.theme.borrow().clone().ok_or_else(failed)?;
+        let mut renderer = picture_renderer().ok_or_else(failed)?;
+        let height = self.measure().ok_or_else(failed)?;
+        let width = MAX_WIDTH * self.zoom();
+        let scale = fitting_scale(height, scale);
+        let bounds = iced::Size::new(width, height);
+        let mut ui = iced_runtime::UserInterface::build(
+            self.picture_page(&theme),
+            bounds,
+            iced_runtime::user_interface::Cache::default(),
+            &mut renderer,
+        );
+        let scheme = ui::Scheme::of(&theme);
+        ui.draw(
+            &mut renderer,
+            &theme,
+            &iced::advanced::renderer::Style {
+                text_color: scheme.on_surface,
+            },
+            iced::mouse::Cursor::Unavailable,
+        );
+        let size = iced::Size::new(
+            (width * scale).round() as u32,
+            (height * scale).round() as u32,
+        );
+        // Text is drawn from paragraphs the interface owns, so it must still
+        // be alive when the picture is taken.
+        let pixels = renderer.screenshot(size, scale, scheme.surface);
+        drop(ui);
+        Ok(prev_image::decode::Frame {
+            width: size.width,
+            height: size.height,
+            pixels,
+            delay: Duration::ZERO,
+        })
+    }
+
+    /// The rendered document, with the matches of `query` marked.
+    fn rendered<'a>(
+        &'a self,
+        theme: &Theme,
+        query: &'a str,
+        found: &'a Cell<usize>,
+    ) -> Element<'a, Message> {
         let scheme = ui::Scheme::of(theme);
-        let zoom = self.zoom();
         let viewer = Viewer {
             images: &self.images,
             finder: find::Finder::new(
-                &self.query,
+                query,
                 self.current,
-                &self.found,
+                found,
                 ui::faded(scheme.tertiary, 0.35),
                 ui::faded(scheme.primary, 0.6),
             ),
             highlights: &self.highlights,
             dark: scheme.dark,
-            zoom,
+            zoom: self.zoom(),
         };
-        let document = markdown::view_with(&self.items, settings(theme, SIZES[self.size]), &viewer);
+        markdown::view_with(&self.items, settings(theme, SIZES[self.size]), &viewer)
+    }
+
+    fn document(&self, theme: &Theme) -> Element<'_, Message> {
+        *self.theme.borrow_mut() = Some(theme.clone());
+        let zoom = self.zoom();
+        let document = self.rendered(theme, &self.query, &self.found);
         let top = 32.0 + component::floating_room(true);
         let page = container(document)
             .max_width(MAX_WIDTH * zoom)
@@ -511,6 +756,12 @@ impl MarkdownWindow {
                 self.inspector,
                 Message::ToggleInspector,
             )]),
+            component::tip(
+                ui::icon_button(Icon::FileExport)
+                    .kind(button::Kind::Tonal)
+                    .on_press_maybe((!self.items.is_empty()).then_some(Message::Export)),
+                "Export",
+            ),
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
                 component::tool(Icon::Settings, "Settings", Some(Message::OpenSettings)),
@@ -554,6 +805,33 @@ fn settings(theme: &Theme, size: f32) -> markdown::Settings {
         ..markdown::Style::from(theme)
     };
     markdown::Settings::with_text_size(size, style)
+}
+
+fn picture_scale(choice: &str) -> f32 {
+    PICTURE_SIZES
+        .iter()
+        .find(|(id, ..)| *id == choice)
+        .map_or(1.0, |(.., scale)| *scale)
+}
+
+/// `scale`, or less, so a picture `height` points tall fits the longest
+/// side a picture may have.
+fn fitting_scale(height: f32, scale: f32) -> f32 {
+    if height * scale > PICTURE_SIDE {
+        PICTURE_SIDE / height
+    } else {
+        scale
+    }
+}
+
+/// A renderer that draws on the CPU, into pictures rather than a window.
+fn picture_renderer() -> Option<iced::Renderer> {
+    use iced::advanced::renderer::Headless;
+    iced::futures::executor::block_on(iced::Renderer::new(
+        ui::font::TEXT,
+        iced::Pixels(16.0),
+        Some("tiny-skia"),
+    ))
 }
 
 struct Viewer<'a> {
@@ -707,6 +985,13 @@ mod tests {
         assert_eq!(local_target(document, "https://example.org/a.png"), None);
         assert_eq!(local_target(document, "mailto:someone@example.org"), None);
         assert_eq!(local_target(document, "#heading"), None);
+    }
+
+    #[test]
+    fn tall_pictures_scale_down_to_fit() {
+        assert_eq!(fitting_scale(1000.0, 2.0), 2.0);
+        assert_eq!(fitting_scale(16383.0, 2.0), 1.0);
+        assert!(fitting_scale(40000.0, 1.0) * 40000.0 <= PICTURE_SIDE);
     }
 
     #[test]
