@@ -221,10 +221,10 @@ mod tests {
         };
         settings.save_to(&path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        // The separator after the tilde is the system's own.
-        let separator = std::path::MAIN_SEPARATOR.escape_default();
-        let written = format!("versions = \"~{separator}Archive{separator}versions\"");
-        assert!(text.contains(&written), "{text}");
+        // Written from the tilde, with the system's own separators.
+        let table: toml::Table = toml::from_str(&text).unwrap();
+        let written = Path::new("~").join("Archive").join("versions");
+        assert_eq!(table["versions"].as_str(), written.to_str(), "{text}");
         assert_eq!(Settings::load_from(&path).unwrap().versions, versions);
     }
 
