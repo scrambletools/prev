@@ -193,9 +193,18 @@ you haven't exported asks first, with a button to export.
 
 ## SVG and Markdown
 
-SVG drawings open sharp at any zoom. Markdown files show with tables,
-task lists, syntax highlighted code and images, and reload when the file
-changes on disk.
+SVG drawings open sharp at any zoom, in the image window. They can't be
+edited, so the tools that change pixels are greyed out, but Export saves
+the drawing as a picture in any of the image formats, at its actual size
+or two or four times larger (the Size menu in the save dialog).
+
+Markdown files show with tables, task lists, syntax highlighted code and
+images, and reload when the file changes on disk. The toolbar makes the
+text larger or smaller (Ctrl+= and Ctrl+-, Ctrl+0 for the normal size),
+searches the document (Ctrl+F, then Enter or the arrows for the next and
+previous match) and opens the Inspector with the file's details and word
+count. Code is colored to suit the light or dark look, and pictures show
+at their own size, shrunk only to fit the page.
 
 ## Drag and drop
 

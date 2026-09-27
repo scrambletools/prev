@@ -33,6 +33,15 @@ pub fn surface_container(theme: &Theme) -> container::Style {
     filled(scheme.surface_container, scheme.on_surface)
 }
 
+/// A Markdown code block: a rounded panel a step above the page.
+pub fn code_block(theme: &Theme) -> container::Style {
+    let scheme = Scheme::of(theme);
+    container::Style {
+        border: iced::border::rounded(super::shape::SMALL),
+        ..filled(scheme.surface_container_high, scheme.on_surface)
+    }
+}
+
 /// A modal dialog.
 pub fn dialog(theme: &Theme) -> container::Style {
     let scheme = Scheme::of(theme);
