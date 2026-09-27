@@ -57,7 +57,30 @@ pub fn set_prefer_move(prefer: bool) {
     PREFER_MOVE.store(prefer, Ordering::Relaxed);
 }
 
+/// TEMPORARY: logs drag and drop steps next to prev.exe in development
+/// builds, while Windows drag and drop is being brought up.
+fn trace(message: &str) {
+    if prev_store::paths::PRODUCTION {
+        return;
+    }
+    use std::io::Write;
+    let Some(folder) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+    else {
+        return;
+    };
+    if let Ok(mut log) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(folder.join("dnd.log"))
+    {
+        let _ = writeln!(log, "{message}");
+    }
+}
+
 fn emit(event: DragEvent) {
+    trace(&format!("emit {:?}", short(&event)));
     if let Ok(handler) = HANDLER.read()
         && let Some(handler) = handler.as_ref()
     {
@@ -98,7 +121,20 @@ fn formatetc(format: u16, index: i32, tymed: u32) -> FORMATETC {
 /// Makes OLE usable on this thread; repeated calls do nothing more.
 fn ensure_ole() {
     // SAFETY: no reserved pointer; the UI thread is single threaded.
-    let _ = unsafe { OleInitialize(None) };
+    let result = unsafe { OleInitialize(None) };
+    trace(&format!("OleInitialize {result:?}"));
+}
+
+/// A drag event without its data, for the trace.
+fn short(event: &DragEvent) -> String {
+    match event {
+        DragEvent::Dropped {
+            mime, data, x, y, ..
+        } => {
+            format!("Dropped {mime} {} bytes at {x:.0},{y:.0}", data.len())
+        }
+        other => format!("{other:?}"),
+    }
 }
 
 /// Lets `hwnd` take drops. Windows drop targets belong to the window's
@@ -113,7 +149,8 @@ pub fn register(hwnd: usize) {
     .into();
     // SAFETY: `hwnd` is a live window of this thread; OLE keeps its own
     // reference to the target.
-    let _ = unsafe { RegisterDragDrop(hwnd, &target) };
+    let result = unsafe { RegisterDragDrop(hwnd, &target) };
+    trace(&format!("RegisterDragDrop {hwnd:?} {result:?}"));
 }
 
 // --- Drops onto prev ---------------------------------------------------
@@ -328,7 +365,9 @@ impl IDropTarget_Impl for Target_Impl {
         point: &POINTL,
         effect: *mut DROPEFFECT,
     ) -> windows::core::Result<()> {
-        let chosen = data.ok().ok().and_then(|data| choose_mime(&offered(data)));
+        let offered = data.ok().ok().map(offered).unwrap_or_default();
+        trace(&format!("DragEnter offered {offered:?}"));
+        let chosen = choose_mime(&offered);
         let accepted = chosen.is_some();
         *self.chosen.borrow_mut() = chosen;
         let (x, y) = self.local(point);
