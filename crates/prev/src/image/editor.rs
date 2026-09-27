@@ -180,6 +180,30 @@ pub const EXPORT_FORMATS: &[(&str, &str, &str)] = &[
     ("exr", "OpenEXR", "exr"),
 ];
 
+/// Sizes an SVG drawing exports at, as (choice id, menu label, pixels per
+/// point of the drawing).
+pub const SVG_SIZES: &[(&str, &str, f32)] = &[
+    ("1", "Actual size", 1.0),
+    ("2", "Twice the size", 2.0),
+    ("4", "Four times the size", 4.0),
+];
+
+pub fn svg_scale_for_choice(choice: &str) -> f32 {
+    SVG_SIZES
+        .iter()
+        .find(|(id, ..)| *id == choice)
+        .map_or(1.0, |(.., scale)| *scale)
+}
+
+/// The suggested name for an SVG drawing exported as a picture.
+pub fn svg_export_name(path: &Path) -> String {
+    let stem = path
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "drawing".into());
+    format!("{stem}.png")
+}
+
 /// JPEG quality choices as (choice id, menu label, quality).
 pub const JPEG_QUALITIES: &[(&str, &str, u8)] = &[
     ("low", "Low", 50),

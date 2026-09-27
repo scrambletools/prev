@@ -511,12 +511,14 @@ impl Prev {
                 self.with_images(id, |images| images.set_device_scale(scale)),
             ]),
             Message::Pdf(_, pdf_window::Message::ToggleFloatingBars)
-            | Message::Image(_, image_window::Message::ToggleFloatingBars) => {
+            | Message::Image(_, image_window::Message::ToggleFloatingBars)
+            | Message::Markdown(_, markdown::Message::ToggleFloatingBars) => {
                 let enabled = !self.settings.auto_hide_toolbar;
                 self.update(Message::AutoHideToolbarToggled(enabled))
             }
             Message::Pdf(id, pdf_window::Message::OpenSettings)
-            | Message::Image(id, image_window::Message::OpenSettings) => {
+            | Message::Image(id, image_window::Message::OpenSettings)
+            | Message::Markdown(id, markdown::Message::OpenSettings) => {
                 self.perform(id, Action::Settings)
             }
             Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
@@ -640,6 +642,12 @@ impl Prev {
                     let task = task.map(move |message| Message::Pdf(id, message));
                     return Task::batch([task, self.with_pdf(id, |_| Task::none())]);
                 }
+                let handled = self
+                    .markdown_mut(id)
+                    .and_then(|document| document.shortcut(action?));
+                if let Some(task) = handled {
+                    return task.map(move |message| Message::Markdown(id, message));
+                }
                 let handled = self.images_mut(id).and_then(|images| match action {
                     Some(action) => images.shortcut(action),
                     None => images.key(&key, modifiers),
@@ -737,6 +745,9 @@ impl Prev {
                 }
                 if let Some(images) = self.images_mut(id) {
                     images.set_pointer_inside(inside);
+                }
+                if let Some(document) = self.markdown_mut(id) {
+                    document.set_pointer_inside(inside);
                 }
                 Task::none()
             }

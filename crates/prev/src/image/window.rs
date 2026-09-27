@@ -271,6 +271,9 @@ struct PendingExport {
     format: SaveFormat,
     format_choice: String,
     quality_choice: String,
+    /// For SVG drawings: the chosen size and how many pixels per point.
+    size_choice: Option<String>,
+    scale: Option<f32>,
 }
 
 /// Inspector contents for the current image.
@@ -711,6 +714,10 @@ impl ImageWindow {
                 Task::none()
             }
             Message::TogglePanel(panel) => {
+                let edits = matches!(panel, Panel::AdjustSize | Panel::AdjustColor);
+                if edits && self.panel != Some(panel) && !self.editable() {
+                    return Task::none();
+                }
                 self.panel = if self.panel == Some(panel) {
                     None
                 } else {
@@ -736,6 +743,9 @@ impl ImageWindow {
                 }
             }
             Message::ToggleSelecting => {
+                if !self.selecting && !self.editable() {
+                    return Task::none();
+                }
                 self.selecting = !self.selecting;
                 if !self.selecting {
                     self.selection = None;
@@ -876,11 +886,15 @@ impl ImageWindow {
                 else {
                     return Task::none();
                 };
+                let size_choice = selected("size");
+                let scale = size_choice.as_deref().map(editor::svg_scale_for_choice);
                 let pending = PendingExport {
                     path: chosen,
                     format,
                     format_choice,
                     quality_choice,
+                    size_choice,
+                    scale,
                 };
                 if editor::extension_matches(&pending.path, format) {
                     return self.run_export(pending);
@@ -902,6 +916,7 @@ impl ImageWindow {
                     pending.path.parent().map(Path::to_path_buf),
                     Some(pending.format_choice),
                     Some(pending.quality_choice),
+                    pending.size_choice,
                 ),
                 None => Task::none(),
             },
@@ -1414,15 +1429,14 @@ impl ImageWindow {
         let Some(shown) = self.shown() else {
             return Task::none();
         };
-        if !matches!(self.items[self.current].source, Source::Raster(_)) {
-            self.notice = Some("SVG drawings can't be exported yet.".into());
-            return Task::none();
+        if matches!(self.items[self.current].source, Source::Svg) {
+            return self.open_export_dialog(None, None, None, None, None);
         }
         if !shown.is_editable() {
             self.notice = Some("Animations can't be exported yet.".into());
             return Task::none();
         }
-        self.open_export_dialog(None, None, None, None)
+        self.open_export_dialog(None, None, None, None, None)
     }
 
     /// Opens the save dialog with the Format and JPEG quality menus.
@@ -1433,18 +1447,23 @@ impl ImageWindow {
         folder: Option<PathBuf>,
         format_choice: Option<String>,
         quality_choice: Option<String>,
+        size_choice: Option<String>,
     ) -> Task<Message> {
         let item = &self.items[self.current];
-        let Source::Raster(format) = item.source else {
-            return Task::none();
+        // SVG drawings export as pictures, PNG unless chosen otherwise.
+        let (name_default, format_default) = match item.source {
+            Source::Raster(format) => (
+                editor::export_name(&item.path, format, false),
+                editor::default_format_choice(format, false),
+            ),
+            Source::Svg => (editor::svg_export_name(&item.path), "png"),
         };
-        let name = name.unwrap_or_else(|| editor::export_name(&item.path, format, false));
-        let menus = vec![
+        let name = name.unwrap_or(name_default);
+        let mut menus = vec![
             dialog::Menu {
                 id: "format",
                 label: "Format",
-                initial: format_choice
-                    .unwrap_or_else(|| editor::default_format_choice(format, false).to_owned()),
+                initial: format_choice.unwrap_or_else(|| format_default.to_owned()),
                 options: editor::EXPORT_FORMATS
                     .iter()
                     .map(|(id, label, _)| (*id, *label))
@@ -1461,6 +1480,17 @@ impl ImageWindow {
                     .collect(),
             },
         ];
+        if matches!(item.source, Source::Svg) {
+            menus.push(dialog::Menu {
+                id: "size",
+                label: "Size",
+                initial: size_choice.unwrap_or_else(|| editor::SVG_SIZES[0].0.to_owned()),
+                options: editor::SVG_SIZES
+                    .iter()
+                    .map(|(id, label, _)| (*id, *label))
+                    .collect(),
+            });
+        }
         Task::perform(
             dialog::save_file_with_menus("Export".into(), name, folder, menus),
             Message::ExportTarget,
@@ -1468,6 +1498,25 @@ impl ImageWindow {
     }
 
     fn run_export(&mut self, pending: PendingExport) -> Task<Message> {
+        if let Some(svg) = self.shown().and_then(|shown| shown.image.svg.clone()) {
+            let original = self.items[self.current].path.clone();
+            let PendingExport {
+                path,
+                format,
+                scale,
+                ..
+            } = pending;
+            let scale = scale.unwrap_or(1.0);
+            return Task::perform(
+                spawn(move || {
+                    let frame = svg.render(scale).map_err(|error| error.to_string())?;
+                    editor::export(&original, &frame, &path, format).map(|()| path)
+                }),
+                |result| {
+                    Message::Exported(result.unwrap_or_else(|_| Err("exporting stopped".into())))
+                },
+            );
+        }
         let Some(frame) = self.shown().and_then(Shown::current_frame) else {
             return Task::none();
         };
@@ -1485,6 +1534,12 @@ impl ImageWindow {
             spawn(move || editor::export(&original, &frame, &path, format).map(|()| path)),
             |result| Message::Exported(result.unwrap_or_else(|_| Err("exporting stopped".into()))),
         )
+    }
+
+    /// Whether the image shown can be edited: not an SVG drawing or an
+    /// animation.
+    fn editable(&self) -> bool {
+        self.shown().is_some_and(Shown::is_editable)
     }
 
     pub fn shortcut(&mut self, action: Action) -> Option<Task<Message>> {
@@ -1606,7 +1661,10 @@ impl ImageWindow {
                         self.next_frame,
                         Message::Canvas,
                     )
-                    .selection(self.selecting, self.selection),
+                    .selection(
+                        self.selecting && self.editable(),
+                        self.selection.filter(|_| self.editable()),
+                    ),
                 )
                 .id(self.canvas_id.clone())
                 .direction(Direction::Both {
@@ -1771,6 +1829,15 @@ impl ImageWindow {
                 Message::TogglePanel(which),
             )
         };
+        // Tools that change pixels, for images that can be edited.
+        let edit_panel = |glyph: Icon, label: &'static str, which: Panel| {
+            if markable {
+                panel(glyph, label, which)
+            } else {
+                component::tool(glyph, label, None)
+            }
+        };
+        let is_svg = matches!(self.items[self.current].source, Source::Svg);
         use component::{DIVIDER_WIDTH, TOOL_WIDTH};
         let tools = |count: f32| count * TOOL_WIDTH + (count - 1.0) * 4.0;
         // Each slot: its content, its width, when it moves into "More", and
@@ -1911,12 +1978,16 @@ impl ImageWindow {
         ));
         slots.push((
             component::group([
-                component::toggle_tool(
-                    Icon::HighlightAlt,
-                    "Rectangular selection",
-                    self.selecting,
-                    Message::ToggleSelecting,
-                ),
+                if markable {
+                    component::toggle_tool(
+                        Icon::HighlightAlt,
+                        "Rectangular selection",
+                        self.selecting,
+                        Message::ToggleSelecting,
+                    )
+                } else {
+                    component::tool(Icon::HighlightAlt, "Rectangular selection", None)
+                },
                 when(
                     Icon::Crop,
                     "Crop to selection",
@@ -1930,8 +2001,8 @@ impl ImageWindow {
         ));
         slots.push((
             component::group([
-                panel(Icon::Resize, "Adjust size", Panel::AdjustSize),
-                panel(Icon::Tune, "Adjust color", Panel::AdjustColor),
+                edit_panel(Icon::Resize, "Adjust size", Panel::AdjustSize),
+                edit_panel(Icon::Tune, "Adjust color", Panel::AdjustColor),
                 panel(Icon::Info, "Inspector", Panel::Inspector),
                 if markable {
                     component::toggle_tool(
@@ -1953,7 +2024,7 @@ impl ImageWindow {
             component::tip(
                 ui::icon_button(Icon::FileExport)
                     .kind(Kind::Tonal)
-                    .on_press_maybe(markable.then_some(Message::Export)),
+                    .on_press_maybe((markable || is_svg).then_some(Message::Export)),
                 "Export",
             ),
             component::TOOL_WIDTH,

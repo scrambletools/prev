@@ -117,9 +117,11 @@ For a walkthrough of every feature with more screenshots, see
     kept while the window is open and drawn into the image on export;
     closing asks first if markup hasn't been exported.
   - Export to PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR.
-- **SVG** drawings, sharp at any zoom.
+- **SVG** drawings, sharp at any zoom; export them as PNG, JPEG and the
+  other image formats at one, two or four times their size.
 - **Markdown** with tables, task lists, syntax highlighted code and images;
-  reloads when the file changes on disk.
+  reloads when the file changes on disk. Text size, search and an
+  inspector, as in the other windows.
 - **Material Design 3 interface:** an
   [M3 Expressive](https://m3.material.io) look with Roboto Flex, Material
   Symbols icons, spring motion and keyboard focus (Tab and Shift+Tab).
