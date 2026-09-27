@@ -3,27 +3,24 @@
 # packages: the binary, desktop entry, icons, AppStream metadata, man page
 # and licenses.
 #
-#   scripts/dist-install.sh BINARY [DESTDIR] [PREFIX] [DATA_DIR]
+#   scripts/dist-install.sh BINARY [DESTDIR] [PREFIX]
 #
 # BINARY is a release build made with PREV_PRODUCTION=1. DESTDIR is the
 # staging root (empty for a direct install) and PREFIX defaults to /usr.
-# DATA_DIR, which defaults to PREFIX/share, takes the files desktops look
-# up through XDG: the desktop entry, icons and AppStream metadata.
 set -euo pipefail
 
-binary=${1:?usage: dist-install.sh BINARY [DESTDIR] [PREFIX] [DATA_DIR]}
+binary=${1:?usage: dist-install.sh BINARY [DESTDIR] [PREFIX]}
 destdir=${2:-}
 prefix=${3:-/usr}
 root=$(cd "$(dirname "$0")/.." && pwd)
 id=io.github.scrambletools.prev
 share="$destdir$prefix/share"
-xdg="$destdir${4:-$prefix/share}"
 
 install -Dm755 "$binary" "$destdir$prefix/bin/prev"
-install -Dm644 "$root/data/$id.desktop" "$xdg/applications/$id.desktop"
-install -Dm644 "$root/data/$id.metainfo.xml" "$xdg/metainfo/$id.metainfo.xml"
+install -Dm644 "$root/data/$id.desktop" "$share/applications/$id.desktop"
+install -Dm644 "$root/data/$id.metainfo.xml" "$share/metainfo/$id.metainfo.xml"
 (cd "$root/data/icons" && find hicolor -type f) | while read -r icon; do
-    install -Dm644 "$root/data/icons/$icon" "$xdg/icons/$icon"
+    install -Dm644 "$root/data/icons/$icon" "$share/icons/$icon"
 done
 install -d "$share/man/man1"
 gzip -9n <"$root/docs/prev.1" >"$share/man/man1/prev.1.gz"
