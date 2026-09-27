@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Builds prev as the production copy and installs it for the current user:
-# the binary in ~/.local/bin, and the desktop entry, icons, metadata, man
-# page and licenses under ~/.local/share. Development builds (plain cargo
+# the binary in ~/.local/bin, the desktop entry, icons and metadata in the
+# user's data folder ($XDG_DATA_HOME, or ~/.local/share), and the man page
+# and licenses under ~/.local/share. With PREV_PREFIX set, everything goes
+# under that prefix instead. Development builds (plain cargo
 # build or cargo run) keep separate settings, data and instance socket,
 # so they can run next to it.
 #
@@ -15,21 +17,25 @@ prefix=${PREV_PREFIX:-$HOME/.local}
 bin_dir=$prefix/bin
 # Launchers such as Omarchy's read the session's data directory, which a
 # shell's own XDG_DATA_HOME may not match, so use the standard location.
-share_dir=$prefix/share
+if [ -n "${PREV_PREFIX:-}" ]; then
+    data_dir=$prefix/share
+else
+    data_dir=${XDG_DATA_HOME:-$HOME/.local/share}
+fi
 
 # A target directory of its own, so switching between production and
 # development builds does not rebuild everything each time.
 PREV_PRODUCTION=1 cargo build --release --locked -p prev \
     --manifest-path "$root/Cargo.toml" --target-dir "$root/target/production"
 
-"$root/scripts/dist-install.sh" "$root/target/production/release/prev" "" "$prefix"
-desktop="$share_dir/applications/io.github.scrambletools.prev.desktop"
+"$root/scripts/dist-install.sh" "$root/target/production/release/prev" "" "$prefix" "$data_dir"
+desktop="$data_dir/applications/io.github.scrambletools.prev.desktop"
 sed -i "s|^Exec=prev |Exec=$bin_dir/prev |" "$desktop"
 if command -v update-desktop-database >/dev/null; then
-    update-desktop-database "$share_dir/applications"
+    update-desktop-database "$data_dir/applications"
 fi
-if command -v gtk-update-icon-cache >/dev/null && [ -f "$share_dir/icons/hicolor/index.theme" ]; then
-    gtk-update-icon-cache -q "$share_dir/icons/hicolor" || true
+if command -v gtk-update-icon-cache >/dev/null && [ -f "$data_dir/icons/hicolor/index.theme" ]; then
+    gtk-update-icon-cache -q "$data_dir/icons/hicolor" || true
 fi
 
 # Omarchy tags every window for slight transparency; prev opts out, as

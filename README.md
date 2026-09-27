@@ -252,8 +252,9 @@ launcher and "Open With":
 ./scripts/install.sh
 ```
 
-This puts the binary in `~/.local/bin` and the desktop entry, icons and
-man page under `~/.local/share`, and on Omarchy adds the opacity rule
+This puts the binary in `~/.local/bin`, the desktop entry and icons in
+your data folder (`$XDG_DATA_HOME`, usually `~/.local/share`) and the man
+page under `~/.local/share`, and on Omarchy adds the opacity rule
 above (set `PREV_NO_HYPRLAND=1` to skip it). Settings are in
 `~/.config/prev.toml`, which also says where signatures, version history
 and bookmarks are kept. Builds made with plain `cargo build` or
