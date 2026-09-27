@@ -122,7 +122,8 @@ jobs:
         run: |
           mkdir -p upload
           cp artifacts/packages/* artifacts/flatpak/* upload/
-          cp artifacts/aur/PKGBUILD upload/PKGBUILD
+          # The PKGBUILD and its install file, to build the Arch package.
+          cp artifacts/aur/* upload/
           (cd upload && sha256sum * >SHA256SUMS)
           version=${GITHUB_REF_NAME#v}
           # This version's section of the changelog, without its heading.

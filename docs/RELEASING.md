@@ -37,7 +37,7 @@ copy: settings in `~/.config/prev.toml`, data under `prev`, app id
 5. Tag and push: `git tag v1.0.0 && git push origin v1.0.0`. The workflow
    checks that the tag matches `Cargo.toml`, builds the packages and
    drafts a release with them, `SHA256SUMS`, and a `PKGBUILD` with the
-   source checksum filled in. Check the draft and publish it.
+   source checksum filled in, beside its `prev.install`. Check the draft and publish it.
 6. AUR: in a clone of `ssh://aur@aur.archlinux.org/prev.git`, replace
    `PKGBUILD` with the one from the release and copy
    `packaging/arch/prev/prev.install`, run `makepkg --printsrcinfo >.SRCINFO`,

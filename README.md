@@ -158,12 +158,24 @@ has these packages:
 
 | System | How |
 |---|---|
-| Arch and Omarchy | `yay -S prev` from the AUR, or `prev-git` for the latest development |
+| Arch and Omarchy | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
 | Debian and Ubuntu | `sudo apt install ./prev_1.0.0-1_amd64.deb` |
 | Fedora | `sudo dnf install ./prev-1.0.0-1.x86_64.rpm` |
 | Flatpak | `flatpak install --user prev.flatpak` |
 | Any distribution | the AppImage: `chmod +x prev-1.0.0-x86_64.AppImage`, then run it |
 | Any distribution | `prev-1.0.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
+
+On Arch, until the AUR packages are published:
+
+```sh
+mkdir prev && cd prev
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.0.0/PKGBUILD
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.0.0/prev.install
+makepkg -si
+```
+
+This builds prev from the release's source, which takes a few minutes
+(MuPDF is compiled too).
 
 The packages suggest wl-clipboard, libheif and curl, which prev uses
 when they are installed (see [Building](#building)); the Flatpak has them
