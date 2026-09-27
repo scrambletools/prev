@@ -1,7 +1,7 @@
 //! The platform's drag and drop, with the same types everywhere. On Linux
-//! it is the vendored smithay-clipboard's Wayland drag and drop; elsewhere
-//! prev cannot start drags yet, and files dropped on a window arrive
-//! through iced as `FileDropped` instead.
+//! it is the vendored smithay-clipboard's Wayland drag and drop, on
+//! Windows OLE's (`dnd_windows`). Elsewhere prev cannot start drags yet,
+//! and files dropped on a window arrive through iced as `FileDropped`.
 
 #[cfg(target_os = "linux")]
 pub use smithay_clipboard::dnd::*;
@@ -72,13 +72,22 @@ mod other {
         pub allow_move: bool,
     }
 
+    #[cfg(windows)]
+    pub use crate::dnd_windows::{
+        register, set_accepted_mimes, set_drag_handler, set_prefer_move, start_drag,
+    };
+
+    #[cfg(not(windows))]
     pub fn set_drag_handler(_handler: impl Fn(DragEvent) + Send + Sync + 'static) {}
 
+    #[cfg(not(windows))]
     pub fn set_accepted_mimes(_mimes: Vec<String>) {}
 
+    #[cfg(not(windows))]
     pub fn set_prefer_move(_prefer: bool) {}
 
     /// Starting drags is not supported here yet.
+    #[cfg(not(windows))]
     pub fn start_drag(_drag: Drag) -> bool {
         false
     }

@@ -170,6 +170,8 @@ pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
 }
 
 #[cfg(windows)]
+pub(crate) use windows::{bmp_file, dib};
+#[cfg(windows)]
 pub use windows::{copy_image, mark_pages, read};
 
 /// The Windows clipboard, in the types `choose` understands: prev's page
@@ -264,7 +266,7 @@ mod windows {
 
     /// A BMP file from a clipboard DIB, which is the file without its
     /// 14 byte file header.
-    pub(super) fn bmp_file(dib: &[u8]) -> Option<Vec<u8>> {
+    pub(crate) fn bmp_file(dib: &[u8]) -> Option<Vec<u8>> {
         let u32_at = |at: usize| Some(u32::from_le_bytes(dib.get(at..at + 4)?.try_into().ok()?));
         let header = u32_at(0)? as usize;
         let bits = u16::from_le_bytes(dib.get(14..16)?.try_into().ok()?);
@@ -295,7 +297,7 @@ mod windows {
     }
 
     /// `bitmap` as a 32 bit, bottom-up DIB with a plain info header.
-    pub(super) fn dib(bitmap: &Bitmap) -> Vec<u8> {
+    pub(crate) fn dib(bitmap: &Bitmap) -> Vec<u8> {
         let (width, height) = (bitmap.width as usize, bitmap.height as usize);
         let mut dib = Vec::with_capacity(40 + width * height * 4);
         dib.extend_from_slice(&40u32.to_le_bytes());

@@ -578,6 +578,11 @@ impl Prev {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.surface = surface;
                 }
+                // Windows drops go to a target registered on each window.
+                #[cfg(windows)]
+                if let Some(hwnd) = surface {
+                    prev::dnd::register(hwnd);
+                }
                 Task::none()
             }
             Message::WindowClosed(id) => {
@@ -1544,15 +1549,26 @@ fn platform_settings() -> PlatformSpecific {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
+/// On Windows, prev's own OLE drop target takes drops instead of winit's.
+#[cfg(windows)]
+fn platform_settings() -> PlatformSpecific {
+    PlatformSpecific {
+        drag_and_drop: false,
+        ..PlatformSpecific::default()
+    }
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
 fn platform_settings() -> PlatformSpecific {
     PlatformSpecific::default()
 }
 
-/// The window's `wl_surface` pointer; `None` off Wayland.
+/// The window's `wl_surface` pointer on Wayland, or its HWND on Windows:
+/// what drag events name the window by.
 fn wayland_surface(window: &dyn window::Window) -> Option<usize> {
     match window.window_handle().ok()?.as_raw() {
         RawWindowHandle::Wayland(handle) => Some(handle.surface.as_ptr() as usize),
+        RawWindowHandle::Win32(handle) => Some(handle.hwnd.get() as usize),
         _ => None,
     }
 }

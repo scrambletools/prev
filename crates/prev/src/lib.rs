@@ -2,6 +2,8 @@
 
 pub mod dialog;
 pub mod dnd;
+#[cfg(windows)]
+mod dnd_windows;
 pub mod drag;
 pub mod filetype;
 pub mod image;

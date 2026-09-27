@@ -3441,6 +3441,8 @@ dependencies = [
  "tiny-skia",
  "toml 1.1.6+spec-1.1.0",
  "usvg",
+ "windows 0.62.2",
+ "windows-core 0.62.2",
  "windows-sys 0.61.2",
 ]
 
