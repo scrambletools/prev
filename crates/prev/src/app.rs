@@ -300,7 +300,7 @@ impl Prev {
         let mut tasks = Vec::new();
         let mut images = Vec::new();
         for path in paths {
-            let path = std::fs::canonicalize(&path).unwrap_or(path);
+            let path = prev_store::paths::canonical(&path);
             if let Some(id) = self.window_showing(&path) {
                 tasks.push(window::gain_focus(id));
                 continue;
@@ -373,7 +373,7 @@ impl Prev {
     }
 
     fn open_document(&mut self, path: PathBuf) -> Task<Message> {
-        let path = std::fs::canonicalize(&path).unwrap_or(path);
+        let path = prev_store::paths::canonical(&path);
         if let Some(id) = self.window_showing(&path) {
             return window::gain_focus(id);
         }

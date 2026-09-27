@@ -47,7 +47,7 @@ impl ImageWindow {
             Dropped::Files(paths) if !(onto_markup && paths.len() == 1) => {
                 let (images, others): (Vec<_>, Vec<_>) = paths
                     .into_iter()
-                    .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
+                    .map(|path| prev_store::paths::canonical(&path))
                     .partition(|path| image_source(path).is_some());
                 (self.add_images(images), others)
             }
@@ -79,7 +79,7 @@ impl ImageWindow {
     pub fn add_files(&mut self, paths: Vec<PathBuf>) -> (Task<Message>, Vec<PathBuf>) {
         let (images, others): (Vec<_>, Vec<_>) = paths
             .into_iter()
-            .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
+            .map(|path| prev_store::paths::canonical(&path))
             .partition(|path| image_source(path).is_some());
         (self.add_images(images), others)
     }

@@ -162,3 +162,49 @@ pub fn runtime_dir() -> Option<PathBuf> {
         .filter(|path| path.is_absolute())
         .map(|dir| dir.join(APP_DIR))
 }
+
+/// `path` made absolute with links resolved, as `std::fs::canonicalize`
+/// does, but in the form people know: on Windows without the `\\?\`
+/// prefix it adds. `path` itself when it cannot be resolved.
+pub fn canonical(path: &Path) -> PathBuf {
+    let resolved = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    simplify(resolved)
+}
+
+#[cfg(windows)]
+fn simplify(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(share) = text.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{share}"))
+    } else if let Some(local) = text.strip_prefix(r"\\?\") {
+        PathBuf::from(local)
+    } else {
+        path
+    }
+}
+
+#[cfg(not(windows))]
+fn simplify(path: PathBuf) -> PathBuf {
+    path
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_paths_drop_the_verbatim_prefix() {
+        assert_eq!(
+            simplify(PathBuf::from(r"\\?\UNC\server\share\a.pdf")),
+            PathBuf::from(r"\\server\share\a.pdf")
+        );
+        assert_eq!(
+            simplify(PathBuf::from(r"\\?\C:\Users\me\a.pdf")),
+            PathBuf::from(r"C:\Users\me\a.pdf")
+        );
+        assert_eq!(
+            simplify(PathBuf::from(r"C:\a.pdf")),
+            PathBuf::from(r"C:\a.pdf")
+        );
+    }
+}

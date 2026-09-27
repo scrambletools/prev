@@ -64,6 +64,7 @@ pub fn claim_or_forward(name: &str, paths: &[PathBuf]) -> io::Result<Role> {
 }
 
 fn forward(name: &str, request: &[u8]) -> io::Result<()> {
+    allow_foreground();
     let mut stream = Stream::connect(name.to_ns_name::<GenericNamespaced>()?)?;
     let length = u32::try_from(request.len()).map_err(io::Error::other)?;
     stream.write_all(&length.to_le_bytes())?;
@@ -75,6 +76,17 @@ fn forward(name: &str, request: &[u8]) -> io::Result<()> {
         Ok(())
     } else {
         Err(io::Error::other("running instance did not acknowledge"))
+    }
+}
+
+/// Lets the running prev bring the window it opens to the front. Windows
+/// only allows that to the program in front, which is this launch.
+#[allow(unsafe_code)]
+fn allow_foreground() {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{ASFW_ANY, AllowSetForegroundWindow};
+    // SAFETY: takes no pointers; failing only leaves the window behind.
+    unsafe {
+        AllowSetForegroundWindow(ASFW_ANY);
     }
 }
 

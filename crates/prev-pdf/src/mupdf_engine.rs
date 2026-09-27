@@ -28,14 +28,16 @@ pub struct MupdfEngine;
 
 impl Engine for MupdfEngine {
     fn open(&self, path: &Path) -> Result<Box<dyn Document>> {
-        // MuPDF takes Windows paths as UTF-8 and widens them itself.
+        // Saving replaces the file, which Windows refuses while it is open,
+        // so there MuPDF gets the file's contents rather than the file.
         #[cfg(windows)]
-        let path = path
-            .to_str()
-            .ok_or_else(|| Error::Open(format!("{} is not a valid file name", path.display())))?;
+        let document = {
+            let bytes = std::fs::read(path).map_err(|error| Error::Open(error.to_string()))?;
+            PdfDocument::from_bytes(&bytes)
+        };
         #[cfg(not(windows))]
-        let path = path.as_os_str();
-        let document = PdfDocument::open(path).map_err(|error| Error::Open(error.to_string()))?;
+        let document = PdfDocument::open(path.as_os_str());
+        let document = document.map_err(|error| Error::Open(error.to_string()))?;
         Ok(Box::new(MupdfDocument {
             document,
             rewrite: false,
