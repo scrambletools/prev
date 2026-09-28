@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prev: a fast PDF and image viewer for Linux</title>
+<meta name="description" content="prev is a free, open source viewer and editor for PDFs, images, SVG drawings and Markdown, modelled on macOS Preview.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#"><img src="icon.svg" alt="" width="32" height="32">prev</a>
+  <nav>
+    <a href="#features">Features</a>
+    <a href="#download">Download</a>
+    <a href="https://github.com/scrambletools/prev/blob/main/docs/GUIDE.md">Guide</a>
+    <a class="repo" href="https://github.com/scrambletools/prev">Source on GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <img class="hero-icon" src="icon.svg" alt="The prev icon: a signed document with a beach photo on it" width="128" height="128">
+    <h1>prev</h1>
+    <p class="lede">A fast, open source document and image viewer, modelled on macOS Preview.
+      Read, mark up, fill in, sign, rearrange and redact PDFs, and view and edit photos, in one light app.</p>
+    <p class="actions">
+      <a class="button filled" href="#download">Download prev 1.0.0</a>
+      <a class="button tonal" href="https://github.com/scrambletools/prev">Source on GitHub</a>
+    </p>
+    <p class="small">Free and open source under the AGPL-3.0. For Linux, on Wayland desktops such as Hyprland and Omarchy.</p>
+    <img class="shot hero-shot" src="screenshots/markup.png" alt="A form filled in, marked up with a highlight, shapes, a text box and a note, and signed" width="1360" height="796">
+  </section>
+
+  <section id="features" class="features">
+    <h2>What prev does</h2>
+    <div class="grid">
+      <article>
+        <h3>PDFs, fast</h3>
+        <p>Pages render in tiles as you scroll, with thumbnails, the table of contents, bookmarks, search that highlights every match, text selection, links, full screen, slideshow and printing.</p>
+      </article>
+      <article>
+        <h3>Markup and forms</h3>
+        <p>Highlight, underline, draw, add shapes, arrows, text boxes and notes, fill in forms, and sign with a drawn, typed or scanned signature. All saved as standard PDF annotations.</p>
+      </article>
+      <article>
+        <h3>Page editing</h3>
+        <p>Reorder, rotate, delete, crop and insert pages, drag them between documents or out as a PDF, and export pages as images or a smaller, encrypted or flattened PDF.</p>
+      </article>
+      <article>
+        <h3>Redaction</h3>
+        <p>Mark text or areas and apply: what was underneath is removed from the file for good, not just covered, and no earlier revision keeps it.</p>
+      </article>
+      <article>
+        <h3>Photos</h3>
+        <p>PNG, JPEG, WebP, AVIF, HEIC, TIFF, camera RAW and more. Crop, rotate, resize and adjust color with undo, mark up, and export to nine formats. Edits keep EXIF and color profiles.</p>
+      </article>
+      <article>
+        <h3>SVG and Markdown</h3>
+        <p>SVG drawings stay sharp at any zoom. Markdown shows with tables, task lists and highlighted code, reloads as you edit, and exports as a picture.</p>
+      </article>
+    </div>
+    <div class="gallery">
+      <figure><img class="shot" src="screenshots/table-of-contents.png" alt="A PDF with its table of contents in the sidebar" width="1360" height="796" loading="lazy"><figcaption>Table of contents and bookmarks</figcaption></figure>
+      <figure><img class="shot" src="screenshots/image-markup.png" alt="A photo marked up with an oval, an arrow and a text box" width="1360" height="796" loading="lazy"><figcaption>Markup on photos too</figcaption></figure>
+      <figure><img class="shot" src="screenshots/pages.png" alt="Dragging a page to a new place in the page thumbnails" width="1360" height="796" loading="lazy"><figcaption>Drag pages to reorder</figcaption></figure>
+      <figure><img class="shot" src="screenshots/redaction.png" alt="An account number and a routing number marked for redaction" width="1360" height="796" loading="lazy"><figcaption>Redaction that removes the content</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="download" class="download">
+    <h2>Download</h2>
+    <p>prev 1.0.0 for 64-bit Linux. Every file is on the <a href="https://github.com/scrambletools/prev/releases/latest">release page</a>, with checksums.</p>
+    <div class="table">
+      <table>
+        <thead><tr><th>System</th><th>Download</th><th>Install</th></tr></thead>
+        <tbody>
+          <tr><td>Debian, Ubuntu</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev_1.0.0-1_amd64.deb">.deb</a></td><td><code>sudo apt install ./prev_1.0.0-1_amd64.deb</code></td></tr>
+          <tr><td>Fedora</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev-1.0.0-1.x86_64.rpm">.rpm</a></td><td><code>sudo dnf install ./prev-1.0.0-1.x86_64.rpm</code></td></tr>
+          <tr><td>Arch, Omarchy</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/PKGBUILD">PKGBUILD</a> and <a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev.install">prev.install</a></td><td><code>makepkg -si</code> in a folder with both</td></tr>
+          <tr><td>Flatpak</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev.flatpak">prev.flatpak</a></td><td><code>flatpak install --user prev.flatpak</code></td></tr>
+          <tr><td>Any distribution</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev-1.0.0-x86_64.AppImage">AppImage</a></td><td>Make it executable, then run it</td></tr>
+          <tr><td>Any distribution</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev-1.0.0-x86_64-linux.tar.gz">.tar.gz</a></td><td>Unpack under <code>/usr</code> or <code>~/.local</code></td></tr>
+          <tr><td>With mise</td><td></td><td><code>mise use -g github:scrambletools/prev</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">A Windows version is on the way. See the <a href="https://github.com/scrambletools/prev#install">install notes</a> for what differs between packages.</p>
+  </section>
+
+  <section id="code-signing" class="policy">
+    <h2>Code signing policy</h2>
+    <p>Windows releases of prev are to be signed. Free code signing provided by
+      <a href="https://about.signpath.io">SignPath.io</a>, certificate by
+      <a href="https://signpath.org">SignPath Foundation</a>.</p>
+    <ul>
+      <li><strong>What is signed:</strong> only programs built from this project's own
+        <a href="https://github.com/scrambletools/prev">source code</a> by its GitHub Actions release
+        workflow: <code>prev.exe</code> and the prev installer. Open source components prev bundles
+        unchanged, such as libheif, libde265 and aom, are not signed with this certificate.</li>
+      <li><strong>Committers and reviewers:</strong> the members of the
+        <a href="https://github.com/scrambletools">scrambletools</a> GitHub account, who review
+        every outside contribution before it is merged.</li>
+      <li><strong>Approvers:</strong> the owner of the
+        <a href="https://github.com/scrambletools">scrambletools</a> GitHub account, who approves each
+        signing request.</li>
+      <li>Everyone on the team signs in to GitHub and SignPath with two-factor authentication.</li>
+    </ul>
+    <h3 id="privacy">Privacy</h3>
+    <p>This program will not transfer any information to other networked systems unless specifically
+      requested by the user or the person installing or operating it. prev goes online only to fetch a
+      picture you drop onto it as a web address, and to open links you click. This website sets no
+      cookies and loads nothing from other sites.</p>
+  </section>
+</main>
+
+<footer>
+  <p>prev is free software under the <a href="https://github.com/scrambletools/prev/blob/main/LICENSE">GNU AGPL-3.0</a>.
+    Made by <a href="https://github.com/scrambletools">Scramble Tools</a>.
+    <a href="#code-signing">Code signing policy</a> · <a href="#privacy">Privacy</a></p>
+</footer>
+
+</body>
+</html>
