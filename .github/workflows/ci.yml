@@ -71,6 +71,17 @@ jobs:
         with:
           name: prev-windows
           path: dist/*
+      # The installer and zip, to try the packaging before a release.
+      - name: Installer and zip
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
+          packaging\windows\build.ps1 -Version $version -Source dist -Out packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prev-windows-packages
+          path: packages/*
 
   msrv:
     runs-on: ubuntu-24.04

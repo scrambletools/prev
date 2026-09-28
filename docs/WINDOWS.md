@@ -126,13 +126,26 @@ Done when printing a PDF and opening HEIC and AVIF photos work.
   10 and 11 do not let apps make themselves the default; users choose
   prev in Settings.
 - **Portable zip:** `prev.exe` and its DLLs.
-- **Signing:** unsigned downloads get SmartScreen's "Windows protected
-  your PC" warning. Options include Azure Trusted Signing (paid, needs
-  identity validation) or SignPath's free program for open source
-  projects; check their current eligibility rules.
-- **winget:** a manifest pointing at the release's MSI. It is submitted
-  as a PR to `microsoft/winget-pkgs`; check its rules on automated and
-  AI-made submissions before preparing one.
+- **Signing:** through the SignPath Foundation, free for open source
+  projects. Unsigned downloads get SmartScreen's "Windows protected your
+  PC" warning. SignPath signs only software already released in the form
+  it signs, built from source by CI it can check, so:
+  1. The release workflow gets a signing step, off until SignPath
+     approves, that sends the MSI and `prev.exe` to SignPath from the
+     GitHub Actions run that built them.
+  2. The first Windows release goes out unsigned, as a preview.
+  3. The project owner applies at signpath.org/apply, with two-factor
+     sign-in on GitHub and SignPath, and names who authors, reviews and
+     approves each signing.
+  4. Once approved, signing is turned on. The publisher Windows shows is
+     "SignPath Foundation".
+
+  Microsoft's Artifact Signing was the paid alternative (about $10 for
+  each month it is used; signatures stay valid after stopping).
+- **winget:** a manifest pointing at the release's MSI, submitted as a
+  PR to `microsoft/winget-pkgs` once releases are signed, for
+  `winget install` and `winget upgrade`. Later versions can be submitted
+  by a GitHub Action.
 - **Release workflow:** a Windows job in `release.yml` builds the MSI and
   the zip and adds them to the draft release.
 - **Docs:** Windows rows in the README install table and a "What
@@ -150,9 +163,8 @@ Done when printing a PDF and opening HEIC and AVIF photos work.
 1. **A Windows machine to test on.** CI can build and run the tests, but
    the UI (drag and drop, printing, dialogs, the installer) needs a real
    Windows 10 or 11 machine or a virtual machine.
-2. **Code signing,** and whether its yearly cost is worth it for the
-   first Windows release.
-3. **HEIC:** bundle libheif (recommended above) or use WIC.
+2. ~~Code signing~~: decided, the SignPath Foundation (see W5).
+3. ~~HEIC~~: decided, libheif is bundled (see W4).
 
 ## Risks
 
