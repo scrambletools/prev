@@ -3,6 +3,16 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Packages
+
+- Linux on ARM64 (aarch64): .deb, .rpm, AppImage, tarball and Flatpak.
+- Linux on RISC-V (riscv64): .deb, .rpm and tarball.
+- Windows on ARM64: the installer and the portable zip.
+- The Flatpak bundles are named for their architecture:
+  `prev-x86_64.flatpak` and `prev-aarch64.flatpak`.
+
 ## [1.1.0] - 2026-09-28
 
 prev now runs on Windows 10 and 11.

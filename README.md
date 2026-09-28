@@ -159,8 +159,8 @@ The [development plan](docs/PLAN.md#not-built-yet) lists more.
 
 ## Install
 
-prev runs on Linux under Wayland (X11 works too) and on Windows 10 and 11
-(64-bit). It draws with the GPU through Vulkan or, on Windows, DirectX 12,
+prev runs on Linux under Wayland (X11 works too) and on Windows 10 and 11,
+on 64-bit x86 and ARM, and on Linux also RISC-V. It draws with the GPU through Vulkan or, on Windows, DirectX 12,
 and falls back to drawing on the CPU when neither is available.
 Each [release](https://github.com/scrambletools/prev/releases) has these
 packages:
@@ -170,12 +170,16 @@ packages:
 | Arch and Omarchy | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
 | Debian and Ubuntu | `sudo apt install ./prev_1.1.0-1_amd64.deb` |
 | Fedora | `sudo dnf install ./prev-1.1.0-1.x86_64.rpm` |
-| Flatpak | `flatpak install --user prev.flatpak` |
+| Flatpak | `flatpak install --user prev-x86_64.flatpak` (or `prev-aarch64.flatpak`) |
 | Any distribution | the AppImage: `chmod +x prev-1.1.0-x86_64.AppImage`, then run it |
 | Any distribution | `prev-1.1.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
 | Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
 | Windows 10 and 11 | the `.msi` installer: open it; it installs for you alone, with no administrator prompt |
 | Windows, portable | the `-windows.zip`: unpack it anywhere and run `prev.exe` |
+
+Each file is named for the machine it runs on: `x86_64` (`amd64` in
+Debian's names, `x64` on Windows), `aarch64` (`arm64` in Debian's and
+Windows' names) or `riscv64`. The commands above are for x86_64.
 
 On Arch, until the AUR packages are published:
 
@@ -229,7 +233,8 @@ Every package has every feature. Some depend on where prev runs:
 - **Holding Shift** during a drop from another app is seen only under
   compositors that move keyboard focus with the pointer, such as
   Hyprland.
-- Only x86_64 packages are built; on ARM, build from source.
+- **RISC-V** has the .deb, .rpm and tarball, but no AppImage or Flatpak:
+  appimagetool and the Flatpak runtime are not built for it.
 
 On Omarchy, windows are slightly see-through by default, which dims
 photos and pages. `scripts/install.sh` adds a Hyprland rule keeping prev

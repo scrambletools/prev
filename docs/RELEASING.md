@@ -14,8 +14,13 @@ Everything a release ships is built from this repository:
 | `packaging/nfpm.yaml` | Debian and RPM packages, made with nfpm |
 | `packaging/appimage/build.sh` | The AppImage |
 | `packaging/flatpak/` | Flatpak manifest and the crate sources it builds from |
-| `packaging/windows/` | Windows MSI (WiX 5) and zip, made by `build.ps1` |
+| `packaging/windows/` | Windows MSI (WiX 5) and zip, made by `build.ps1`, and the ARM64 patch for mupdf-sys |
+| `scripts/cross-setup.sh` | Prepares Ubuntu to cross-compile for RISC-V |
 | `.github/workflows/release.yml` | Builds all of them for a tag and drafts the GitHub release |
+
+Each package is built for x86_64 and ARM64 on GitHub's runners of that
+architecture; the Linux .deb, .rpm and tarball are also cross-compiled
+for RISC-V, which has no runners.
 
 Packages are built with `PREV_PRODUCTION=1`, which makes the installed
 copy: settings in `prev.toml` (`~/.config` on Linux, `%APPDATA%\prev` on
@@ -49,8 +54,9 @@ Builds without it are development builds.
    `packaging/arch/prev/prev.install`, run `makepkg --printsrcinfo >.SRCINFO`,
    build it once with `makepkg`, commit and push. `prev-git` needs this
    only when its PKGBUILD changes.
-7. The Flatpak is offered only as `prev.flatpak` on the release; prev is
-   not published on Flathub.
+7. The Flatpak is offered only as `prev-x86_64.flatpak` and
+   `prev-aarch64.flatpak` on the release; prev is not published on
+   Flathub.
 
 ## Windows code signing
 

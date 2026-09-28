@@ -21,7 +21,7 @@ not possible on Linux or Windows; the look follows Material Design 3.
 | Area | Decision |
 |---|---|
 | License | AGPL-3.0-or-later, as MuPDF requires ([ADR 0001](decisions/0001-pdf-engine.md)) |
-| Platforms | Linux, Wayland first (Hyprland and Omarchy), X11 supported; Windows 10 and 11. x86_64 only |
+| Platforms | Linux, Wayland first (Hyprland and Omarchy), X11 supported; Windows 10 and 11. x86_64 and ARM64, and RISC-V on Linux |
 | Language | Rust, stable toolchain, edition 2024, minimum Rust 1.89 |
 | GUI | iced 0.14: wgpu (Vulkan on Linux, DirectX 12 or Vulkan on Windows), tiny-skia on the CPU when no GPU backend starts |
 | PDF engine | MuPDF through the `mupdf` crate, behind an engine trait |
@@ -58,7 +58,6 @@ Planned or considered, but not in prev today:
 - JPEG 2000 export (the `image` crate cannot encode it).
 - On Windows, a picture of what is dragged under the pointer (Windows
   shows its own drag cursor).
-- ARM64 builds.
 
 ## Next
 
@@ -222,7 +221,11 @@ driver mappings.
   lint and tests on Windows (which also builds the MSI and zip),
   `cargo deny`, the minimum Rust version, AppStream and desktop entry
   validation, and the Flatpak crate list check.
-- Tags build every package and draft the release ([RELEASING.md](RELEASING.md)).
+- Tags build every package and draft the release ([RELEASING.md](RELEASING.md)):
+  x86_64 and ARM64 on GitHub's runners for each, RISC-V cross-compiled
+  from x86_64 and started once under QEMU. Every build runs
+  `prev --version` before it is packaged; the ARM64 and RISC-V builds
+  are otherwise untested by hand.
 - The interface is tested by hand, on Hyprland and in a Windows 11
   virtual machine.
 
@@ -233,6 +236,7 @@ driver mappings.
 | `mupdf-rs` lacks an API prev needs | What prev uses is covered (`crates/prev-pdf/tests/mupdf_capabilities.rs`); stamp appearances are built with the object API. Contribute missing wrappers upstream |
 | MuPDF is weaker on JBIG2 refinement and halftone scans | Keep such files in the regression corpus; follow jbig2dec upstream |
 | Artifex relicenses MuPDF | Released AGPL versions stay usable; the engine trait allows another engine |
+| mupdf-sys builds MuPDF with MSBuild only for x86 and x64 | CI patches its build script for ARM64 (`packaging/windows/mupdf-sys-arm64.ps1`), which fails loudly when mupdf-sys changes; offer the change upstream |
 | Drag and drop depends on a vendored smithay-clipboard patch | Re-apply it when iced updates smithay-clipboard; offer it upstream |
 | Autosave damaging files | Atomic writes, the original kept as a version, a test that checks every cross-reference offset after repeated saves |
 | Redaction leaking content | Dedicated tests; whole-file rewrite only |

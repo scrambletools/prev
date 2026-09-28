@@ -15,17 +15,41 @@ env:
 jobs:
   packages:
     # Built on an older system so the packages run on newer ones too.
-    runs-on: ubuntu-22.04
+    # GitHub has no RISC-V runners, so that build is cross-compiled; there
+    # is no AppImage for it, as appimagetool has no RISC-V build.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+            deb: amd64
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+            deb: arm64
+          - arch: riscv64
+            runner: ubuntu-22.04
+            deb: riscv64
+            target: riscv64gc-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - name: Install system packages
+        if: ${{ !matrix.target }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             clang libclang-dev pkg-config libfontconfig1-dev libfreetype-dev \
             libxkbcommon-dev libwayland-dev desktop-file-utils file libfuse2
+      - name: Install the cross toolchain and libraries
+        if: ${{ matrix.target }}
+        run: scripts/cross-setup.sh ${{ matrix.arch }}
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.arch }}
       - name: Version
         id: version
         run: |
@@ -40,37 +64,64 @@ jobs:
       - name: Check the desktop entry
         run: desktop-file-validate data/*.desktop
       - name: Build
-        run: cargo build --release --locked -p prev
+        id: build
+        run: |
+          if [ -n "$TARGET" ]; then
+            cargo build --release --locked -p prev --target "$TARGET"
+            echo "binary=target/$TARGET/release/prev" >>"$GITHUB_OUTPUT"
+          else
+            cargo build --release --locked -p prev
+            echo "binary=target/release/prev" >>"$GITHUB_OUTPUT"
+          fi
         env:
           PREV_PRODUCTION: '1'
+          TARGET: ${{ matrix.target }}
+      - name: Check that it runs
+        run: |
+          if [ -n "$TARGET" ]; then
+            qemu-${{ matrix.arch }}-static -L / ${{ steps.build.outputs.binary }} --version
+          else
+            ${{ steps.build.outputs.binary }} --version
+          fi
+        env:
+          TARGET: ${{ matrix.target }}
       - name: Stage
-        run: scripts/dist-install.sh target/release/prev stage /usr
+        run: scripts/dist-install.sh ${{ steps.build.outputs.binary }} stage /usr
       - name: Debian and RPM packages
         run: |
           curl -sSLf -o nfpm.deb \
-            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_$(dpkg --print-architecture).deb"
           sudo dpkg -i nfpm.deb
           mkdir -p dist
           export VERSION=${{ steps.version.outputs.version }}
-          ARCH=amd64 nfpm package -f packaging/nfpm.yaml -p deb -t dist/
-          ARCH=x86_64 nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
+          ARCH=${{ matrix.deb }} nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+          ARCH=${{ matrix.arch }} nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
       - name: AppImage
+        if: ${{ !matrix.target }}
         run: |
           curl -sSLf -o appimagetool \
-            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.arch }}.AppImage
           chmod +x appimagetool
           APPIMAGE_EXTRACT_AND_RUN=1 APPIMAGETOOL=$PWD/appimagetool packaging/appimage/build.sh \
-            target/release/prev ${{ steps.version.outputs.version }} dist
+            ${{ steps.build.outputs.binary }} ${{ steps.version.outputs.version }} dist
       - name: Plain binary
         run: |
-          tar -C stage -czf dist/prev-${{ steps.version.outputs.version }}-x86_64-linux.tar.gz usr
+          tar -C stage -czf dist/prev-${{ steps.version.outputs.version }}-${{ matrix.arch }}-linux.tar.gz usr
       - uses: actions/upload-artifact@v4
         with:
-          name: packages
+          name: packages-${{ matrix.arch }}
           path: dist/*
 
   flatpak:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
       options: --privileged
@@ -78,21 +129,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
         with:
-          bundle: prev.flatpak
+          bundle: prev-${{ matrix.arch }}.flatpak
           manifest-path: packaging/flatpak/io.github.scrambletools.prev.yml
-          cache-key: flatpak-builder-${{ github.sha }}
+          arch: ${{ matrix.arch }}
+          cache-key: flatpak-builder-${{ matrix.arch }}-${{ github.sha }}
           upload-artifact: false
       - uses: actions/upload-artifact@v4
         with:
-          name: flatpak
-          path: prev.flatpak
+          name: flatpak-${{ matrix.arch }}
+          path: prev-${{ matrix.arch }}.flatpak
 
   windows:
     # prev.exe with its HEIC and AVIF DLLs, the MSI installer and a zip.
     # Signing through the SignPath Foundation runs once the repository
     # variable SIGNPATH_ORGANIZATION_ID is set, after SignPath approves the
     # project; until then the files are unsigned.
-    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
     env:
       LIBCLANG_PATH: C:\Program Files\LLVM\bin
       SIGNING: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
@@ -100,29 +160,46 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.arch }}
+      - name: Let mupdf-sys build for ARM64
+        if: matrix.arch == 'arm64'
+        run: |
+          cargo fetch --locked
+          packaging\windows\mupdf-sys-arm64.ps1
       - name: Build
         run: cargo build --release --locked -p prev
         env:
           PREV_PRODUCTION: '1'
+      # prev.exe is a Windows GUI program, which PowerShell would not wait
+      # for.
+      - name: Check that it runs
+        shell: pwsh
+        run: |
+          $run = Start-Process target\release\prev.exe -ArgumentList --version -Wait -PassThru -NoNewWindow -RedirectStandardOutput version.txt
+          $version = Get-Content -Raw version.txt
+          Write-Host $version
+          if ($run.ExitCode -ne 0 -or $version -notmatch '^prev \d') { throw "prev.exe --version failed" }
       - uses: actions/cache@v4
         with:
           path: C:\vcpkg\installed
-          key: vcpkg-libheif-core-aom-v1
+          key: vcpkg-libheif-core-aom-${{ matrix.arch }}-v1
       - name: libheif
-        run: vcpkg install "libheif[core,aom]:x64-windows"
+        run: vcpkg install "libheif[core,aom]:${{ matrix.arch }}-windows"
       - name: Collect prev.exe and its DLLs
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target\release\prev.exe dist\
-          Copy-Item C:\vcpkg\installed\x64-windows\bin\*.dll dist\
+          Copy-Item C:\vcpkg\installed\${{ matrix.arch }}-windows\bin\*.dll dist\
+          Get-ChildItem dist
       # Signs prev.exe itself; the bundled DLLs stay as their projects
       # ship them.
       - id: unsigned-exe
         if: env.SIGNING == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-exe
+          name: unsigned-exe-${{ matrix.arch }}
           path: dist/prev.exe
       - if: env.SIGNING == 'true'
         uses: signpath/github-action-submit-signing-request@v1
@@ -140,12 +217,12 @@ jobs:
         run: |
           dotnet tool install --global wix --version 5.0.2
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
-          packaging\windows\build.ps1 -Version $version -Source dist -Out packages
+          packaging\windows\build.ps1 -Version $version -Source dist -Out packages -Arch ${{ matrix.arch }}
       - id: unsigned-msi
         if: env.SIGNING == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-msi
+          name: unsigned-msi-${{ matrix.arch }}
           path: packages/*.msi
       - if: env.SIGNING == 'true'
         uses: signpath/github-action-submit-signing-request@v1
@@ -160,7 +237,7 @@ jobs:
           output-artifact-directory: packages
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
+          name: windows-${{ matrix.arch }}
           path: packages/*
 
   aur:
@@ -197,7 +274,7 @@ jobs:
       - name: Collect files and notes
         run: |
           mkdir -p upload
-          cp artifacts/packages/* artifacts/flatpak/* artifacts/windows/* upload/
+          cp artifacts/packages-*/* artifacts/flatpak-*/* artifacts/windows-*/* upload/
           # The PKGBUILD and its install file, to build the Arch package.
           cp artifacts/aur/* upload/
           (cd upload && sha256sum * >SHA256SUMS)
