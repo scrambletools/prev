@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>prev: a fast PDF and image viewer for Linux</title>
+<title>prev: a fast PDF and image viewer for Linux and Windows</title>
 <meta name="description" content="prev is a free, open source viewer and editor for PDFs, images, SVG drawings and Markdown, similar to macOS Preview.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
@@ -27,10 +27,10 @@
     <p class="lede">A fast, open source document and image viewer, similar to macOS Preview.
       Read, mark up, fill in, sign, rearrange and redact PDFs, and view and edit photos, in one light app.</p>
     <p class="actions">
-      <a class="button filled" href="#download">Download prev 1.0.0</a>
+      <a class="button filled" href="#download">Download prev 1.1.0</a>
       <a class="button tonal" href="https://github.com/scrambletools/prev">Source on GitHub</a>
     </p>
-    <p class="small">Free and open source under the AGPL-3.0. For Linux, on Wayland desktops such as Hyprland and Omarchy.</p>
+    <p class="small">Free and open source under the AGPL-3.0. For Linux, on Wayland desktops such as Hyprland and Omarchy, and for Windows 10 and 11.</p>
     <img class="shot hero-shot" src="screenshots/markup.png" alt="A form filled in, marked up with a highlight, shapes, a text box and a note, and signed" width="1360" height="796">
   </section>
 
@@ -78,22 +78,24 @@
 
   <section id="download" class="download">
     <h2>Download</h2>
-    <p>prev 1.0.0 for 64-bit Linux. Every file is on the <a href="https://github.com/scrambletools/prev/releases/latest">release page</a>, with checksums.</p>
+    <p>prev 1.1.0 for 64-bit Linux and Windows. Every file is on the <a href="https://github.com/scrambletools/prev/releases/latest">release page</a>, with checksums.</p>
     <div class="table">
       <table>
         <thead><tr><th>System</th><th>Download</th><th>Install</th></tr></thead>
         <tbody>
-          <tr><td>Debian, Ubuntu</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev_1.0.0-1_amd64.deb">.deb</a></td><td><code>sudo apt install ./prev_1.0.0-1_amd64.deb</code></td></tr>
-          <tr><td>Fedora</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev-1.0.0-1.x86_64.rpm">.rpm</a></td><td><code>sudo dnf install ./prev-1.0.0-1.x86_64.rpm</code></td></tr>
-          <tr><td>Arch, Omarchy</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/PKGBUILD">PKGBUILD</a> and <a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev.install">prev.install</a></td><td><code>makepkg -si</code> in a folder with both</td></tr>
-          <tr><td>Flatpak</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev.flatpak">prev.flatpak</a></td><td><code>flatpak install --user prev.flatpak</code></td></tr>
-          <tr><td>Any distribution</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev-1.0.0-x86_64.AppImage">AppImage</a></td><td>Make it executable, then run it</td></tr>
-          <tr><td>Any distribution</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.0.0/prev-1.0.0-x86_64-linux.tar.gz">.tar.gz</a></td><td>Unpack under <code>/usr</code> or <code>~/.local</code></td></tr>
+          <tr><td>Windows 10 and 11</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev-1.1.0-x64.msi">Installer (.msi)</a></td><td>Open it: it installs for you alone, with no administrator prompt</td></tr>
+          <tr><td>Windows, portable</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev-1.1.0-x64-windows.zip">.zip</a></td><td>Unpack it anywhere and run <code>prev.exe</code></td></tr>
+          <tr><td>Debian, Ubuntu</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev_1.1.0-1_amd64.deb">.deb</a></td><td><code>sudo apt install ./prev_1.1.0-1_amd64.deb</code></td></tr>
+          <tr><td>Fedora</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev-1.1.0-1.x86_64.rpm">.rpm</a></td><td><code>sudo dnf install ./prev-1.1.0-1.x86_64.rpm</code></td></tr>
+          <tr><td>Arch, Omarchy</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/PKGBUILD">PKGBUILD</a> and <a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev.install">prev.install</a></td><td><code>makepkg -si</code> in a folder with both</td></tr>
+          <tr><td>Flatpak</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev.flatpak">prev.flatpak</a></td><td><code>flatpak install --user prev.flatpak</code></td></tr>
+          <tr><td>Any distribution</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev-1.1.0-x86_64.AppImage">AppImage</a></td><td>Make it executable, then run it</td></tr>
+          <tr><td>Any distribution</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.1.0/prev-1.1.0-x86_64-linux.tar.gz">.tar.gz</a></td><td>Unpack under <code>/usr</code> or <code>~/.local</code></td></tr>
           <tr><td>With mise</td><td></td><td><code>mise use -g github:scrambletools/prev</code></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="small">A Windows version is on the way. See the <a href="https://github.com/scrambletools/prev#install">install notes</a> for what differs between packages.</p>
+    <p class="small">Windows may warn that the installer is from an unknown publisher until releases are code signed. See the <a href="https://github.com/scrambletools/prev#install">install notes</a> for what differs between packages.</p>
   </section>
 
   <section id="code-signing" class="policy">
