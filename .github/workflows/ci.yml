@@ -34,6 +34,8 @@ jobs:
         env:
           PREV_CORPUS: ${{ runner.temp }}/corpus
           PREV_CORPUS_REQUIRED: 1
+      # The Flatpak builds offline from this list of crates.
+      - run: scripts/check-cargo-sources.py
       - run: desktop-file-validate data/*.desktop
       - run: appstreamcli validate --no-net data/*.metainfo.xml
 
