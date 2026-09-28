@@ -217,7 +217,10 @@ or twice as sharp; very long documents are scaled down to fit the
 
 ## Drag and drop
 
-![Dragging a screenshot from prev's website, prev.run, in a browser onto a page of a PDF open in prev, where it lands as a picture, selected](screenshots/drag-from-browser.gif)
+![Dragging a photo of Saturn from a Wikimedia Commons page in a browser into the empty photo space of a newsletter PDF open in prev, where it lands as a picture, selected, above its caption](screenshots/drag-from-browser.gif)
+
+<sub>Saturn: NASA/JPL/Space Science Institute, public domain, shown on
+Wikimedia Commons. The newsletter is a sample made for prev.</sub>
 
 Drag and drop works both ways: things dragged into prev land where you
 let go, and pages, text, areas and images drag out of prev to other prev
