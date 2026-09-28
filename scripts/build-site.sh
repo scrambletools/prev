@@ -13,7 +13,7 @@ mkdir -p "$out/screenshots"
 cp "$root"/site/* "$out/"
 cp "$root/data/icons/hicolor/scalable/apps/io.github.scrambletools.prev.svg" "$out/icon.svg"
 cp "$root/crates/prev/assets/fonts/RobotoFlex.ttf" "$out/"
-for shot in markup table-of-contents image-markup pages redaction-applied; do
+for shot in markup table-of-contents image-markup pages redaction-applied signatures signature-draw; do
     cp "$root/docs/screenshots/$shot.png" "$out/screenshots/"
 done
 cp "$root/docs/screenshots/drag-from-browser.gif" "$out/screenshots/"
