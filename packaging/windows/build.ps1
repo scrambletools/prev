@@ -16,6 +16,8 @@ New-Item -ItemType Directory -Force $Out | Out-Null
 $msi = Join-Path $Out "prev-$Version-x64.msi"
 wix build (Join-Path $here 'prev.wxs') -arch x64 -d "Version=$Version" -d "Source=$((Resolve-Path $Source).Path)" -o $msi
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
+# WiX's debug symbols are no use to people installing prev.
+Remove-Item (Join-Path $Out '*.wixpdb') -ErrorAction SilentlyContinue
 
 $zip = Join-Path $Out "prev-$Version-x64-windows.zip"
 $stage = Join-Path ([System.IO.Path]::GetTempPath()) "prev-$Version"
