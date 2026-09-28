@@ -172,13 +172,16 @@ fn offered(data: &IDataObject) -> Vec<String> {
     if has(CF_DIB.0, hglobal) {
         types.push("image/bmp".to_owned());
     }
-    // A browser's dragged picture: its name and contents.
-    if has(registered("FileGroupDescriptorW"), hglobal)
+    // A browser's dragged picture: its name and contents. Explorer offers
+    // them too, beside the file itself, which is what to take then.
+    let files = has(CF_HDROP.0, hglobal);
+    if !files
+        && has(registered("FileGroupDescriptorW"), hglobal)
         && let Some(name) = described_name(data)
     {
         types.push(format!("application/octet-stream;name=\"{name}\""));
     }
-    if has(CF_HDROP.0, hglobal) || has(registered("UniformResourceLocatorW"), hglobal) {
+    if files || has(registered("UniformResourceLocatorW"), hglobal) {
         types.push(URI_LIST_MIME.to_owned());
     }
     if has(CF_UNICODETEXT.0, hglobal) {
