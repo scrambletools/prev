@@ -358,8 +358,9 @@ the whole window shows the page. Sidebars and panels stay clear of them.
 
 ### Where files go
 
-Settings are kept in `~/.config/prev.toml`, which lists every setting,
-including where prev keeps your files:
+Settings are kept in `~/.config/prev.toml` (on Windows,
+`%APPDATA%\prev\prev.toml`), which lists every setting, including where
+prev keeps your files:
 
 ```toml
 signatures = "~/.local/share/prev/signatures"

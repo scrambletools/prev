@@ -47,6 +47,9 @@ loading libheif.
 
 ## Milestones
 
+Status (2026-09-27): W1 to W4 are done and tested in a Windows 11
+virtual machine; W5 is under way.
+
 ### W1: it builds (small)
 
 - Gate the Linux modules (`omarchy`, the Wayland window setup, the
@@ -170,9 +173,9 @@ Done when printing a PDF and opening HEIC and AVIF photos work.
 
 - **MuPDF with MSVC:** supported by `mupdf-sys`, but untested with prev's
   feature set and `lto = "thin"`; check this first in W1.
-- **wgpu on older or virtual GPUs:** prev needs DirectX 12 or Vulkan;
-  some virtual machines only offer software rendering. wgpu can fall
-  back to WARP (software DirectX 12), which is slow but works.
+- **Older or virtual GPUs:** settled. prev draws through wgpu (DirectX 12,
+  Vulkan or OpenGL) and falls back to its CPU renderer, tiny-skia, when
+  none starts; it runs in the test virtual machine, which has no GPU.
 - **OLE drag and drop** is the largest piece of new code, and iced gives
   no help with it; W3 may need changes to how `drag.rs` hands data to
   the platform side.
