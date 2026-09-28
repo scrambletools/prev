@@ -95,7 +95,7 @@ other apps read them.
 The Sign menu keeps as many signatures as you like. Click one to place it
 on the current page, then drag and resize it like any annotation.
 
-![Drawing a signature in blue ink](screenshots/signature-draw.png)
+![Signing "Jordan Example" in blue ink in the Create Signature dialog, then typing the description](screenshots/signature-draw.gif)
 
 Create Signature offers three ways in:
 
