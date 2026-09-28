@@ -2,7 +2,7 @@
 
 # prev
 
-A fast, open source document and image viewer for Linux, modelled on macOS
+A fast, open source document and image viewer for Linux, similar to macOS
 Preview. Built in Rust with [iced](https://iced.rs) and
 [MuPDF](https://mupdf.com), for Wayland desktops such as Hyprland and
 [Omarchy](https://omarchy.org).

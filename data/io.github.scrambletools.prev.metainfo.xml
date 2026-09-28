@@ -13,7 +13,7 @@
 
   <description>
     <p>
-      prev is a fast document and image viewer and editor, modelled on
+      prev is a fast document and image viewer and editor, similar to
       macOS Preview. It opens PDFs, images, camera RAW photos, SVG drawings
       and Markdown, and edits them in place.
     </p>

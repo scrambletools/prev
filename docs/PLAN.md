@@ -1,6 +1,6 @@
 # prev: development plan
 
-prev is a fast, open source document and image viewer for Linux, modelled on
+prev is a fast, open source document and image viewer for Linux, similar to
 macOS Preview. It views and edits PDFs (annotations, signatures, page editing,
 redaction, export), views and lightly edits images, and views SVG and Markdown.
 

@@ -4,8 +4,9 @@ This guide walks through what prev does, in the order you are likely to
 meet it. Keyboard shortcuts are listed in the [README](../README.md#keyboard-shortcuts).
 
 <sub>Documents shown: NIST SP 800-63-3, a US government publication in the
-public domain, and a sample form, sample pages and a landscape image made
-for prev.</sub>
+public domain, and a sample form, a sample annual report, a sample
+account statement and a landscape image, all fictional and made for
+prev.</sub>
 
 ## Opening files
 
@@ -107,7 +108,7 @@ Create Signature offers three ways in:
 
 ## Editing pages
 
-![Dragging a page to a new place in the page thumbnails](screenshots/pages.png)
+![Page 3 of an annual report being dragged below page 4 in the page thumbnails, with a line where it will go](screenshots/pages.png)
 
 In the page thumbnails, click a page to select it, Ctrl+click to add
 pages and Shift+click to select a range. Then:
@@ -131,7 +132,7 @@ Select All Pages and Delete. Every page edit can be undone.
 
 ## Redacting
 
-![An account number and a routing number marked for redaction](screenshots/redaction.png)
+![A statement with the name and address, account and routing numbers and tax ID marked for redaction, and Apply in the markup bar](screenshots/redaction.png)
 
 The Redact tool marks what should go: drag a box over it, or select text
 first and then pick the tool. Marks are ordinary annotations until you
@@ -140,6 +141,8 @@ drawings under each mark from the file and draws black boxes in their
 place. The next save rewrites the whole file, so no earlier revision
 keeps the content, and prev deletes the earlier versions of the file it
 kept. This cannot be undone.
+
+![The same statement after applying: black boxes where the marked details were](screenshots/redaction-applied.png)
 
 ## Exporting
 
@@ -213,6 +216,8 @@ or twice as sharp; very long documents are scaled down to fit the
 16,383 pixel height some formats allow.
 
 ## Drag and drop
+
+![Dragging a screenshot from prev's website, prev.run, in a browser onto a page of a PDF open in prev, where it lands as a picture, selected](screenshots/drag-from-browser.gif)
 
 Drag and drop works both ways: things dragged into prev land where you
 let go, and pages, text, areas and images drag out of prev to other prev
