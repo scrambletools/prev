@@ -18,5 +18,7 @@ pub mod omarchy;
 pub mod paste;
 pub mod pdf;
 pub mod portal;
+#[cfg(windows)]
+mod print_windows;
 pub mod shortcuts;
 pub mod ui;

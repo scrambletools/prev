@@ -105,6 +105,23 @@ mod other {
         None
     }
 
+    /// Prints through the Windows print dialog, on a thread of its own:
+    /// the dialog and the spooling block until they are done.
+    #[cfg(windows)]
+    pub async fn print(path: PathBuf, title: String) -> Result<(), String> {
+        let (sender, receiver) = iced::futures::channel::oneshot::channel();
+        std::thread::Builder::new()
+            .name("prev-print".into())
+            .spawn(move || {
+                let _ = sender.send(crate::print_windows::print(&path, &title));
+            })
+            .map_err(|error| format!("Could not print: {error}"))?;
+        receiver
+            .await
+            .unwrap_or_else(|_| Err("Printing stopped".to_owned()))
+    }
+
+    #[cfg(not(windows))]
     pub async fn print(_path: PathBuf, _title: String) -> Result<(), String> {
         Err("Printing is not available on this system yet.".to_owned())
     }
