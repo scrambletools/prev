@@ -17,7 +17,7 @@ homepage: https://github.com/scrambletools/prev
 license: AGPL-3.0-or-later
 description: |-
   View, mark up and sign PDFs and images
-  prev is a document and image viewer and editor modelled on macOS
+  prev is a document and image viewer and editor similar to macOS
   Preview: PDF reading, markup, forms, signatures, redaction and page
   editing, photo editing with metadata kept, and drag and drop with other
   apps.
