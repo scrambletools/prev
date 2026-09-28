@@ -1,8 +1,7 @@
 //! Crash-safe file replacement: write a sibling temp file, fsync, rename.
 
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -21,23 +20,63 @@ pub fn write(path: &Path, contents: &[u8]) -> io::Result<()> {
     let temp_path = temp_sibling(path);
 
     let result = (|| {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o644)
-            .open(&temp_path)?;
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);
+        let mut file = options.open(&temp_path)?;
         file.write_all(contents)?;
         if let Some(permissions) = existing_mode {
             file.set_permissions(permissions)?;
         }
         file.sync_all()?;
-        fs::rename(&temp_path, path)?;
-        File::open(parent)?.sync_all()
+        replace(&temp_path, path)?;
+        sync_folder(parent)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temp_path);
     }
     result
+}
+
+#[cfg(not(windows))]
+fn replace(from: &Path, to: &Path) -> io::Result<()> {
+    fs::rename(from, to)
+}
+
+/// Windows refuses to replace a file another program has open, often
+/// only for a moment (a virus scanner, a thumbnailer), so try a few times
+/// before saying so.
+#[cfg(windows)]
+fn replace(from: &Path, to: &Path) -> io::Result<()> {
+    let mut tries = 0;
+    loop {
+        match fs::rename(from, to) {
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied && tries < 10 => {
+                tries += 1;
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!("{} is open in another program", to.display()),
+                ));
+            }
+            result => return result,
+        }
+    }
+}
+
+/// Makes the rename itself durable. Windows cannot open a folder as a
+/// file, and its renames are written through by NTFS.
+#[cfg(unix)]
+fn sync_folder(folder: &Path) -> io::Result<()> {
+    fs::File::open(folder)?.sync_all()
+}
+
+#[cfg(not(unix))]
+fn sync_folder(_folder: &Path) -> io::Result<()> {
+    Ok(())
 }
 
 fn temp_sibling(path: &Path) -> PathBuf {
@@ -52,7 +91,6 @@ fn temp_sibling(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::PermissionsExt;
 
     #[test]
     fn creates_and_replaces() {
@@ -65,8 +103,10 @@ mod tests {
         assert_eq!(leftovers.len(), 1, "no temp files left behind");
     }
 
+    #[cfg(unix)]
     #[test]
     fn keeps_existing_permissions() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("private.pdf");
         fs::write(&path, b"old").unwrap();

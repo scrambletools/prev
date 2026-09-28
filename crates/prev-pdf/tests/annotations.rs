@@ -350,7 +350,7 @@ fn form_fields_fill_and_round_trip() {
 
 /// Every `/AS` entry in the file, uncompressed by MuPDF first.
 fn appearance_states(path: &Path) -> Vec<String> {
-    let document = mupdf::pdf::PdfDocument::open(path.as_os_str()).unwrap();
+    let document = mupdf::pdf::PdfDocument::open(path.to_str().unwrap()).unwrap();
     let mut options = mupdf::pdf::PdfWriteOptions::default();
     options.set_decompress(true).set_garbage_level(1);
     let mut bytes = Vec::new();

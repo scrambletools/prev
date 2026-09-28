@@ -1,0 +1,88 @@
+<!--
+  prev's Windows installer, built with WiX 5 by packaging/windows/build.ps1:
+
+    wix build packaging\windows\prev.wxs -d Version=1.1.0 -d Source=dist -o prev.msi
+
+  It installs for the current user, with no administrator prompt, into
+  %LOCALAPPDATA%\Programs\prev, adds prev to the Start menu, and registers
+  it for "Open with" and as a choice in Default apps for the file types it
+  opens. Windows lets only the user choose the default app.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?define Extensions = pdf;png;jpg;jpeg;jpe;jfif;gif;webp;avif;heic;heif;bmp;ico;tif;tiff;tga;pnm;pbm;pgm;ppm;qoi;hdr;exr;jp2;svg;svgz;md;markdown;3fr;arw;cr2;cr3;crw;dcr;dng;erf;iiq;kdc;mef;mos;mrw;nef;nrw;orf;pef;raf;rw2;rwl;sr2;srf;srw;x3f ?>
+  <?define AppKey = Software\Scramble Tools\prev ?>
+
+  <Package Name="prev" Manufacturer="Scramble Tools" Version="$(var.Version)"
+           UpgradeCode="9baaddb0-20ec-4423-810d-6c5bf88f50f4" Scope="perUser"
+           Language="1033" InstallerVersion="500">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of prev is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="prev.ico" SourceFile="$(sys.SOURCEFILEDIR)prev.ico" />
+    <Property Id="ARPPRODUCTICON" Value="prev.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://prev.run" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/scrambletools/prev" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="Programs" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="prev" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <!-- Per-user components are kept track of by a value under the app's
+         key rather than by their files, so those with files need GUIDs of
+         their own. Keep them: changing one breaks upgrades. -->
+    <ComponentGroup Id="Program" Directory="INSTALLFOLDER">
+      <Component Id="Executable" Guid="780c5004-f7a6-427c-ac45-10079c843e00">
+        <File Id="prev.exe" Source="$(var.Source)\prev.exe" />
+        <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+        <RemoveFolder Id="RemovePrograms" Directory="Programs" On="uninstall" />
+      </Component>
+      <Component Id="Heif" Guid="5f25de1f-03d3-43ea-a836-83e4035fed32">
+        <File Source="$(var.Source)\heif.dll" />
+        <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="Heif" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Component Id="De265" Guid="26c14a14-4194-44b3-8a4b-5fde59b0e148">
+        <File Source="$(var.Source)\libde265.dll" />
+        <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="De265" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Component Id="Aom" Guid="16c9cb56-0bf5-4639-b234-9730fc170925">
+        <File Source="$(var.Source)\aom.dll" />
+        <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="Aom" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Component Id="StartMenu" Directory="ProgramMenuFolder">
+      <Shortcut Id="StartMenuShortcut" Name="prev" Description="View and edit PDFs and images"
+                Target="[INSTALLFOLDER]prev.exe" WorkingDirectory="INSTALLFOLDER" Icon="prev.ico" />
+      <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- "Open with" and Default apps: a program id that opens files, the
+         extensions it may open, and the capabilities Settings lists. -->
+    <Component Id="FileTypes" Directory="INSTALLFOLDER">
+      <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="FileTypes" Type="integer" Value="1" KeyPath="yes" />
+      <RegistryValue Root="HKCU" Key="Software\Classes\prev.Document" Value="Document (prev)" Type="string" />
+      <RegistryValue Root="HKCU" Key="Software\Classes\prev.Document\DefaultIcon" Value="&quot;[INSTALLFOLDER]prev.exe&quot;,0" Type="string" />
+      <RegistryValue Root="HKCU" Key="Software\Classes\prev.Document\shell\open\command" Value="&quot;[INSTALLFOLDER]prev.exe&quot; &quot;%1&quot;" Type="string" />
+      <RegistryValue Root="HKCU" Key="Software\Classes\Applications\prev.exe" Name="FriendlyAppName" Value="prev" Type="string" />
+      <RegistryValue Root="HKCU" Key="Software\Classes\Applications\prev.exe\shell\open\command" Value="&quot;[INSTALLFOLDER]prev.exe&quot; &quot;%1&quot;" Type="string" />
+      <RegistryValue Root="HKCU" Key="$(var.AppKey)\Capabilities" Name="ApplicationName" Value="prev" Type="string" />
+      <RegistryValue Root="HKCU" Key="$(var.AppKey)\Capabilities" Name="ApplicationDescription" Value="A fast document and image viewer and editor" Type="string" />
+      <RegistryValue Root="HKCU" Key="Software\RegisteredApplications" Name="prev" Value="$(var.AppKey)\Capabilities" Type="string" />
+      <?foreach Ext in $(var.Extensions) ?>
+      <RegistryValue Root="HKCU" Key="Software\Classes\.$(Ext)\OpenWithProgids" Name="prev.Document" Value="" Type="string" />
+      <RegistryValue Root="HKCU" Key="Software\Classes\Applications\prev.exe\SupportedTypes" Name=".$(Ext)" Value="" Type="string" />
+      <RegistryValue Root="HKCU" Key="$(var.AppKey)\Capabilities\FileAssociations" Name=".$(Ext)" Value="prev.Document" Type="string" />
+      <?endforeach ?>
+    </Component>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="Program" />
+      <ComponentRef Id="StartMenu" />
+      <ComponentRef Id="FileTypes" />
+    </Feature>
+  </Package>
+</Wix>

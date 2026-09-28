@@ -1590,29 +1590,7 @@ fn redaction(rect: Rect) -> Annotation {
 }
 
 fn copy_png(bitmap: &Bitmap) -> Result<(), String> {
-    use std::io::Write;
-    let image = image::RgbaImage::from_raw(bitmap.width, bitmap.height, bitmap.pixels.clone())
-        .ok_or("the area has no pixels")?;
-    let mut png = Vec::new();
-    image
-        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
-        .map_err(|error| error.to_string())?;
-    let mut child = std::process::Command::new("wl-copy")
-        .args(["--type", "image/png"])
-        .stdin(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|_| "install wl-clipboard to copy images".to_owned())?;
-    child
-        .stdin
-        .take()
-        .ok_or("wl-copy has no input")?
-        .write_all(&png)
-        .map_err(|error| error.to_string())?;
-    let status = child.wait().map_err(|error| error.to_string())?;
-    status
-        .success()
-        .then_some(())
-        .ok_or_else(|| "wl-copy failed".to_owned())
+    crate::paste::copy_image(bitmap)
 }
 
 /// A text box rect that fits its text, growing to the right and down.

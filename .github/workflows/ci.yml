@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -35,6 +36,52 @@ jobs:
           PREV_CORPUS_REQUIRED: 1
       - run: desktop-file-validate data/*.desktop
       - run: appstreamcli validate --no-net data/*.metainfo.xml
+
+  windows:
+    runs-on: windows-2025
+    env:
+      # bindgen finds MuPDF's headers through the runner's LLVM.
+      LIBCLANG_PATH: C:\Program Files\LLVM\bin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo build --release -p prev
+      # HEIC and AVIF: libheif with its HEVC (libde265) and AV1 (aom)
+      # decoders, without x265, which only encodes and is GPL. prev loads
+      # the DLLs from beside prev.exe.
+      - uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-libheif-core-aom-v1
+      - name: libheif
+        run: vcpkg install "libheif[core,aom]:x64-windows"
+      - name: Collect prev.exe and its DLLs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target\release\prev.exe dist\
+          Copy-Item C:\vcpkg\installed\x64-windows\bin\*.dll dist\
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prev-windows
+          path: dist/*
+      # The installer and zip, to try the packaging before a release.
+      - name: Installer and zip
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
+          packaging\windows\build.ps1 -Version $version -Source dist -Out packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prev-windows-packages
+          path: packages/*
 
   msrv:
     runs-on: ubuntu-24.04

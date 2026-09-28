@@ -152,9 +152,11 @@ For a walkthrough of every feature with more screenshots, see
 
 ## Install
 
-prev runs on Linux under Wayland (X11 works too) and needs a Vulkan
-capable GPU driver. Each [release](https://github.com/scrambletools/prev/releases)
-has these packages:
+prev runs on Linux under Wayland (X11 works too) and on Windows 10 and 11
+(64-bit). It draws with the GPU through Vulkan, OpenGL or, on Windows,
+DirectX 12, and falls back to drawing on the CPU when none is available.
+Each [release](https://github.com/scrambletools/prev/releases) has these
+packages:
 
 | System | How |
 |---|---|
@@ -165,6 +167,8 @@ has these packages:
 | Any distribution | the AppImage: `chmod +x prev-1.0.0-x86_64.AppImage`, then run it |
 | Any distribution | `prev-1.0.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
 | Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
+| Windows 10 and 11 | the `.msi` installer: open it; it installs for you alone, with no administrator prompt |
+| Windows, portable | the `-windows.zip`: unpack it anywhere and run `prev.exe` |
 
 On Arch, until the AUR packages are published:
 
@@ -207,6 +211,14 @@ Every package has every feature. Some depend on where prev runs:
   it from a terminal. It updates with `mise up`; mise waits a day after
   a release before offering it. Like the tarball, it does not install
   wl-clipboard, libheif or curl.
+- **Windows:**
+  - Installed from the MSI, prev is in the Start menu and under "Open
+    with". To make it the default app for a file type, choose it in
+    Settings, Apps, Default apps: Windows lets only you choose.
+  - Settings are in `%APPDATA%\prev\prev.toml`, with signatures, version
+    history and bookmarks beside it.
+  - HEIC and AVIF work out of the box, as libheif comes with prev.
+  - No Omarchy colors or Hyprland rule.
 - **Holding Shift** during a drop from another app is seen only under
   compositors that move keyboard focus with the pointer, such as
   Hyprland.
@@ -222,8 +234,8 @@ o.window("^io\\.github\\.scrambletools\\.prev$", { tag = "-default-opacity", opa
 
 ## Building
 
-prev needs Linux, Rust 1.89 or newer, a Vulkan capable GPU driver, and these
-build dependencies:
+prev builds on Linux with Rust 1.89 or newer and these build
+dependencies:
 
 ```sh
 # Arch

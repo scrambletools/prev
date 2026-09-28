@@ -87,6 +87,82 @@ jobs:
           name: flatpak
           path: prev.flatpak
 
+  windows:
+    # prev.exe with its HEIC and AVIF DLLs, the MSI installer and a zip.
+    # Signing through the SignPath Foundation runs once the repository
+    # variable SIGNPATH_ORGANIZATION_ID is set, after SignPath approves the
+    # project; until then the files are unsigned.
+    runs-on: windows-2025
+    env:
+      LIBCLANG_PATH: C:\Program Files\LLVM\bin
+      SIGNING: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked -p prev
+        env:
+          PREV_PRODUCTION: '1'
+      - uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-libheif-core-aom-v1
+      - name: libheif
+        run: vcpkg install "libheif[core,aom]:x64-windows"
+      - name: Collect prev.exe and its DLLs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target\release\prev.exe dist\
+          Copy-Item C:\vcpkg\installed\x64-windows\bin\*.dll dist\
+      # Signs prev.exe itself; the bundled DLLs stay as their projects
+      # ship them.
+      - id: unsigned-exe
+        if: env.SIGNING == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe
+          path: dist/prev.exe
+      - if: env.SIGNING == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: prev
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: exe
+          github-artifact-id: ${{ steps.unsigned-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist
+      - name: Installer and zip
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
+          packaging\windows\build.ps1 -Version $version -Source dist -Out packages
+      - id: unsigned-msi
+        if: env.SIGNING == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-msi
+          path: packages/*.msi
+      - if: env.SIGNING == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: prev
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: msi
+          github-artifact-id: ${{ steps.unsigned-msi.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: packages/*
+
   aur:
     # The AUR package builds from GitHub's source archive of the tag; its
     # checksum is only known once the tag exists.
@@ -109,7 +185,7 @@ jobs:
 
   release:
     if: github.ref_type == 'tag'
-    needs: [packages, flatpak, aur]
+    needs: [packages, flatpak, aur, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -121,7 +197,7 @@ jobs:
       - name: Collect files and notes
         run: |
           mkdir -p upload
-          cp artifacts/packages/* artifacts/flatpak/* upload/
+          cp artifacts/packages/* artifacts/flatpak/* artifacts/windows/* upload/
           # The PKGBUILD and its install file, to build the Arch package.
           cp artifacts/aur/* upload/
           (cd upload && sha256sum * >SHA256SUMS)

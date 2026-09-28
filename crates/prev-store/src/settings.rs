@@ -211,20 +211,21 @@ mod tests {
 
     #[test]
     fn paths_under_home_use_a_tilde() {
-        let home = std::env::var_os("HOME").map(PathBuf::from).unwrap();
+        let home = crate::paths::home().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("prev.toml");
+        let versions = home.join("Archive").join("versions");
         let settings = Settings {
-            versions: home.join("Archive/versions"),
+            versions: versions.clone(),
             ..Settings::default()
         };
         settings.save_to(&path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains("versions = \"~/Archive/versions\""), "{text}");
-        assert_eq!(
-            Settings::load_from(&path).unwrap().versions,
-            home.join("Archive/versions")
-        );
+        // Written from the tilde, with the system's own separators.
+        let table: toml::Table = toml::from_str(&text).unwrap();
+        let written = Path::new("~").join("Archive").join("versions");
+        assert_eq!(table["versions"].as_str(), written.to_str(), "{text}");
+        assert_eq!(Settings::load_from(&path).unwrap().versions, versions);
     }
 
     #[test]

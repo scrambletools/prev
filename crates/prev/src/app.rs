@@ -8,6 +8,7 @@ use iced::keyboard::{self, Key, Modifiers};
 use iced::widget::{column, container, mouse_area, opaque, row, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
 use iced::{Center, Color, Element, Event, Fill, Length, Size, Subscription, Task, Theme, event};
+use prev::dnd::DragEvent;
 use prev::filetype::{self, FileKind};
 use prev::image::window::{self as image_window, ImageWindow, Source};
 use prev::markdown::{self, MarkdownWindow};
@@ -19,10 +20,10 @@ use prev::ui::{Icon, Type, component, icon, style};
 use prev::{dialog, omarchy, portal, ui};
 use prev_store::settings::{self, Appearance, Settings};
 use raw_window_handle::RawWindowHandle;
-use smithay_clipboard::dnd::DragEvent;
 
 use crate::External;
 
+#[cfg(target_os = "linux")]
 pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
     "io.github.scrambletools.prev"
 } else {
@@ -175,8 +176,15 @@ pub enum Message {
     /// The window manager or a shortcut asked to close a window.
     CloseRequested(window::Id),
     Resized(window::Id, Size),
+    /// The size of the monitor a new window opened on, if known. Only
+    /// asked for off Linux.
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
+    MonitorSize(window::Id, Option<Size>),
     /// The pointer moved, reported while a drag may leave its window.
     PointerMoved(window::Id, iced::Point),
+    /// A file dropped through the windowing system rather than prev's own
+    /// drag and drop: on Windows and X11.
+    FileDropped(window::Id, PathBuf),
     /// A drop was read: where it landed, what it brought, and whether
     /// Shift made it a drop of files.
     DropDecoded(
@@ -292,7 +300,7 @@ impl Prev {
         let mut tasks = Vec::new();
         let mut images = Vec::new();
         for path in paths {
-            let path = std::fs::canonicalize(&path).unwrap_or(path);
+            let path = prev_store::paths::canonical(&path);
             if let Some(id) = self.window_showing(&path) {
                 tasks.push(window::gain_focus(id));
                 continue;
@@ -365,7 +373,7 @@ impl Prev {
     }
 
     fn open_document(&mut self, path: PathBuf) -> Task<Message> {
-        let path = std::fs::canonicalize(&path).unwrap_or(path);
+        let path = prev_store::paths::canonical(&path);
         if let Some(id) = self.window_showing(&path) {
             return window::gain_focus(id);
         }
@@ -468,10 +476,7 @@ impl Prev {
         };
         let (id, opened) = window::open(window::Settings {
             size,
-            platform_specific: PlatformSpecific {
-                application_id: APP_ID.to_owned(),
-                ..PlatformSpecific::default()
-            },
+            platform_specific: platform_settings(),
             // Windows with markup that would be lost ask first.
             exit_on_close_request: false,
             icon: window_icon(),
@@ -504,7 +509,28 @@ impl Prev {
                 window::run(id, wayland_surface)
                     .map(move |surface| Message::SurfaceKnown(id, surface)),
                 window::scale_factor(id).map(move |scale| Message::ScaleFactor(id, scale)),
+                fit_to_monitor(id),
             ]),
+            Message::MonitorSize(id, Some(monitor)) => {
+                // Room for the taskbar and window borders.
+                let room = Size::new(monitor.width * 0.9, monitor.height * 0.85);
+                let Some(window) = self.windows.get(&id) else {
+                    return Task::none();
+                };
+                if window.size.width <= room.width && window.size.height <= room.height {
+                    return Task::none();
+                }
+                let size = Size::new(
+                    window.size.width.min(room.width),
+                    window.size.height.min(room.height),
+                );
+                let at = iced::Point::new(
+                    (monitor.width - size.width) / 2.0,
+                    (monitor.height - size.height) / 2.0,
+                );
+                Task::batch([window::resize(id, size), window::move_to(id, at)])
+            }
+            Message::MonitorSize(_, None) => Task::none(),
             Message::ScaleFactor(id, scale) => Task::batch([
                 self.with_pdf(id, |pdf| pdf.set_device_scale(scale)),
                 self.with_images(id, |images| images.set_device_scale(scale)),
@@ -552,6 +578,11 @@ impl Prev {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.surface = surface;
                 }
+                // Windows drops go to a target registered on each window.
+                #[cfg(windows)]
+                if let Some(hwnd) = surface {
+                    prev::dnd::register(hwnd);
+                }
                 Task::none()
             }
             Message::WindowClosed(id) => {
@@ -588,6 +619,15 @@ impl Prev {
                     return Task::none();
                 }
                 self.with_pdf(id, |pdf| pdf.drag_pages_out())
+            }
+            Message::FileDropped(id, path) => {
+                // No drop position comes with it; take the window's middle.
+                let Some(window) = self.windows.get(&id) else {
+                    return Task::none();
+                };
+                let (x, y) = (window.size.width / 2.0, window.size.height / 2.0);
+                let dropped = prev::drag::Dropped::Files(vec![path]);
+                self.drop_in(id, x, y, prev::drag::Action::Copy, dropped, self.shift)
             }
             Message::DropDecoded(id, x, y, action, dropped, as_file) => {
                 self.drop_in(id, x, y, action, dropped, as_file)
@@ -652,7 +692,7 @@ impl Prev {
                 // Shift moves dropped pages instead of copying them, and
                 // takes dropped images as files.
                 self.shift = modifiers.shift();
-                smithay_clipboard::dnd::set_prefer_move(modifiers.shift());
+                prev::dnd::set_prefer_move(modifiers.shift());
                 if let Some(pdf) = self.pdf_mut(id) {
                     pdf.set_modifiers(modifiers);
                 }
@@ -1093,6 +1133,9 @@ impl Prev {
                 (Event::Window(window::Event::Resized(size)), _) => {
                     Some(Message::Resized(id, size))
                 }
+                (Event::Window(window::Event::FileDropped(path)), _) => {
+                    Some(Message::FileDropped(id, path))
+                }
                 (Event::Mouse(iced::mouse::Event::CursorMoved { position }), _)
                     if prev::drag::watching_pointer() =>
                 {
@@ -1485,10 +1528,47 @@ fn drop_highlight<'a>() -> Element<'a, Message> {
         .into()
 }
 
-/// The window's `wl_surface` pointer; `None` off Wayland.
+/// Asks for the monitor's size, to shrink a new window that would not fit
+/// it. Linux compositors place and size windows themselves.
+#[cfg(not(target_os = "linux"))]
+fn fit_to_monitor(id: window::Id) -> Task<Message> {
+    window::monitor_size(id).map(move |size| Message::MonitorSize(id, size))
+}
+
+#[cfg(target_os = "linux")]
+fn fit_to_monitor(_id: window::Id) -> Task<Message> {
+    Task::none()
+}
+
+/// On Linux, the app id desktops match windows and launchers by.
+#[cfg(target_os = "linux")]
+fn platform_settings() -> PlatformSpecific {
+    PlatformSpecific {
+        application_id: APP_ID.to_owned(),
+        ..PlatformSpecific::default()
+    }
+}
+
+/// On Windows, prev's own OLE drop target takes drops instead of winit's.
+#[cfg(windows)]
+fn platform_settings() -> PlatformSpecific {
+    PlatformSpecific {
+        drag_and_drop: false,
+        ..PlatformSpecific::default()
+    }
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
+fn platform_settings() -> PlatformSpecific {
+    PlatformSpecific::default()
+}
+
+/// The window's `wl_surface` pointer on Wayland, or its HWND on Windows:
+/// what drag events name the window by.
 fn wayland_surface(window: &dyn window::Window) -> Option<usize> {
     match window.window_handle().ok()?.as_raw() {
         RawWindowHandle::Wayland(handle) => Some(handle.surface.as_ptr() as usize),
+        RawWindowHandle::Win32(handle) => Some(handle.hwnd.get() as usize),
         _ => None,
     }
 }

@@ -1,7 +1,9 @@
 //! Reading the system clipboard for Paste: an image, text, or a marker
-//! that pages copied in prev are the latest thing copied. Through
-//! wl-clipboard, as copying images already is.
+//! that pages copied in prev are the latest thing copied; and copying
+//! images and that marker. Through wl-clipboard on Linux, and the Windows
+//! clipboard on Windows.
 
+#[cfg(not(windows))]
 use std::process::{Command, Stdio};
 
 use prev_image::ImageFormat;
@@ -40,6 +42,7 @@ pub(crate) const TEXT_TYPES: [&str; 5] = [
     "TEXT",
 ];
 
+#[cfg(not(windows))]
 fn wl_paste(args: &[&str]) -> Result<Vec<u8>, String> {
     let output = Command::new("wl-paste")
         .args(args)
@@ -57,6 +60,7 @@ fn wl_paste(args: &[&str]) -> Result<Vec<u8>, String> {
 
 /// Reads the clipboard. Blocks; run it off the UI thread. `Err` when
 /// wl-clipboard is missing.
+#[cfg(not(windows))]
 pub fn read() -> Result<Clip, String> {
     let listed = String::from_utf8_lossy(&wl_paste(&["--list-types"])?).into_owned();
     let types: Vec<&str> = listed.lines().map(str::trim).collect();
@@ -121,6 +125,7 @@ fn image_file(uris: &str) -> Option<Bitmap> {
 
 /// Marks pages as the latest thing copied, replacing what the clipboard
 /// held. Blocks briefly; wl-copy keeps serving it in the background.
+#[cfg(not(windows))]
 pub fn mark_pages() {
     let _ = Command::new("wl-copy")
         .args(["--type", PAGES_TYPE, "pages"])
@@ -128,6 +133,188 @@ pub fn mark_pages() {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
+}
+
+/// The pixels as a PNG.
+fn png_bytes(bitmap: &Bitmap) -> Result<Vec<u8>, String> {
+    let image = image::RgbaImage::from_raw(bitmap.width, bitmap.height, bitmap.pixels.clone())
+        .ok_or("the area has no pixels")?;
+    let mut png = Vec::new();
+    image
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(|error| error.to_string())?;
+    Ok(png)
+}
+
+/// Copies `bitmap` as a PNG image, replacing what the clipboard held.
+#[cfg(not(windows))]
+pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
+    use std::io::Write;
+    let png = png_bytes(bitmap)?;
+    let mut child = Command::new("wl-copy")
+        .args(["--type", "image/png"])
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|_| "install wl-clipboard to copy images".to_owned())?;
+    child
+        .stdin
+        .take()
+        .ok_or("wl-copy has no input")?
+        .write_all(&png)
+        .map_err(|error| error.to_string())?;
+    let status = child.wait().map_err(|error| error.to_string())?;
+    status
+        .success()
+        .then_some(())
+        .ok_or_else(|| "wl-copy failed".to_owned())
+}
+
+#[cfg(windows)]
+pub(crate) use windows::{bmp_file, dib};
+#[cfg(windows)]
+pub use windows::{copy_image, mark_pages, read};
+
+/// The Windows clipboard, in the types `choose` understands: prev's page
+/// marker and PNG as registered formats, bitmaps as BMP files, copied
+/// files as a URI list, and Unicode text.
+#[cfg(windows)]
+mod windows {
+    use clipboard_win::{Clipboard, formats, raw};
+
+    use super::{Bitmap, Clip, PAGES_TYPE, choose, png_bytes};
+
+    fn open() -> Result<Clipboard, String> {
+        Clipboard::new_attempts(10)
+            .map_err(|error| format!("Could not open the clipboard: {error}"))
+    }
+
+    fn registered(name: &str) -> Option<u32> {
+        raw::register_format(name).map(|format| format.get())
+    }
+
+    /// Reads the clipboard. Blocks briefly; run it off the UI thread.
+    pub fn read() -> Result<Clip, String> {
+        let _open = open()?;
+        let pages = registered(PAGES_TYPE);
+        let png = registered("PNG");
+        let offered = |format: Option<u32>| format.is_some_and(raw::is_format_avail);
+        let mut types = Vec::new();
+        if offered(pages) {
+            types.push(PAGES_TYPE);
+        }
+        if offered(png) {
+            types.push("image/png");
+        }
+        if offered(Some(formats::CF_DIB)) {
+            types.push("image/bmp");
+        }
+        if offered(Some(formats::CF_HDROP)) {
+            types.push("text/uri-list");
+        }
+        if offered(Some(formats::CF_UNICODETEXT)) {
+            types.push("text/plain;charset=utf-8");
+        }
+        Ok(choose(&types, |kind| {
+            let mut data = Vec::new();
+            match kind {
+                "image/png" => {
+                    if let Some(png) = png {
+                        let _ = raw::get_vec(png, &mut data);
+                    }
+                }
+                "image/bmp" => {
+                    let _ = raw::get_vec(formats::CF_DIB, &mut data);
+                    data = bmp_file(&data).unwrap_or_default();
+                }
+                "text/uri-list" => {
+                    let mut paths = Vec::new();
+                    let _ = raw::get_file_list_path(&mut paths);
+                    for path in paths {
+                        data.extend(crate::drag::uri_list(&path));
+                    }
+                }
+                "text/plain;charset=utf-8" => {
+                    let _ = raw::get_string(&mut data);
+                }
+                _ => {}
+            }
+            data
+        }))
+    }
+
+    /// Marks pages as the latest thing copied, replacing what the
+    /// clipboard held.
+    pub fn mark_pages() {
+        let (Ok(_open), Some(pages)) = (open(), registered(PAGES_TYPE)) else {
+            return;
+        };
+        let _ = raw::set(pages, b"pages");
+    }
+
+    /// Copies `bitmap` as PNG, for apps that take it, and as a bitmap for
+    /// the rest, replacing what the clipboard held.
+    pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
+        let png = png_bytes(bitmap)?;
+        let _open = open()?;
+        let failed = |error: clipboard_win::ErrorCode| format!("Could not copy the image: {error}");
+        raw::empty().map_err(failed)?;
+        if let Some(format) = registered("PNG") {
+            raw::set_without_clear(format, &png).map_err(failed)?;
+        }
+        raw::set_without_clear(formats::CF_DIB, &dib(bitmap)).map_err(failed)
+    }
+
+    /// A BMP file from a clipboard DIB, which is the file without its
+    /// 14 byte file header.
+    pub(crate) fn bmp_file(dib: &[u8]) -> Option<Vec<u8>> {
+        let u32_at = |at: usize| Some(u32::from_le_bytes(dib.get(at..at + 4)?.try_into().ok()?));
+        let header = u32_at(0)? as usize;
+        let bits = u16::from_le_bytes(dib.get(14..16)?.try_into().ok()?);
+        let compression = u32_at(16)?;
+        let colors = u32_at(32)? as usize;
+        let palette = if colors > 0 {
+            colors * 4
+        } else if bits <= 8 {
+            (1 << bits) * 4
+        } else {
+            0
+        };
+        // BI_BITFIELDS keeps its three masks after a plain info header.
+        let masks = if compression == 3 && header == 40 {
+            12
+        } else {
+            0
+        };
+        let offset = 14 + header + palette + masks;
+        let size = u32::try_from(14 + dib.len()).ok()?;
+        let mut file = Vec::with_capacity(14 + dib.len());
+        file.extend_from_slice(b"BM");
+        file.extend_from_slice(&size.to_le_bytes());
+        file.extend_from_slice(&[0; 4]);
+        file.extend_from_slice(&u32::try_from(offset).ok()?.to_le_bytes());
+        file.extend_from_slice(dib);
+        Some(file)
+    }
+
+    /// `bitmap` as a 32 bit, bottom-up DIB with a plain info header.
+    pub(crate) fn dib(bitmap: &Bitmap) -> Vec<u8> {
+        let (width, height) = (bitmap.width as usize, bitmap.height as usize);
+        let mut dib = Vec::with_capacity(40 + width * height * 4);
+        dib.extend_from_slice(&40u32.to_le_bytes());
+        dib.extend_from_slice(&(bitmap.width as i32).to_le_bytes());
+        dib.extend_from_slice(&(bitmap.height as i32).to_le_bytes());
+        dib.extend_from_slice(&1u16.to_le_bytes());
+        dib.extend_from_slice(&32u16.to_le_bytes());
+        dib.extend_from_slice(&0u32.to_le_bytes());
+        dib.extend_from_slice(&((width * height * 4) as u32).to_le_bytes());
+        dib.extend_from_slice(&[0; 16]);
+        for row in bitmap.pixels.chunks_exact(width * 4).rev() {
+            for pixel in row.as_chunks::<4>().0 {
+                dib.extend_from_slice(&[pixel[2], pixel[1], pixel[0], pixel[3]]);
+            }
+        }
+        dib
+    }
 }
 
 #[cfg(test)]
@@ -173,12 +360,27 @@ mod tests {
         assert!(matches!(choose(&[], |_| Vec::new()), Clip::Nothing));
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn bitmaps_round_trip_through_a_dib() {
+        let bitmap = Bitmap {
+            width: 2,
+            height: 2,
+            pixels: vec![255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 9, 9, 9, 255],
+        };
+        let file = windows::bmp_file(&windows::dib(&bitmap)).unwrap();
+        let read = decode(&file, ImageFormat::Bmp).unwrap();
+        assert_eq!((read.width, read.height), (2, 2));
+        assert_eq!(&read.pixels[..3], &[255, 0, 0]);
+        assert_eq!(&read.pixels[12..15], &[9, 9, 9]);
+    }
+
     #[test]
     fn copied_image_files_paste_as_images() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("copied.png");
         std::fs::write(&path, png()).unwrap();
-        let uris = format!("file://{}\r\n", path.display());
+        let uris = String::from_utf8(crate::drag::uri_list(&path)).unwrap();
         let clip = choose(&["text/uri-list", "text/plain"], |kind| match kind {
             "text/uri-list" => uris.clone().into_bytes(),
             _ => path.display().to_string().into_bytes(),

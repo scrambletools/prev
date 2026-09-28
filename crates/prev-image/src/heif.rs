@@ -12,7 +12,11 @@ use libloading::Library;
 
 use crate::decode::{DecodeError, Decoded, Frame, Result};
 
+#[cfg(not(windows))]
 const LIBRARY_NAMES: &[&str] = &["libheif.so.1", "libheif.so"];
+/// Found beside prev.exe or on the PATH, when a build ships it.
+#[cfg(windows)]
+const LIBRARY_NAMES: &[&str] = &["libheif.dll", "heif.dll"];
 const COLORSPACE_RGB: c_int = 1;
 const CHROMA_INTERLEAVED_RGBA: c_int = 11;
 const CHANNEL_INTERLEAVED: c_int = 10;
