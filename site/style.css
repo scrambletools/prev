@@ -124,6 +124,7 @@ h3 { font-size: 20px; margin: 0 0 6px; font-weight: 650; }
 
 .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 40px; }
 figure { margin: 0; }
+figure.wide { margin-top: 40px; }
 figcaption { margin-top: 10px; text-align: center; color: var(--on-surface-variant); font-size: 15px; }
 
 .table { overflow-x: auto; border-radius: 16px; border: 1px solid var(--outline-variant); }
