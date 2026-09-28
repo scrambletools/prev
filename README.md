@@ -2,10 +2,12 @@
 
 # prev
 
-A fast, open source document and image viewer for Linux, similar to macOS
-Preview. Built in Rust with [iced](https://iced.rs) and
-[MuPDF](https://mupdf.com), for Wayland desktops such as Hyprland and
-[Omarchy](https://omarchy.org).
+A fast, open source document and image viewer for Linux and Windows,
+similar to macOS Preview. Built in Rust with [iced](https://iced.rs) and
+[MuPDF](https://mupdf.com), at home on Wayland desktops such as Hyprland
+and [Omarchy](https://omarchy.org).
+
+Website and downloads: **[prev.run](https://prev.run)**
 
 > **Status:** [1.1.0](https://github.com/scrambletools/prev/releases/tag/v1.1.0)
 > is out, the first release for Windows too. PDF, image, SVG and Markdown
@@ -48,8 +50,10 @@ For a walkthrough of every feature with more screenshots, see
   - Border and fill colors, line widths and dashes.
   - Select, move, resize, restyle and delete annotations; undo and redo.
   - Paste an image or text from the clipboard onto the page, whatever
-    tool is chosen (images need wl-clipboard), or drop one where it
-    should go.
+    tool is chosen (on Linux, images need wl-clipboard), or drop one
+    where it should go.
+  - Everything is saved as standard PDF annotations that other viewers
+    show and edit.
 - **Drag and drop** both ways ([details](docs/GUIDE.md#drag-and-drop)):
   - Drop images, text, files and pages from other windows and apps
     where they should go: images and text onto pages or an image's
@@ -63,9 +67,6 @@ For a walkthrough of every feature with more screenshots, see
   - Pictures dragged from a browser arrive at full size; where a browser
     gives only their address, prev downloads them with curl if it is
     installed.
-  - Rectangular selection copies an area as an image (needs wl-clipboard).
-  - Everything is saved as standard PDF annotations that other viewers
-    show and edit.
 - **Forms:** fill in text fields, checkboxes, radio buttons and drop-down
   menus.
 - **Signatures:** draw one (with a choice of ink and pen thickness), type
@@ -95,7 +96,8 @@ For a walkthrough of every feature with more screenshots, see
 - **Autosave:** edits are written in place a moment after you stop, with
   the original kept for Revert To.
 - **Text selection and copy**, including across pages; double-click selects a
-  word, triple-click a line.
+  word, triple-click a line. A rectangular selection copies an area as an
+  image (on Linux, this needs wl-clipboard).
 - **Links** inside the document and to the web.
 - **Slideshow**, full screen and printing through the system print dialog.
 - **Images:** PNG, JPEG, GIF and animated GIF, WebP, AVIF, HEIC, TIFF, BMP,
@@ -106,7 +108,8 @@ For a walkthrough of every feature with more screenshots, see
   - Images opened together share one window with a thumbnail sidebar;
     drop more image files on the window to add them.
   - Zoom, fit, actual size, Ctrl+scroll zoom and drag to pan.
-  - HEIC and AVIF use the system's libheif when it is installed.
+  - HEIC and AVIF open through libheif: the system's on Linux, built in
+    on Windows and in the Flatpak.
 - **Image editing:** rotate, flip, crop, resize and Adjust Color (exposure,
   contrast, saturation, temperature, tint, sepia, sharpness and levels),
   with undo.
@@ -139,23 +142,26 @@ For a walkthrough of every feature with more screenshots, see
   the floating toolbar and its transparency, animations, corner radius,
   and where signatures,
   version history and bookmarks are kept. They are saved in
-  `~/.config/prev.toml`.
+  `~/.config/prev.toml` (`%APPDATA%\prev\prev.toml` on Windows).
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
-  - Drag and drop with other apps both ways, on Wayland.
+  - Drag and drop with other apps both ways, on Wayland and Windows.
   - Follows the system light or dark setting and reduced motion setting.
 
 ### Planned
 
 - Revert To for PDFs, as images have it.
 - Dragging annotations between documents.
+- Signed Windows releases, and prev on winget and the AUR.
+
+The [development plan](docs/PLAN.md#not-built-yet) lists more.
 
 ## Install
 
 prev runs on Linux under Wayland (X11 works too) and on Windows 10 and 11
-(64-bit). It draws with the GPU through Vulkan, OpenGL or, on Windows,
-DirectX 12, and falls back to drawing on the CPU when none is available.
+(64-bit). It draws with the GPU through Vulkan or, on Windows, DirectX 12,
+and falls back to drawing on the CPU when neither is available.
 Each [release](https://github.com/scrambletools/prev/releases) has these
 packages:
 
@@ -223,7 +229,7 @@ Every package has every feature. Some depend on where prev runs:
 - **Holding Shift** during a drop from another app is seen only under
   compositors that move keyboard focus with the pointer, such as
   Hyprland.
-- Only x86_64 packages are built; on ARM, build from the AUR or source.
+- Only x86_64 packages are built; on ARM, build from source.
 
 On Omarchy, windows are slightly see-through by default, which dims
 photos and pages. `scripts/install.sh` adds a Hyprland rule keeping prev
@@ -235,7 +241,7 @@ o.window("^io\\.github\\.scrambletools\\.prev$", { tag = "-default-opacity", opa
 
 ## Building
 
-prev builds on Linux with Rust 1.89 or newer and these build
+prev builds with Rust 1.89 or newer. On Linux it needs these build
 dependencies:
 
 ```sh
@@ -254,7 +260,14 @@ cargo build --release
 
 MuPDF is compiled from source as part of the build.
 
-prev runs without these, but uses them when they are installed:
+On Windows, install the Visual Studio C++ build tools and LLVM, and set
+`LIBCLANG_PATH` to LLVM's `bin` folder, then run the same `cargo build`.
+For HEIC and AVIF, put libheif's DLLs beside `prev.exe`: `vcpkg install
+"libheif[core,aom]:x64-windows"` builds them. `packaging/windows/build.ps1`
+makes the MSI and zip with WiX.
+
+On Linux, prev runs without these, but uses them when they are
+installed:
 
 - **wl-clipboard** (`wl-copy`, `wl-paste`): pasting images, and copying
   an area as an image. Text copies and pastes without it.
@@ -269,7 +282,7 @@ launcher and "Open With":
 ./scripts/install.sh
 ```
 
-This puts the binary in `~/.local/bin` and the desktop entry, icons and
+On Linux, this puts the binary in `~/.local/bin` and the desktop entry, icons and
 man page under `~/.local/share`, and on Omarchy adds the opacity rule
 above (set `PREV_NO_HYPRLAND=1` to skip it). Settings are in
 `~/.config/prev.toml`, which also says where signatures, version history

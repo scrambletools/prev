@@ -260,15 +260,15 @@ select tool can move, and Undo takes them back.
 | Pages | Drag thumbnails out of the window (inside the window, dragging reorders them) | The pages: another prev window inserts them; the file manager saves them as a PDF named after the document and pages, such as `Report (pages 2–4).pdf` |
 | An image in an image window | Drag it out of the thumbnail sidebar | The file itself, which the file manager copies and other apps open |
 
-A small picture of the pages, area or image follows the pointer while
-it is dragged. Dragged images and text are copied; pages are copied
+On Linux, a small picture of the pages, area or image follows the
+pointer while it is dragged; Windows shows its own drag cursor. Dragged images and text are copied; pages are copied
 unless you hold Shift. A page dragged out and dropped back on the same
 window moves there with Shift, or is copied there without it. An image dragged out of the sidebar and
 dropped back on its own window is left alone.
 
-For pages going to the file manager, prev writes the PDF to a private
-folder in the system's temporary folder; it is removed when the next
-drag starts and when prev quits.
+For pages going to the file manager, prev writes the PDF to a `drag`
+folder in its cache (`~/.cache/prev`, or `%LOCALAPPDATA%\prev\cache` on
+Windows); it is removed when the next drag starts and when prev quits.
 
 ### Holding Shift
 
@@ -293,12 +293,13 @@ Shift changes what a drop does:
 
 - Chromium hands over the picture itself, so it arrives at full size.
   Browsers that give only the picture's web address have it downloaded
-  (with curl, when it is installed, within 20 seconds and 64 MB); without
-  curl the address arrives as text instead.
+  (with curl, within 20 seconds and 64 MB); on Linux without curl
+  installed, the address arrives as text instead. Windows includes curl.
 - Links to anything other than a picture or a PDF arrive as their
   address, as text; prev does not fetch them.
-- Drag and drop does not need wl-clipboard; copying and pasting images
-  does.
+- On Linux, drag and drop does not need wl-clipboard; copying and
+  pasting images does.
+- On Windows, Shift works for drags from any app.
 - Wayland tells the window under a drag nothing about the keys held. prev
   sees Shift during drags from other apps because Hyprland moves the
   keyboard focus with the pointer; under compositors that do not, Shift
@@ -319,8 +320,8 @@ Shift changes what a drop does:
 There is no Save command: edits to PDFs and images are written in place
 a moment after you stop, and when a window closes. Before the first
 write, prev keeps the original as a version in the version history
-folder (`~/.local/share/prev/versions` unless the settings say
-otherwise). For images, the inspector's Revert To
+folder (`~/.local/share/prev/versions`, or `%APPDATA%\prev\versions` on
+Windows, unless the settings say otherwise). For images, the inspector's Revert To
 list puts an earlier version back; Revert To for PDFs is still to come.
 
 ## Settings
@@ -362,11 +363,15 @@ Settings are kept in `~/.config/prev.toml` (on Windows,
 `%APPDATA%\prev\prev.toml`), which lists every setting, including where
 prev keeps your files:
 
+On Linux these are:
+
 ```toml
 signatures = "~/.local/share/prev/signatures"
 versions = "~/.local/share/prev/versions"
 bookmarks = "~/.local/share/prev/bookmarks.toml"
 ```
+
+On Windows they are under `%APPDATA%\prev`.
 
 Change them in the Storage section: type a path (`~` works) and press
 Enter or Apply, or pick a folder with Choose. prev checks that the folder

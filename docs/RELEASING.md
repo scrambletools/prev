@@ -14,11 +14,13 @@ Everything a release ships is built from this repository:
 | `packaging/nfpm.yaml` | Debian and RPM packages, made with nfpm |
 | `packaging/appimage/build.sh` | The AppImage |
 | `packaging/flatpak/` | Flatpak manifest and the crate sources it builds from |
+| `packaging/windows/` | Windows MSI (WiX 5) and zip, made by `build.ps1` |
 | `.github/workflows/release.yml` | Builds all of them for a tag and drafts the GitHub release |
 
 Packages are built with `PREV_PRODUCTION=1`, which makes the installed
-copy: settings in `~/.config/prev.toml`, data under `prev`, app id
-`io.github.scrambletools.prev`. Builds without it are development builds.
+copy: settings in `prev.toml` (`~/.config` on Linux, `%APPDATA%\prev` on
+Windows), data under `prev`, app id `io.github.scrambletools.prev`.
+Builds without it are development builds.
 
 ## Steps
 
@@ -31,14 +33,17 @@ copy: settings in `~/.config/prev.toml`, data under `prev`, app id
 3. After dependency changes, regenerate `docs/THIRD-PARTY.md` with
    `python3 scripts/third-party.py` and `packaging/flatpak/cargo-sources.json`
    with flatpak-builder-tools' `flatpak-cargo-generator.py Cargo.lock`.
+   `scripts/check-cargo-sources.py`, also run in CI, fails when the
+   Flatpak's list is missing a crate.
 4. Try the packaging without releasing: run the Release workflow by hand
    (Actions, Release, Run workflow), which builds every package as an
    artifact.
-5. Tag and push: `git tag v1.0.0 && git push origin v1.0.0`. The workflow
+5. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. The workflow
    checks that the tag matches `Cargo.toml`, builds the packages and
    drafts a release with them, `SHA256SUMS`, and a `PKGBUILD` with the
    source checksum filled in, beside its `prev.install`. Check the draft
-   and publish it.
+   and publish it. Then update the version on the website
+   (`site/index.html`); pushing `site/` redeploys prev.run.
 6. AUR: in a clone of `ssh://aur@aur.archlinux.org/prev.git`, replace
    `PKGBUILD` with the one from the release and copy
    `packaging/arch/prev/prev.install`, run `makepkg --printsrcinfo >.SRCINFO`,
@@ -46,6 +51,25 @@ copy: settings in `~/.config/prev.toml`, data under `prev`, app id
    only when its PKGBUILD changes.
 7. The Flatpak is offered only as `prev.flatpak` on the release; prev is
    not published on Flathub.
+
+## Windows code signing
+
+Until releases are signed, Windows shows SmartScreen's "Windows protected
+your PC" warning for the MSI and `prev.exe`. Signing is planned through
+the SignPath Foundation, free for open source projects, which signs only
+releases built by CI it can check:
+
+1. The project owner applies at signpath.org/apply, with two-factor
+   sign-in on GitHub and SignPath, naming who authors, reviews and
+   approves each signing.
+2. Once approved, create the project `prev` with the signing policy
+   `release-signing` and the artifact configurations `exe` and `msi`,
+   then set the repository variable `SIGNPATH_ORGANIZATION_ID` and the
+   secret `SIGNPATH_API_TOKEN`. The release workflow's signing steps run
+   only when that variable is set. The publisher Windows shows is
+   "SignPath Foundation".
+3. With signed releases, list prev on winget: a manifest pointing at the
+   release's MSI, submitted as a pull request to `microsoft/winget-pkgs`.
 
 ## The Hyprland rule
 

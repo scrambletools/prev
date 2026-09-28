@@ -89,3 +89,10 @@ documents had no content differences, only hairline weight.
 Edge-case heavy corpus with clusters; few real-world documents, all English
 technical PDFs; verdicts judged by eye without reference images; font results
 depend on installed fonts; only first 5 pages at 100 dpi.
+
+## Later: Windows (2026-09)
+
+prev now also runs on Windows, so the reason above that a Linux only
+scope removed PDFium's cross-platform advantage no longer holds. MuPDF
+built with MSVC through `mupdf-sys` without changes, and the decision
+stands.
