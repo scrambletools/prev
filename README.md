@@ -9,8 +9,8 @@ and [Omarchy](https://omarchy.org).
 
 Website and downloads: **[prev.run](https://prev.run)**
 
-> **Status:** [1.1.0](https://github.com/scrambletools/prev/releases/tag/v1.1.0)
-> is out, the first release for Windows too. PDF, image, SVG and Markdown
+> **Status:** [1.2.0](https://github.com/scrambletools/prev/releases/tag/v1.2.0)
+> is out, for Linux and Windows on x86_64 and ARM64, and Linux on RISC-V. PDF, image, SVG and Markdown
 > viewing, image editing, PDF markup, form filling, signatures, page
 > editing and redaction all work. See the
 > [development plan](docs/PLAN.md) for what comes next.
@@ -168,11 +168,11 @@ packages:
 | System | How |
 |---|---|
 | Arch and Omarchy | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
-| Debian and Ubuntu | `sudo apt install ./prev_1.1.0-1_amd64.deb` |
-| Fedora | `sudo dnf install ./prev-1.1.0-1.x86_64.rpm` |
+| Debian and Ubuntu | `sudo apt install ./prev_1.2.0-1_amd64.deb` |
+| Fedora | `sudo dnf install ./prev-1.2.0-1.x86_64.rpm` |
 | Flatpak | `flatpak install --user prev-x86_64.flatpak` (or `prev-aarch64.flatpak`) |
-| Any distribution | the AppImage: `chmod +x prev-1.1.0-x86_64.AppImage`, then run it |
-| Any distribution | `prev-1.1.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
+| Any distribution | the AppImage: `chmod +x prev-1.2.0-x86_64.AppImage`, then run it |
+| Any distribution | `prev-1.2.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
 | Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
 | Windows 10 and 11 | the `.msi` installer: open it; it installs for you alone, with no administrator prompt |
 | Windows, portable | the `-windows.zip`: unpack it anywhere and run `prev.exe` |
@@ -185,8 +185,8 @@ On Arch, until the AUR packages are published:
 
 ```sh
 mkdir prev && cd prev
-curl -LO https://github.com/scrambletools/prev/releases/download/v1.1.0/PKGBUILD
-curl -LO https://github.com/scrambletools/prev/releases/download/v1.1.0/prev.install
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.2.0/PKGBUILD
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.2.0/prev.install
 makepkg -si
 ```
 

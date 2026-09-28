@@ -3,7 +3,10 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [1.2.0] - 2026-09-28
+
+prev is now built for ARM64 on Linux and Windows, and for RISC-V on
+Linux.
 
 ### Packages
 
@@ -89,5 +92,6 @@ The first release.
 - Material 3 design, light and dark, with colors from the Omarchy theme,
   an optional floating toolbar, and reduced motion.
 
+[1.2.0]: https://github.com/scrambletools/prev/releases/tag/v1.2.0
 [1.1.0]: https://github.com/scrambletools/prev/releases/tag/v1.1.0
 [1.0.0]: https://github.com/scrambletools/prev/releases/tag/v1.0.0
