@@ -3,6 +3,41 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.0] - 2026-09-28
+
+prev now runs on Windows 10 and 11.
+
+### Windows
+
+- A per-user installer (MSI) with a Start menu entry, "Open with" and
+  Default apps for every file type prev opens, and a portable zip.
+- Everything the Linux version does: single instance, the clipboard
+  (images, copied files and pages), drag and drop both ways, printing
+  through the Windows print dialog, and HEIC and AVIF with libheif
+  included.
+- Settings and data in `%APPDATA%\prev`.
+
+### Markdown
+
+- A toolbar like the other windows': text size, search with every match
+  marked and counted, an inspector, and export as a picture.
+- Code colored to suit the light or dark look; pictures at their own
+  size, shrunk only to fit the page.
+
+### Images and SVG
+
+- Export asks for the format, JPEG quality and, for SVG drawings, the
+  size in prev's own dialog, before the save dialog.
+- SVG drawings export as pictures at one, two or four times their size.
+- Tools that change pixels are greyed out where nothing can be edited.
+
+### Everywhere
+
+- Smooth scrolling with the mouse wheel.
+- prev's website: https://prev.run.
+- On Linux, the install script puts the desktop entry where launchers
+  look.
+
 ## [1.0.0] - 2026-09-27
 
 The first release.
@@ -44,4 +79,5 @@ The first release.
 - Material 3 design, light and dark, with colors from the Omarchy theme,
   an optional floating toolbar, and reduced motion.
 
+[1.1.0]: https://github.com/scrambletools/prev/releases/tag/v1.1.0
 [1.0.0]: https://github.com/scrambletools/prev/releases/tag/v1.0.0

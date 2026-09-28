@@ -7,9 +7,10 @@ Preview. Built in Rust with [iced](https://iced.rs) and
 [MuPDF](https://mupdf.com), for Wayland desktops such as Hyprland and
 [Omarchy](https://omarchy.org).
 
-> **Status:** the first release, [1.0.0](https://github.com/scrambletools/prev/releases/tag/v1.0.0),
-> is out. PDF, image, SVG and Markdown viewing, image editing, PDF markup,
-> form filling, signatures, page editing and redaction all work. See the
+> **Status:** [1.1.0](https://github.com/scrambletools/prev/releases/tag/v1.1.0)
+> is out, the first release for Windows too. PDF, image, SVG and Markdown
+> viewing, image editing, PDF markup, form filling, signatures, page
+> editing and redaction all work. See the
 > [development plan](docs/PLAN.md) for what comes next.
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
@@ -161,11 +162,11 @@ packages:
 | System | How |
 |---|---|
 | Arch and Omarchy | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
-| Debian and Ubuntu | `sudo apt install ./prev_1.0.0-1_amd64.deb` |
-| Fedora | `sudo dnf install ./prev-1.0.0-1.x86_64.rpm` |
+| Debian and Ubuntu | `sudo apt install ./prev_1.1.0-1_amd64.deb` |
+| Fedora | `sudo dnf install ./prev-1.1.0-1.x86_64.rpm` |
 | Flatpak | `flatpak install --user prev.flatpak` |
-| Any distribution | the AppImage: `chmod +x prev-1.0.0-x86_64.AppImage`, then run it |
-| Any distribution | `prev-1.0.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
+| Any distribution | the AppImage: `chmod +x prev-1.1.0-x86_64.AppImage`, then run it |
+| Any distribution | `prev-1.1.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
 | Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
 | Windows 10 and 11 | the `.msi` installer: open it; it installs for you alone, with no administrator prompt |
 | Windows, portable | the `-windows.zip`: unpack it anywhere and run `prev.exe` |
@@ -174,8 +175,8 @@ On Arch, until the AUR packages are published:
 
 ```sh
 mkdir prev && cd prev
-curl -LO https://github.com/scrambletools/prev/releases/download/v1.0.0/PKGBUILD
-curl -LO https://github.com/scrambletools/prev/releases/download/v1.0.0/prev.install
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.1.0/PKGBUILD
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.1.0/prev.install
 makepkg -si
 ```
 

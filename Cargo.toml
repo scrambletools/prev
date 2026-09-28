@@ -4,16 +4,16 @@ members = ["crates/*"]
 exclude = ["vendor"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 rust-version = "1.89"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/scrambletools/prev"
 
 [workspace.dependencies]
-prev-image = { path = "crates/prev-image", version = "1.0.0" }
-prev-pdf = { path = "crates/prev-pdf", version = "1.0.0" }
-prev-store = { path = "crates/prev-store", version = "1.0.0" }
+prev-image = { path = "crates/prev-image", version = "1.1.0" }
+prev-pdf = { path = "crates/prev-pdf", version = "1.1.0" }
+prev-store = { path = "crates/prev-store", version = "1.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
