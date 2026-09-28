@@ -132,6 +132,7 @@ table { width: 100%; border-collapse: collapse; font-size: 16px; }
 th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--outline-variant); vertical-align: top; }
 tr:last-child td { border-bottom: none; }
 th { background: var(--surface-container); font-weight: 600; }
+td a { white-space: nowrap; }
 
 .policy { border-top: 1px solid var(--outline-variant); }
 .policy ul { padding-left: 20px; }
