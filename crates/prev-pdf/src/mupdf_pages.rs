@@ -155,9 +155,7 @@ pub(crate) fn insert_document(
     }
     let source = PdfDocument::from_bytes(bytes).map_err(|error| Error::Open(error.to_string()))?;
     if source.needs_password().unwrap_or(false) {
-        return Err(Error::Open(
-            "the document is password protected; open it and copy its pages instead".into(),
-        ));
+        return Err(Error::PasswordProtected);
     }
     let count = page_count(&source)?;
     let inserted = keeping_labels(document, |document| {
@@ -392,7 +390,7 @@ fn write(document: &PdfDocument, options: PdfWriteOptions) -> Result<Vec<u8>> {
 
 pub(crate) fn extract_pages(document: &PdfDocument, pages: &[usize]) -> Result<Vec<u8>> {
     if pages.is_empty() {
-        return Err(Error::Engine("no pages to extract".into()));
+        return Err(Error::NoPages);
     }
     for page in pages {
         check_page(document, *page)?;
@@ -589,7 +587,7 @@ pub(crate) fn crop_page(document: &PdfDocument, page: usize, rect: Rect) -> Resu
         ];
     }
     if crop[2] - crop[0] < 1.0 || crop[3] - crop[1] < 1.0 {
-        return Err(Error::Engine("the crop area is outside the page".into()));
+        return Err(Error::CropOutsidePage);
     }
     put_rect(document, &mut object, "CropBox", crop)?;
     Ok(before)

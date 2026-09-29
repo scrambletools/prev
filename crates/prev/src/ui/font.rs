@@ -112,7 +112,103 @@ impl Type {
     }
 }
 
+/// How wide `content` is in `style`, laid out as the interface lays it
+/// out, for layouts that must know before drawing, such as a toolbar
+/// deciding what fits. Measures with the fonts of every script, so it holds
+/// in any language.
+pub fn measure(content: &str, style: Type) -> f32 {
+    use iced::advanced::graphics::text::Paragraph;
+    use iced::advanced::text::{self, Paragraph as _};
+    let (size, line_height) = style.metrics();
+    Paragraph::with_text(text::Text {
+        content,
+        bounds: iced::Size::INFINITE,
+        size: Pixels(size),
+        line_height: LineHeight::Absolute(Pixels(line_height)),
+        font: style.font(false),
+        align_x: text::Alignment::Default,
+        align_y: iced::alignment::Vertical::Top,
+        shaping: text::Shaping::Advanced,
+        wrapping: text::Wrapping::None,
+    })
+    .min_width()
+}
+
 /// Text in one of the M3 type styles.
 pub fn styled<'a>(content: impl text::IntoFragment<'a>, style: Type) -> Text<'a> {
     style.apply(text(content), false)
+}
+
+/// `text` in the width it is given, at its start: on the right in right to
+/// left languages. For titles, labels beside controls and descriptions that
+/// may wrap. The text keeps its default alignment, which lines up the lines
+/// of a paragraph with its own direction, and the container places it;
+/// iced's right alignment misplaces text laid out wider than itself.
+pub fn aligned<'a, Message: 'a>(text: Text<'a>) -> iced::Element<'a, Message> {
+    aligned_to(text, iced::Fill)
+}
+
+/// [`aligned`] in a column `width` wide, such as labels in front of values,
+/// so they all start at the same edge.
+pub fn aligned_to<'a, Message: 'a>(
+    text: Text<'a>,
+    width: impl Into<iced::Length>,
+) -> iced::Element<'a, Message> {
+    iced::widget::container(text)
+        .width(width)
+        .align_x(super::dir::horizontal_start())
+        .into()
+}
+
+#[cfg(test)]
+mod cursor_tests {
+    use iced::advanced::graphics::text::Paragraph;
+    use iced::advanced::text::{self, Paragraph as _};
+
+    fn paragraph(content: &str) -> Paragraph {
+        Paragraph::with_text(text::Text {
+            content,
+            bounds: iced::Size::INFINITE,
+            size: iced::Pixels(16.0),
+            line_height: text::LineHeight::default(),
+            font: iced::Font::DEFAULT,
+            align_x: text::Alignment::Default,
+            align_y: iced::alignment::Vertical::Top,
+            shaping: text::Shaping::Advanced,
+            wrapping: text::Wrapping::None,
+        })
+    }
+
+    fn cursor_x(paragraph: &Paragraph, index: usize) -> f32 {
+        paragraph.grapheme_position(0, index).unwrap().x
+    }
+
+    /// The vendored iced_graphics places the cursor by the character's
+    /// own direction (vendor/PATCHES.md).
+    #[test]
+    fn cursor_follows_the_text_direction() {
+        let english = paragraph("abc");
+        assert_eq!(cursor_x(&english, 0), 0.0);
+        assert!(cursor_x(&english, 1) < cursor_x(&english, 2));
+        assert!(cursor_x(&english, 2) < cursor_x(&english, 3));
+
+        // Right to left text, in any right to left script: the start is
+        // on the right, and each character further in is further left.
+        // Arabic letters join, which must not change that.
+        for sample in ["שלום", "سلام", "ܫܠܡܐ"] {
+            let right_to_left = paragraph(sample);
+            let count = sample.chars().count();
+            let positions: Vec<f32> = (0..=count)
+                .map(|index| cursor_x(&right_to_left, index))
+                .collect();
+            assert!(
+                positions.windows(2).all(|pair| pair[0] > pair[1]),
+                "{sample}: {positions:?}"
+            );
+            assert!(
+                positions[count].abs() < 0.5,
+                "{sample}: the end is at the left edge: {positions:?}"
+            );
+        }
+    }
 }

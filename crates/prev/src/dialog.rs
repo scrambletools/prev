@@ -13,9 +13,9 @@ pub use native::*;
 /// (option id, option label) pairs.
 pub struct Menu {
     pub id: &'static str,
-    pub label: &'static str,
+    pub label: String,
     pub initial: String,
-    pub options: Vec<(&'static str, &'static str)>,
+    pub options: Vec<(&'static str, String)>,
 }
 
 /// A chosen path and the selected option of each menu, as (menu id, option id).
@@ -38,16 +38,32 @@ mod portal {
 
     /// Asks the user for files to open. Cancelling yields an empty list.
     pub async fn open_files() -> Result<Vec<PathBuf>, String> {
-        let all = filter("All supported files", filetype::supported_mime_types());
+        let all = filter(
+            &crate::fl!("dialog-filter-all"),
+            filetype::supported_mime_types(),
+        );
+        let title = crate::fl!("dialog-open");
         let request = SelectedFiles::open_file()
-            .title("Open")
+            .title(title.as_str())
             .multiple(true)
             .filters([
                 all.clone(),
-                filter("PDF documents", filetype::PDF_MIME_TYPES.iter().copied()),
-                filter("Images", filetype::IMAGE_MIME_TYPES.iter().copied()),
-                filter("SVG drawings", filetype::SVG_MIME_TYPES.iter().copied()),
-                filter("Markdown", filetype::MARKDOWN_MIME_TYPES.iter().copied()),
+                filter(
+                    &crate::fl!("dialog-filter-pdf"),
+                    filetype::PDF_MIME_TYPES.iter().copied(),
+                ),
+                filter(
+                    &crate::fl!("dialog-filter-images"),
+                    filetype::IMAGE_MIME_TYPES.iter().copied(),
+                ),
+                filter(
+                    &crate::fl!("dialog-filter-svg"),
+                    filetype::SVG_MIME_TYPES.iter().copied(),
+                ),
+                filter(
+                    &crate::fl!("dialog-filter-markdown"),
+                    filetype::MARKDOWN_MIME_TYPES.iter().copied(),
+                ),
             ])
             .current_filter(all)
             .send()
@@ -114,7 +130,7 @@ mod portal {
     ) -> Result<Option<SavedWithMenus>, String> {
         let choices = menus.iter().map(|menu| {
             menu.options.iter().fold(
-                Choice::new(menu.id, menu.label, &menu.initial),
+                Choice::new(menu.id, &menu.label, &menu.initial),
                 |choice, (id, label)| choice.insert(id, label),
             )
         });
@@ -193,12 +209,15 @@ mod native {
     pub async fn open_files() -> Result<Vec<PathBuf>, String> {
         let all: Vec<&str> = [PDF, IMAGES, SVG, filetype::MARKDOWN_EXTENSIONS].concat();
         let files = starting(AsyncFileDialog::new())
-            .set_title("Open")
-            .add_filter("All supported files", &all)
-            .add_filter("PDF documents", PDF)
-            .add_filter("Images", IMAGES)
-            .add_filter("SVG drawings", SVG)
-            .add_filter("Markdown", filetype::MARKDOWN_EXTENSIONS)
+            .set_title(crate::fl!("dialog-open"))
+            .add_filter(crate::fl!("dialog-filter-all"), &all)
+            .add_filter(crate::fl!("dialog-filter-pdf"), PDF)
+            .add_filter(crate::fl!("dialog-filter-images"), IMAGES)
+            .add_filter(crate::fl!("dialog-filter-svg"), SVG)
+            .add_filter(
+                crate::fl!("dialog-filter-markdown"),
+                filetype::MARKDOWN_EXTENSIONS,
+            )
             .pick_files()
             .await;
         let files: Vec<PathBuf> = files

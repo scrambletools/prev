@@ -1,0 +1,118 @@
+--- a/src/text_input.rs	2026-09-29 14:09:03.149756782 -0700
++++ b/src/text_input.rs	2026-09-29 14:09:03.150571462 -0700
+@@ -555,13 +555,15 @@
+                             right,
+                         );
+ 
+-                    let width = right_position - left_position;
++                    // prev: in right to left text the logical start of a
++                    // selection is on the right.
++                    let width = (right_position - left_position).abs();
+ 
+                     (
+                         Some((
+                             renderer::Quad {
+                                 bounds: Rectangle {
+-                                    x: text_bounds.x + left_position,
++                                    x: text_bounds.x + left_position.min(right_position),
+                                     y: text_bounds.y,
+                                     width,
+                                     height: text_bounds.height,
+@@ -773,7 +775,9 @@
+                             } else {
+                                 None
+                             }
+-                            .unwrap_or(0);
++                            // prev: left of the text is its end in right to
++                            // left text.
++                            .unwrap_or_else(|| left_edge(&self.value, self.is_secure));
+ 
+                             if state.keyboard_modifiers.shift() {
+                                 state.cursor.select_range(
+@@ -798,7 +802,7 @@
+                                     state,
+                                     target,
+                                 )
+-                                .unwrap_or(0);
++                                .unwrap_or_else(|| left_edge(&self.value, false));
+ 
+                                 state.cursor.select_range(
+                                     self.value.previous_start_of_word(position),
+@@ -861,7 +865,7 @@
+                         state,
+                         target,
+                     )
+-                    .unwrap_or(0);
++                    .unwrap_or_else(|| left_edge(&self.value, self.is_secure));
+ 
+                     let selection_before = state.cursor.selection(&value);
+ 
+@@ -1047,6 +1051,10 @@
+                     let modified_key =
+                         macos_shortcut.as_ref().unwrap_or(modified_key);
+ 
++                    // prev: in right to left text the arrows move the
++                    // cursor the way they point.
++                    let modified_key = visual_arrows(modified_key, &self.value);
++
+                     match modified_key.as_ref() {
+                         keyboard::Key::Named(key::Named::Enter) => {
+                             if let Some(on_submit) = self.on_submit.clone() {
+@@ -1620,6 +1628,57 @@
+     }
+ }
+ 
++/// prev: whether `value` reads right to left, by its first letter with a
++/// direction.
++fn right_to_left(value: &Value) -> bool {
++    value
++        .to_string()
++        .chars()
++        .find_map(|c| {
++            let code = c as u32;
++            if matches!(
++                code,
++                0x0590..=0x08FF
++                    | 0xFB1D..=0xFDFF
++                    | 0xFE70..=0xFEFF
++                    | 0x10800..=0x10FFF
++                    | 0x1E800..=0x1EFFF
++            ) {
++                Some(true)
++            } else if c.is_alphabetic() {
++                Some(false)
++            } else {
++                None
++            }
++        })
++        .unwrap_or(false)
++}
++
++/// prev: the cursor position at the text's left edge, for presses left of
++/// the text: its start, or its end in right to left text.
++fn left_edge(value: &Value, is_secure: bool) -> usize {
++    if !is_secure && right_to_left(value) {
++        value.len()
++    } else {
++        0
++    }
++}
++
++/// prev: the arrow key that moves the cursor the way it points: in right to
++/// left text, logically backwards is to the right.
++fn visual_arrows(key: &keyboard::Key, value: &Value) -> keyboard::Key {
++    let right_to_left = right_to_left(value);
++    match key.as_ref() {
++        keyboard::Key::Named(key::Named::ArrowLeft) if right_to_left => {
++            keyboard::Key::Named(key::Named::ArrowRight)
++        }
++        keyboard::Key::Named(key::Named::ArrowRight) if right_to_left => {
++            keyboard::Key::Named(key::Named::ArrowLeft)
++        }
++        _ => key.clone(),
++    }
++}
++
+ fn measure_cursor_and_scroll_offset(
+     paragraph: &impl text::Paragraph,
+     text_bounds: Rectangle,

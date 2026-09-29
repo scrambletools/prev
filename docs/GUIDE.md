@@ -337,6 +337,15 @@ click outside it. Changes apply to every window at once:
 
 - **Appearance**: follow the system's light or dark setting, or choose
   one.
+- **Language**: follow the system's language (the default), or choose one
+  of the languages prev has been translated into, each listed by its own
+  name.
+- **Input language**: the language you type in, which sets the side an
+  empty text field starts on: the right for Arabic, Hebrew, Persian, Urdu
+  and the other right to left languages. By default it follows the
+  keyboard layout in use (on Windows, the input language), so switching
+  layouts moves the cursor of an empty field. Text you type keeps its own
+  direction whichever you choose.
 - **Use Omarchy accent color**: on Omarchy, colors come from the active
   theme's accent; off, prev uses its own blue.
 - **Hide the toolbar when the pointer leaves**: see below.

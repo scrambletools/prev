@@ -32,7 +32,25 @@ impl Shape {
         Shape::Mask,
     ];
 
-    pub fn label(self) -> &'static str {
+    /// The shape's name in the interface.
+    pub fn label(self) -> String {
+        match self {
+            Shape::Rectangle => crate::fl!("markup-shape-rectangle"),
+            Shape::RoundedRectangle => crate::fl!("markup-shape-rounded-rectangle"),
+            Shape::Oval => crate::fl!("markup-shape-oval"),
+            Shape::Line => crate::fl!("markup-shape-line"),
+            Shape::Arrow => crate::fl!("markup-shape-arrow"),
+            Shape::Star => crate::fl!("markup-shape-star"),
+            Shape::Polygon => crate::fl!("markup-shape-polygon"),
+            Shape::SpeechBubble => crate::fl!("markup-shape-speech-bubble"),
+            Shape::Loupe => crate::fl!("markup-shape-loupe"),
+            Shape::Mask => crate::fl!("markup-shape-mask"),
+        }
+    }
+
+    /// The subject saved in the file, which stays in English: prev reads
+    /// it back to tell loupes and masks from other stamps.
+    pub fn subject(self) -> &'static str {
         match self {
             Shape::Rectangle => "Rectangle",
             Shape::RoundedRectangle => "Rounded Rectangle",
@@ -407,7 +425,7 @@ pub fn shape_annotation(shape: Shape, start: Point, end: Point, style: Style) ->
         // Arrow heads are filled with the line color.
         annotation.style.fill = annotation.style.color;
     }
-    annotation.subject = Some(shape.label().to_owned());
+    annotation.subject = Some(shape.subject().to_owned());
     annotation
 }
 

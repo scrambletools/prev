@@ -12,6 +12,7 @@ use prev_pdf::worker::flatten;
 
 use super::dnd::OnOpen;
 use super::{CloseChoice, ImageWindow, ItemState, Markup, Message, PendingExport, Source};
+use crate::i18n::Describe;
 use crate::image::editor::{self, spawn};
 use crate::pdf::window::{self as pdf_window, PdfWindow};
 use crate::shortcuts::Action;
@@ -88,7 +89,7 @@ impl ImageWindow {
             return Task::none();
         };
         if !shown.is_editable() || !matches!(self.items[index].source, Source::Raster(_)) {
-            self.notice = Some("Animations and SVG drawings can't be marked up.".into());
+            self.notice = Some(crate::fl!("image-cannot-mark-up"));
             return Task::none();
         }
         if shown
@@ -96,7 +97,7 @@ impl ImageWindow {
             .as_ref()
             .is_some_and(|editor| editor.generation != shown.shown_generation)
         {
-            self.notice = Some("Wait for the edit to finish, then mark up.".into());
+            self.notice = Some(crate::fl!("image-mark-up-wait"));
             return Task::none();
         }
         let Some(frame) = shown.current_frame() else {
@@ -112,7 +113,7 @@ impl ImageWindow {
                 Message::MarkupMade(
                     index,
                     scale,
-                    result.unwrap_or_else(|_| Err("the markup stopped".into())),
+                    result.unwrap_or_else(|_| Err(crate::fl!("image-markup-stopped"))),
                 )
             },
         )
@@ -262,7 +263,7 @@ impl ImageWindow {
         let PendingExport { path, format, .. } = pending;
         Some(Task::perform(
             async move {
-                let display = flatten(layer.await).map_err(|error| error.to_string())?;
+                let display = flatten(layer.await).map_err(|error| error.describe())?;
                 let work = spawn(move || {
                     let area = PixelRect {
                         x: 0,
@@ -272,12 +273,12 @@ impl ImageWindow {
                     };
                     let layer = display
                         .render(scale, area)
-                        .map_err(|error| error.to_string())?;
+                        .map_err(|error| error.describe())?;
                     let burned = editor::burn_in(&frame, &layer.pixels);
                     editor::export(&original, &burned, &path, format).map(|()| path)
                 });
                 work.await
-                    .unwrap_or_else(|_| Err("exporting stopped".into()))
+                    .unwrap_or_else(|_| Err(crate::fl!("export-stopped")))
             },
             move |result| Message::MarkupExported(index, edits, result),
         ))
@@ -349,32 +350,19 @@ impl ImageWindow {
             .iter()
             .filter(|item| item.markup.as_ref().is_some_and(Markup::unexported))
             .count();
-        let (title, body) = if marked == 1 {
-            (
-                "Close without exporting the markup?",
-                "Markup on an image lasts only while its window is open. Export the image to keep \
-                 it: the markup is drawn into the copy you save.",
-            )
-        } else {
-            (
-                "Close without exporting the markup?",
-                "Markup on images lasts only while their window is open. Export each image to \
-                 keep it: the markup is drawn into the copy you save.",
-            )
-        };
         component::dialog(
             page,
             Some(Icon::Warning),
-            title,
-            body,
+            crate::fl!("image-close-title"),
+            crate::fl!("image-close-body", count = marked),
             vec![
-                ui::button(Kind::Text, "Cancel")
+                ui::button(Kind::Text, crate::fl!("common-cancel"))
                     .on_press(Message::Close(CloseChoice::Cancel))
                     .into(),
-                ui::button(Kind::Text, "Close Anyway")
+                ui::button(Kind::Text, crate::fl!("image-close-anyway"))
                     .on_press(Message::Close(CloseChoice::Discard))
                     .into(),
-                ui::button(Kind::Filled, "Export…")
+                ui::button(Kind::Filled, crate::fl!("export-choose"))
                     .on_press(Message::Close(CloseChoice::Export))
                     .into(),
             ],

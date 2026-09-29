@@ -232,7 +232,14 @@ impl<Message: Clone> overlay::Overlay<Message, Theme, iced::Renderer>
             .layout(self.tree, renderer, &limits);
         let size = node.size();
         // Below the anchor, kept inside the window.
-        let mut position = Point::new(self.anchor.x, self.anchor.y + self.anchor.height + GAP);
+        // Lined up with the anchor's start: its right edge in right to left
+        // languages.
+        let x = if super::dir::rtl() {
+            (self.anchor.x + self.anchor.width - size.width).max(0.0)
+        } else {
+            self.anchor.x
+        };
+        let mut position = Point::new(x, self.anchor.y + self.anchor.height + GAP);
         if position.x + size.width > bounds.width {
             position.x = (bounds.width - size.width).max(0.0);
         }

@@ -17,7 +17,7 @@ const PILL: Size = Size::new(4.0, 48.0);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Drag {
     Started,
-    /// Horizontal distance from where the drag started.
+    /// Distance from where the drag started, positive rightwards.
     Moved(f32),
     Ended,
 }
@@ -88,7 +88,8 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for Handle<'_, Message> {
             }
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
                 if let Some(origin) = state.origin {
-                    shell.publish((self.on_drag)(Drag::Moved(position.x - origin)));
+                    let moved = position.x - origin;
+                    shell.publish((self.on_drag)(Drag::Moved(moved)));
                     shell.capture_event();
                 }
             }

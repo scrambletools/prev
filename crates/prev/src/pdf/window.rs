@@ -4,10 +4,12 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
+use crate::ui::dir::column;
+use crate::{column, row};
 use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::scrollable::{Direction, Scrollbar, Viewport};
 use iced::widget::{
-    Id, column, container, image, mouse_area, operation, row, scrollable, space, text, text_input,
+    Id, container, image, mouse_area, operation, scrollable, space, text, text_input,
 };
 use iced::{Center, Color, Element, Fill, Length, Task};
 use prev_pdf::engine::{Engine, LinkTarget, OutlineItem};
@@ -24,6 +26,7 @@ use super::viewer::{PdfMessage, PdfViewer, Request, Zoom};
 mod drag_ui;
 mod markup_ui;
 mod pages_ui;
+use crate::i18n::Describe;
 use crate::image::editor::spawn;
 use crate::portal;
 use crate::shortcuts::Action;
@@ -46,7 +49,7 @@ fn write_document(path: &std::path::Path, bytes: &[u8], keep_original: bool) -> 
     if keep_original && let Some(store) = prev_store::versions::VersionStore::default_location() {
         store
             .keep(path)
-            .map_err(|error| format!("could not keep the original version: {error}"))?;
+            .map_err(|error| crate::fl!("pdf-keep-original-failed", error = error.to_string()))?;
     }
     prev_store::atomic::write(path, bytes).map_err(|error| error.to_string())
 }
@@ -179,11 +182,11 @@ pub enum Effect {
 pub struct ModeChoice(pub ViewMode);
 
 impl ModeChoice {
-    fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self.0 {
-            ViewMode::Continuous => "Continuous scroll",
-            ViewMode::SinglePage => "Single page",
-            ViewMode::TwoPages => "Two pages",
+            ViewMode::Continuous => crate::fl!("pdf-view-continuous"),
+            ViewMode::SinglePage => crate::fl!("pdf-view-single-page"),
+            ViewMode::TwoPages => crate::fl!("pdf-view-two-pages"),
         }
     }
 
@@ -322,7 +325,7 @@ impl PdfWindow {
             drop_hover: None,
         };
         let task = Task::perform(opened, |result| {
-            Message::Opened(flatten(result).map_err(|error| error.to_string()))
+            Message::Opened(flatten(result).map_err(|error| error.describe()))
         });
         (window, task)
     }
@@ -660,8 +663,8 @@ impl PdfWindow {
         Task::perform(
             async move {
                 match receiver.await {
-                    Ok(result) => result.map_err(|error| error.to_string()),
-                    Err(_) => Err("the document closed".to_owned()),
+                    Ok(result) => result.map_err(|error| error.describe()),
+                    Err(_) => Err(crate::fl!("pdf-document-closed")),
                 }
             },
             move |result| Message::Saved(generation, result),
@@ -697,7 +700,7 @@ impl PdfWindow {
                 } => {
                     let receiver = handle.authenticate(password.clone());
                     Task::perform(receiver, |result| {
-                        Message::Unlocked(flatten(result).map_err(|error| error.to_string()))
+                        Message::Unlocked(flatten(result).map_err(|error| error.describe()))
                     })
                 }
                 _ => Task::none(),
@@ -794,7 +797,7 @@ impl PdfWindow {
                 self.viewer_update(PdfMessage::Editing(EditMessage::PasteText(text, None)))
             }
             Message::PastedText(_) => {
-                self.notice = Some("There is nothing to paste.".into());
+                self.notice = Some(crate::fl!("pdf-nothing-to-paste"));
                 Task::none()
             }
             Message::Saved(generation, result) => {
@@ -803,7 +806,7 @@ impl PdfWindow {
                         self.original_kept = true;
                         self.saved_generation = self.saved_generation.max(generation);
                     }
-                    Err(error) => self.notice = Some(format!("Could not save: {error}")),
+                    Err(error) => self.notice = Some(crate::fl!("pdf-save-failed", error = error)),
                 }
                 Task::none()
             }
@@ -853,7 +856,7 @@ impl PdfWindow {
             }
             Message::InsertChosen(Ok(paths)) => self.insert_files(paths),
             Message::InsertChosen(Err(error)) => {
-                self.notice = Some(format!("Could not show the file dialog: {error}"));
+                self.notice = Some(crate::fl!("pdf-file-dialog-failed", error = error));
                 Task::none()
             }
             Message::InsertRead(result) => self.insert_read(result),
@@ -890,7 +893,7 @@ impl PdfWindow {
             _ => return Task::none(),
         };
         if info.page_sizes.is_empty() {
-            self.state = State::Failed("The document has no pages.".into());
+            self.state = State::Failed(crate::fl!("pdf-no-pages"));
             return Task::none();
         }
         if let Some(store) = bookmarks::default_path() {
@@ -1079,7 +1082,7 @@ impl PdfWindow {
             return self.page_action(PageAction::Paste);
         }
         Task::perform(spawn(crate::paste::read), |result| {
-            Message::Pasted(result.unwrap_or_else(|_| Err("pasting stopped".into())))
+            Message::Pasted(result.unwrap_or_else(|_| Err(crate::fl!("pdf-pasting-stopped"))))
         })
     }
 
@@ -1096,7 +1099,7 @@ impl PdfWindow {
                 self.page_action(PageAction::Paste)
             }
             Ok(_) => {
-                self.notice = Some("There is nothing to paste.".into());
+                self.notice = Some(crate::fl!("pdf-nothing-to-paste"));
                 Task::none()
             }
             // Without wl-clipboard, text still comes through iced.
@@ -1112,7 +1115,7 @@ impl PdfWindow {
         };
         let title = bookmark_title(viewer, page);
         let Some(store_path) = bookmarks::default_path() else {
-            self.notice = Some("Bookmarks cannot be saved: HOME is not set".into());
+            self.notice = Some(crate::fl!("pdf-bookmarks-no-home"));
             return;
         };
         let mut store = BookmarkStore::load_from(&store_path);
@@ -1121,7 +1124,7 @@ impl PdfWindow {
         self.notice = store
             .save_to(&store_path)
             .err()
-            .map(|error| format!("Could not save bookmarks: {error}"));
+            .map(|error| crate::fl!("pdf-bookmarks-save-failed", error = error.to_string()));
     }
 
     fn toggle_slideshow(&mut self) -> Task<Message> {
@@ -1232,9 +1235,11 @@ impl PdfWindow {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
         let body: Element<'_, Message> = match &self.state {
-            State::Opening(_) => component::empty_state(Icon::Draft, "Opening…", name),
+            State::Opening(_) => {
+                component::empty_state(Icon::Draft, crate::fl!("pdf-opening"), name)
+            }
             State::Failed(error) => {
-                component::empty_state(Icon::Error, "prev can't open this document", error.as_str())
+                component::empty_state(Icon::Error, crate::fl!("pdf-open-failed"), error.as_str())
             }
             State::Locked {
                 password, wrong, ..
@@ -1264,7 +1269,8 @@ impl PdfWindow {
                     component::floating_room(true),
                     component::floating_room(self.markup_bar),
                 );
-                let mut content = row![
+                // The panels keep their sides in every language.
+                let mut content = iced::widget::row![
                     component::between_bars(sidebar, top, bottom),
                     component::between_bars(handle, top, bottom),
                     self.canvas(viewer, None)
@@ -1318,9 +1324,12 @@ impl PdfWindow {
     ) -> Element<'a, Message> {
         let mut content = column![
             icon::icon(Icon::Lock, 48).style(style::on_surface_variant),
-            ui::styled(format!("“{name}” is password protected"), Type::TitleLarge),
+            ui::styled(
+                crate::fl!("pdf-password-protected", name = name),
+                Type::TitleLarge
+            ),
             container(component::text_field(
-                "Password",
+                crate::i18n::lasting(crate::fl!("pdf-password")),
                 password,
                 Backdrop::Surface,
                 |input| input
@@ -1333,13 +1342,14 @@ impl PdfWindow {
         .spacing(16)
         .align_x(Center);
         if wrong {
-            content = content.push(
-                ui::styled("Incorrect password. Try again.", Type::BodyMedium)
+            content = content.push(ui::aligned(
+                ui::styled(crate::fl!("pdf-password-wrong"), Type::BodyMedium)
                     .style(style::error_text),
-            );
+            ));
         }
-        content =
-            content.push(ui::button(Kind::Filled, "Unlock").on_press(Message::SubmitPassword));
+        content = content.push(
+            ui::button(Kind::Filled, crate::fl!("pdf-unlock")).on_press(Message::SubmitPassword),
+        );
         container(content).center(Fill).into()
     }
 
@@ -1383,13 +1393,14 @@ impl PdfWindow {
     }
 
     fn toolbar_at<'a>(&'a self, viewer: &'a PdfViewer, width: f32) -> Element<'a, Message> {
+        let _fixed = ui::dir::fixed();
         let sidebar_toggle = component::toggle_tool(
             if self.sidebar.is_some() {
                 Icon::LeftPanelClose
             } else {
                 Icon::LeftPanelOpen
             },
-            "Sidebar",
+            crate::fl!("pdf-sidebar"),
             self.sidebar.is_some(),
             Message::ShowSidebar(match self.sidebar {
                 Some(_) => None,
@@ -1407,19 +1418,22 @@ impl PdfWindow {
                 .padding([6, 4])
                 .width(52),
         );
-        let pages_label = format!("of {}", viewer.page_count());
-        let pages_width = pages_label.chars().count() as f32 * 7.0;
+        let pages_label = crate::fl!("pdf-page-of", count = viewer.page_count());
+        let pages_width = ui::font::measure(&pages_label, Type::BodyMedium).ceil();
         let pages = ui::styled(pages_label, Type::BodyMedium).style(style::on_surface_variant);
-        let zoom = |glyph: Icon, label: &'static str, zoom: Zoom| {
+        let zoom = |glyph: Icon, label: String, zoom: Zoom| {
             component::tool(glyph, label, Some(Message::Viewer(PdfMessage::Zoom(zoom))))
         };
         let percent = ui::styled(
-            format!("{:.0}%", viewer.layout.zoom * 100.0),
+            crate::fl!(
+                "pdf-zoom-percent",
+                percent = ((viewer.layout.zoom * 100.0).round() as i64)
+            ),
             Type::LabelLarge,
         )
         .width(48)
         .align_x(Center);
-        let fit = |glyph: Icon, label: &'static str, selected: bool, zoom: Zoom| {
+        let fit = |glyph: Icon, label: String, selected: bool, zoom: Zoom| {
             component::tip(
                 ui::icon_button(glyph)
                     .selected(selected)
@@ -1438,7 +1452,7 @@ impl PdfWindow {
                             .size(button::Size::ExtraSmall)
                             .selected(viewer.mode == mode.0)
                             .on_press(Message::ModeSelected(*mode)),
-                        Some(mode.label()),
+                        Some(mode.label().into()),
                     )
                 })
                 .collect(),
@@ -1448,21 +1462,29 @@ impl PdfWindow {
         let matches = if search.query.trim().is_empty() {
             String::new()
         } else if search.matches.is_empty() && search.finished {
-            "Not found".to_owned()
+            crate::fl!("pdf-search-not-found")
         } else if search.matches.is_empty() {
-            "Searching…".to_owned()
+            crate::fl!("pdf-searching")
         } else {
             let current = search.current.map_or(0, |current| current + 1);
-            let more = if search.finished { "" } else { "+" };
-            format!("{current} of {}{more}", search.matches.len())
+            let total = search.matches.len();
+            if search.finished {
+                crate::fl!("pdf-search-match", current = current, total = total)
+            } else {
+                crate::fl!("pdf-search-match-more", current = current, total = total)
+            }
         };
         let has_matches = !search.matches.is_empty();
         let search_bar = |width: f32| {
             component::search_bar(
-                text_input("Search", &search.query)
-                    .id(self.search_id.clone())
-                    .on_input(|query| Message::Viewer(PdfMessage::SearchChanged(query)))
-                    .on_submit(Message::Viewer(PdfMessage::NextMatch)),
+                text_input(
+                    crate::i18n::lasting(crate::fl!("pdf-search")),
+                    &search.query,
+                )
+                .align_x(crate::ui::dir::input_align(&search.query))
+                .id(self.search_id.clone())
+                .on_input(|query| Message::Viewer(PdfMessage::SearchChanged(query)))
+                .on_submit(Message::Viewer(PdfMessage::NextMatch)),
                 vec![
                     ui::styled(matches, Type::LabelMedium)
                         .style(style::on_surface_variant)
@@ -1497,19 +1519,27 @@ impl PdfWindow {
                 None,
             ),
             (
-                row![page_box, pages, component::toolbar_divider()]
-                    .spacing(8)
-                    .align_y(Center)
-                    .into(),
-                // "of 6": about 7 pixels a character.
+                row![
+                    {
+                        // "Page 1 of 9" reads in the interface's direction:
+                        // the page box is on the right in right to left
+                        // languages.
+                        let _reading = ui::dir::reading();
+                        row![page_box, pages].spacing(8).align_y(Center)
+                    },
+                    component::toolbar_divider()
+                ]
+                .spacing(8)
+                .align_y(Center)
+                .into(),
                 52.0 + pages_width + DIVIDER_WIDTH + 16.0,
                 None,
             ),
             (
                 component::group([
-                    zoom(Icon::ZoomOut, "Zoom out", Zoom::Out),
+                    zoom(Icon::ZoomOut, crate::fl!("pdf-zoom-out"), Zoom::Out),
                     percent.into(),
-                    zoom(Icon::ZoomIn, "Zoom in", Zoom::In),
+                    zoom(Icon::ZoomIn, crate::fl!("pdf-zoom-in"), Zoom::In),
                 ]),
                 TOOL_WIDTH * 2.0 + 48.0 + 8.0,
                 Some(3),
@@ -1518,17 +1548,22 @@ impl PdfWindow {
                 component::group([
                     fit(
                         Icon::FitPage,
-                        "Fit page",
+                        crate::fl!("pdf-fit-page"),
                         viewer.fit == Fit::Page,
                         Zoom::FitPage,
                     ),
                     fit(
                         Icon::FitWidth,
-                        "Fit width",
+                        crate::fl!("pdf-fit-width"),
                         viewer.fit == Fit::Width,
                         Zoom::FitWidth,
                     ),
-                    fit(Icon::OneToOne, "Actual size", actual_size, Zoom::ActualSize),
+                    fit(
+                        Icon::OneToOne,
+                        crate::fl!("pdf-actual-size"),
+                        actual_size,
+                        Zoom::ActualSize,
+                    ),
                 ]),
                 TOOL_WIDTH * 3.0 + 8.0,
                 Some(1),
@@ -1543,12 +1578,12 @@ impl PdfWindow {
                 row![
                     component::tool(
                         Icon::Undo,
-                        "Undo",
+                        crate::fl!("pdf-undo"),
                         history.can_undo().then(|| Message::Edit(EditMessage::Undo)),
                     ),
                     component::tool(
                         Icon::Redo,
-                        "Redo",
+                        crate::fl!("pdf-redo"),
                         history.can_redo().then(|| Message::Edit(EditMessage::Redo)),
                     ),
                     component::toolbar_divider(),
@@ -1565,12 +1600,12 @@ impl PdfWindow {
                 component::group([
                     component::tool(
                         Icon::RotateLeft,
-                        "Rotate left",
+                        crate::fl!("pdf-rotate-left"),
                         Some(Message::PageAction(PageAction::RotateLeft)),
                     ),
                     component::tool(
                         Icon::RotateRight,
-                        "Rotate right",
+                        crate::fl!("pdf-rotate-right"),
                         Some(Message::PageAction(PageAction::RotateRight)),
                     ),
                     self.pages_menu(viewer),
@@ -1582,13 +1617,13 @@ impl PdfWindow {
                 component::group([
                     component::toggle_tool(
                         Icon::Info,
-                        "Inspector",
+                        crate::fl!("pdf-inspector"),
                         self.inspector.is_some(),
                         Message::ToggleInspector,
                     ),
                     component::toggle_tool(
                         Icon::EditDocument,
-                        "Markup",
+                        crate::fl!("pdf-markup"),
                         self.markup_bar,
                         Message::ToggleMarkupBar,
                     ),
@@ -1603,7 +1638,7 @@ impl PdfWindow {
                     ui::icon_button(Icon::FileExport)
                         .kind(Kind::Tonal)
                         .on_press(Message::PageAction(PageAction::Export)),
-                    "Export",
+                    crate::fl!("pdf-export"),
                 ),
                 component::TOOL_WIDTH,
                 Some(5),
@@ -1611,7 +1646,11 @@ impl PdfWindow {
             (
                 component::group([
                     component::floating_bars_toggle(Message::ToggleFloatingBars),
-                    component::tool(Icon::Settings, "Settings", Some(Message::OpenSettings)),
+                    component::tool(
+                        Icon::Settings,
+                        crate::fl!("pdf-settings"),
+                        Some(Message::OpenSettings),
+                    ),
                 ]),
                 TOOL_WIDTH * 2.0 + 4.0,
                 None,
@@ -1647,7 +1686,7 @@ impl PdfWindow {
         let right = 5;
         let page_tools = right + usize::from(undo);
         let page_tools_shown = shown[page_tools];
-        let mut bar = row![].spacing(8).align_y(Center);
+        let mut bar = crate::line![].spacing(8).align_y(Center);
         let mut hidden = Vec::new();
         for (index, ((element, _, _), shown)) in slots.into_iter().zip(shown).enumerate() {
             // Page tools, the markup button and search bar sit on the right.
@@ -1697,62 +1736,89 @@ impl PdfWindow {
         metadata: Option<&'a prev_pdf::engine::Metadata>,
     ) -> Element<'a, Message> {
         use crate::info::{self, Fact};
-        let fact = |label: &str, value: String| -> Fact { (label.to_owned(), value) };
+        let fact = |label: String, value: String| -> Fact { (label, value) };
         let mut document = Vec::new();
         if let Some(metadata) = metadata {
             document.extend([
-                fact("Title", metadata.title.clone()),
-                fact("Author", metadata.author.clone()),
-                fact("Subject", metadata.subject.clone()),
-                fact("Keywords", metadata.keywords.clone()),
-                fact("Created", info::pdf_date(&metadata.created)),
-                fact("Modified", info::pdf_date(&metadata.modified)),
-                fact("Application", metadata.creator.clone()),
-                fact("PDF producer", metadata.producer.clone()),
-                fact("Version", metadata.format.clone()),
+                fact(crate::fl!("pdf-inspector-title"), metadata.title.clone()),
+                fact(crate::fl!("pdf-inspector-author"), metadata.author.clone()),
                 fact(
-                    "Security",
+                    crate::fl!("pdf-inspector-subject"),
+                    metadata.subject.clone(),
+                ),
+                fact(
+                    crate::fl!("pdf-inspector-keywords"),
+                    metadata.keywords.clone(),
+                ),
+                fact(
+                    crate::fl!("pdf-inspector-created"),
+                    info::pdf_date(&metadata.created),
+                ),
+                fact(
+                    crate::fl!("pdf-inspector-modified"),
+                    info::pdf_date(&metadata.modified),
+                ),
+                fact(
+                    crate::fl!("pdf-inspector-application"),
+                    metadata.creator.clone(),
+                ),
+                fact(
+                    crate::fl!("pdf-inspector-producer"),
+                    metadata.producer.clone(),
+                ),
+                fact(crate::fl!("pdf-inspector-version"), metadata.format.clone()),
+                fact(
+                    crate::fl!("pdf-inspector-security"),
                     match metadata.encryption.as_str() {
-                        "" | "None" => "Not encrypted".to_owned(),
-                        other => format!("Encrypted ({other})"),
+                        "" | "None" => crate::fl!("pdf-inspector-not-encrypted"),
+                        other => crate::fl!("pdf-inspector-encrypted", method = other),
                     },
                 ),
             ]);
         }
         let count = viewer.page_count();
         let mut pages = vec![fact(
-            "Pages",
-            if count == 1 {
-                "1 page".to_owned()
-            } else {
-                format!("{count} pages")
-            },
+            crate::fl!("pdf-inspector-pages"),
+            crate::fl!("pdf-inspector-page-count", count = count),
         )];
         if let Some(size) = viewer.info.page_sizes.get(viewer.current) {
             let millimetres = |points: f32| points / 72.0 * 25.4;
             pages.push(fact(
-                "Page size",
-                format!(
-                    "{:.0} × {:.0} mm ({:.2} × {:.2} in)",
-                    millimetres(size.width),
-                    millimetres(size.height),
-                    size.width / 72.0,
-                    size.height / 72.0
+                crate::fl!("pdf-inspector-page-size"),
+                crate::fl!(
+                    "pdf-inspector-page-size-value",
+                    width_mm = format!("{:.0}", millimetres(size.width)),
+                    height_mm = format!("{:.0}", millimetres(size.height)),
+                    width_in = format!("{:.2}", size.width / 72.0),
+                    height_in = format!("{:.2}", size.height / 72.0)
                 ),
             ));
         }
         let content: Element<'a, Message> = if metadata.is_none() {
-            ui::styled("Loading…", Type::BodyMedium)
+            ui::styled(crate::fl!("pdf-loading"), Type::BodyMedium)
                 .style(style::on_surface_variant)
                 .into()
         } else {
             info::sections_view(vec![
-                ("File", info::file_facts(&self.path)),
-                ("Document", document),
-                ("Pages", pages),
+                (
+                    crate::i18n::lasting(crate::fl!("pdf-inspector-file")),
+                    info::file_facts(&self.path),
+                ),
+                (
+                    crate::i18n::lasting(crate::fl!("pdf-inspector-document")),
+                    document,
+                ),
+                (
+                    crate::i18n::lasting(crate::fl!("pdf-inspector-pages")),
+                    pages,
+                ),
             ])
         };
-        component::side_sheet("Inspector", Message::ToggleInspector, content)
+        component::side_sheet(
+            crate::i18n::lasting(crate::fl!("pdf-inspector")),
+            Message::ToggleInspector,
+            content,
+        )
     }
 
     fn sidebar_view<'a>(&'a self, viewer: &'a PdfViewer, sidebar: Sidebar) -> Element<'a, Message> {
@@ -1763,10 +1829,26 @@ impl PdfWindow {
             on_press: Message::ShowSidebar(Some(which)),
         };
         let tabs = component::tabs(vec![
-            tab("Pages", Icon::GridView, Sidebar::Thumbnails),
-            tab("Contents", Icon::Toc, Sidebar::Contents),
-            tab("Highlights and notes", Icon::StickyNote, Sidebar::Notes),
-            tab("Bookmarks", Icon::Bookmarks, Sidebar::Bookmarks),
+            tab(
+                crate::i18n::lasting(crate::fl!("pdf-tab-pages")),
+                Icon::GridView,
+                Sidebar::Thumbnails,
+            ),
+            tab(
+                crate::i18n::lasting(crate::fl!("pdf-tab-contents")),
+                Icon::Toc,
+                Sidebar::Contents,
+            ),
+            tab(
+                crate::i18n::lasting(crate::fl!("pdf-tab-notes")),
+                Icon::StickyNote,
+                Sidebar::Notes,
+            ),
+            tab(
+                crate::i18n::lasting(crate::fl!("pdf-tab-bookmarks")),
+                Icon::Bookmarks,
+                Sidebar::Bookmarks,
+            ),
         ]);
         let list: Element<'a, Message> = match sidebar {
             Sidebar::Thumbnails => {
@@ -1804,24 +1886,24 @@ impl PdfWindow {
                 )
             }
             Sidebar::Contents if !self.outline_loaded => {
-                component::empty_state(Icon::Toc, "Loading…", "")
+                component::empty_state(Icon::Toc, crate::fl!("pdf-loading"), "")
             }
             Sidebar::Contents if viewer.info.outline.is_empty() => component::empty_state(
                 Icon::Toc,
-                "No table of contents",
-                "This document has no outline.",
+                crate::fl!("pdf-no-outline"),
+                crate::fl!("pdf-no-outline-detail"),
             ),
             Sidebar::Notes => self.notes_view(viewer),
             Sidebar::Bookmarks if self.bookmarks.is_empty() => component::empty_state(
                 Icon::Bookmarks,
-                "No bookmarks",
-                "Press Ctrl+D to bookmark a page.",
+                crate::fl!("pdf-no-bookmarks"),
+                crate::fl!("pdf-no-bookmarks-detail"),
             ),
             Sidebar::Bookmarks => component::scroll(
                 column(self.bookmarks.iter().map(|bookmark| {
                     let label = format!("{}  {}", viewer.page_label(bookmark.page), bookmark.title);
                     row![
-                        component::list_row(
+                        component::content_list_row(
                             Some(Icon::Bookmark),
                             label,
                             0.0,
@@ -1835,7 +1917,7 @@ impl PdfWindow {
                             ui::icon_button(Icon::Close)
                                 .size(button::Size::ExtraSmall)
                                 .on_press(Message::ToggleBookmark(bookmark.page)),
-                            "Remove bookmark"
+                            crate::fl!("pdf-remove-bookmark")
                         ),
                     ]
                     .spacing(4)
@@ -1931,7 +2013,7 @@ fn outline_entries<'a>(
         let selected = target.is_some_and(|(index, _)| index == current);
         let message = target.map(|(page, point)| Message::Viewer(PdfMessage::GoTo { page, point }));
         entries.push(
-            component::list_row(
+            component::content_list_row(
                 None,
                 item.title.as_str(),
                 depth as f32 * 12.0,
@@ -1961,7 +2043,7 @@ fn bookmark_title(viewer: &PdfViewer, page: usize) -> String {
     let mut best = None;
     walk(&viewer.info.outline, page, &mut best);
     best.map_or_else(
-        || format!("Page {}", viewer.page_label(page)),
+        || crate::fl!("pdf-bookmark-page", page = viewer.page_label(page)),
         |(_, title)| title.to_owned(),
     )
 }

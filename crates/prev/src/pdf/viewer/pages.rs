@@ -11,6 +11,7 @@ use prev_pdf::pages;
 use prev_pdf::worker::{PageEdit, PageOutcome, Restructured};
 
 use super::{PdfMessage, PdfViewer, Request, TileKey};
+use crate::i18n::Describe;
 use crate::pdf::history::{Change, Insertion, PageChange, Stack};
 
 /// How a click on a thumbnail changes the page selection.
@@ -137,9 +138,8 @@ impl PdfViewer {
     pub fn remove_pages(&mut self) -> Task<PdfMessage> {
         let pages = self.target_pages();
         if pages.len() >= self.page_count() {
-            self.requests.push(Request::Notice(
-                "A document needs at least one page.".into(),
-            ));
+            self.requests
+                .push(Request::Notice(crate::fl!("pages-at-least-one")));
             return Task::none();
         }
         self.change_pages(PageChange::Removed {
@@ -204,9 +204,8 @@ impl PdfViewer {
     /// selection's page is one of them, otherwise that page.
     pub fn crop_to_area(&mut self) -> Task<PdfMessage> {
         let Some((page, rect)) = self.edit.area else {
-            self.requests.push(Request::Notice(
-                "Choose an area with the rectangular selection tool first.".into(),
-            ));
+            self.requests
+                .push(Request::Notice(crate::fl!("pages-crop-needs-area")));
             return Task::none();
         };
         let pages = if self.selected_pages.contains(&page) {
@@ -248,8 +247,8 @@ impl PdfViewer {
         Task::perform(receiver, move |result| {
             let result = match result {
                 Ok(Ok(restructured)) => Ok(restructured),
-                Ok(Err(error)) => Err(error.to_string()),
-                Err(_) => Err("the document closed".into()),
+                Ok(Err(error)) => Err(error.describe()),
+                Err(_) => Err(crate::fl!("pdf-document-closed")),
             };
             PdfMessage::Restructured(sent.clone(), result)
         })
@@ -266,8 +265,9 @@ impl PdfViewer {
                 if let Some(stack) = sent.stack {
                     self.edit.history.discard(stack);
                 }
-                self.requests.push(Request::Notice(format!(
-                    "Could not change the pages: {error}"
+                self.requests.push(Request::Notice(crate::fl!(
+                    "pages-change-failed",
+                    error = error
                 )));
                 return Task::none();
             }
@@ -277,9 +277,8 @@ impl PdfViewer {
         }
         if let PageOutcome::Redacted(count) = restructured.outcome {
             self.requests.push(Request::Notice(match count {
-                0 => "There were no redactions to apply.".to_owned(),
-                1 => "Applied 1 redaction.".to_owned(),
-                count => format!("Applied {count} redactions."),
+                0 => crate::fl!("pages-no-redactions"),
+                count => crate::fl!("pages-redactions-applied", count = count),
             }));
         }
         let count = self.page_count();

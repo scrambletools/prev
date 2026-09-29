@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 
+use crate::ui::dir::{column, row};
+use crate::{column, row};
 use iced::widget::image::Handle as ImageHandle;
-use iced::widget::{
-    column, container, image, pin, row, space, stack, text, text_editor, text_input,
-};
+use iced::widget::{container, image, pin, space, stack, text, text_editor, text_input};
 use iced::{Center, Color, Element, Fill, Length, Padding, Task, Theme};
 use prev_pdf::annotation::{Align, Annotation, FieldKind, Font, Kind, Rgb, TextMarkup};
 use prev_pdf::engine::Bitmap;
@@ -14,6 +14,7 @@ use prev_store::signatures::{Signature, SignatureStore};
 
 use super::{Bar, Message, PdfWindow, Sidebar, State};
 use crate::dialog;
+use crate::i18n::Describe;
 use crate::image::editor::spawn;
 use crate::pdf::layout;
 use crate::pdf::markup::{Shape, Tool};
@@ -69,6 +70,30 @@ pub struct SignatureDialog {
     pen_width: f32,
     /// Ink for drawn and typed signatures.
     ink: [u8; 3],
+    /// Labels the dialog lends to widgets that borrow their text.
+    text: DialogText,
+}
+
+/// The dialog's text that widgets borrow rather than own, looked up when
+/// the dialog opens.
+struct DialogText {
+    draw: String,
+    type_: String,
+    image: String,
+    your_name: String,
+    description: String,
+}
+
+impl DialogText {
+    fn new() -> Self {
+        Self {
+            draw: crate::fl!("signature-tab-draw"),
+            type_: crate::fl!("signature-tab-type"),
+            image: crate::fl!("signature-tab-image"),
+            your_name: crate::fl!("signature-your-name"),
+            description: crate::fl!("signature-description"),
+        }
+    }
 }
 
 pub(super) const MARKUP_BAR_HEIGHT: f32 = 48.0;
@@ -119,12 +144,21 @@ fn shape_icon(shape: Shape) -> Icon {
     }
 }
 
-fn markup_label(style: TextMarkup) -> (&'static str, Icon) {
+fn markup_label(style: TextMarkup) -> (String, Icon) {
+    let label = match style {
+        TextMarkup::Highlight => crate::fl!("markup-style-highlight"),
+        TextMarkup::Underline => crate::fl!("markup-style-underline"),
+        TextMarkup::StrikeOut => crate::fl!("markup-style-strikethrough"),
+        TextMarkup::Squiggly => crate::fl!("markup-style-squiggly"),
+    };
+    (label, markup_icon(style))
+}
+
+fn markup_icon(style: TextMarkup) -> Icon {
     match style {
-        TextMarkup::Highlight => ("Highlight", Icon::InkHighlighter),
-        TextMarkup::Underline => ("Underline", Icon::FormatUnderlined),
-        TextMarkup::StrikeOut => ("Strikethrough", Icon::FormatStrikethrough),
-        TextMarkup::Squiggly => ("Squiggly", Icon::FormatUnderlined),
+        TextMarkup::Highlight => Icon::InkHighlighter,
+        TextMarkup::Underline | TextMarkup::Squiggly => Icon::FormatUnderlined,
+        TextMarkup::StrikeOut => Icon::FormatStrikethrough,
     }
 }
 
@@ -166,7 +200,7 @@ pub(super) fn menu_item<'a>(
     component::list_row(glyph, label, 0.0, selected, Some(message)).into()
 }
 
-fn menu_section<'a>(label: &'a str) -> Element<'a, Message> {
+fn menu_section<'a>(label: impl text::IntoFragment<'a>) -> Element<'a, Message> {
     container(ui::styled(label, Type::LabelMedium).style(style::on_surface_variant))
         .padding(Padding {
             top: 8.0,
@@ -247,6 +281,7 @@ impl PdfWindow {
                 self.menu = None;
                 self.viewer_update(PdfMessage::Editing(EditMessage::PlaceStamp {
                     image,
+                    // Saved in the file, so it stays in English.
                     subject: "Signature".into(),
                 }))
             }
@@ -257,14 +292,15 @@ impl PdfWindow {
                 Task::perform(
                     spawn(move || {
                         let store = SignatureStore::default_location()
-                            .ok_or("no data folder: HOME is not set")?;
+                            .ok_or_else(|| crate::fl!("signature-no-data-folder"))?;
                         store
                             .remove(&loaded.signature)
                             .map_err(|error| error.to_string())
                     }),
                     |result| {
                         Message::SignatureSaved(
-                            result.unwrap_or_else(|_| Err("removing stopped".into())),
+                            result
+                                .unwrap_or_else(|_| Err(crate::fl!("signature-removing-stopped"))),
                         )
                     },
                 )
@@ -281,6 +317,7 @@ impl PdfWindow {
                     saving: false,
                     pen_width: signature::PEN_WIDTH,
                     ink: signature::INK,
+                    text: DialogText::new(),
                 });
                 Task::none()
             }
@@ -334,46 +371,48 @@ impl PdfWindow {
             Message::ChooseSignatureImage => {
                 Task::perform(dialog::open_files(), Message::SignatureImageChosen)
             }
-            Message::SignatureImageChosen(result) => match result {
-                Ok(paths) => {
-                    let Some(path) = paths.into_iter().next() else {
-                        return Task::none();
-                    };
-                    Task::perform(
-                        spawn(move || {
-                            let format = match crate::filetype::detect_path(&path) {
-                                Ok(Some(crate::filetype::FileKind::Image(format))) => format,
-                                _ => return Err("that file is not an image prev can read".into()),
-                            };
-                            let decoded = prev_image::decode::decode_file(&path, format)
-                                .map_err(|error| error.to_string())?;
-                            let frame = decoded
-                                .frames
-                                .into_iter()
-                                .next()
-                                .ok_or("the image has no frames")?;
-                            let bitmap = Bitmap {
-                                width: frame.width,
-                                height: frame.height,
-                                pixels: frame.pixels.to_vec(),
-                            };
-                            signature::from_image(&bitmap)
-                                .ok_or_else(|| "no signature found in the image".to_owned())
-                        }),
-                        |result| {
-                            Message::SignatureImageMade(
-                                result.unwrap_or_else(|_| Err("reading stopped".into())),
-                            )
-                        },
-                    )
-                }
-                Err(error) => {
-                    if let Some(dialog) = self.signature_dialog.as_mut() {
-                        dialog.error = Some(error);
+            Message::SignatureImageChosen(result) => {
+                match result {
+                    Ok(paths) => {
+                        let Some(path) = paths.into_iter().next() else {
+                            return Task::none();
+                        };
+                        Task::perform(
+                            spawn(move || {
+                                let format = match crate::filetype::detect_path(&path) {
+                                    Ok(Some(crate::filetype::FileKind::Image(format))) => format,
+                                    _ => return Err(crate::fl!("signature-not-an-image")),
+                                };
+                                let decoded = prev_image::decode::decode_file(&path, format)
+                                    .map_err(|error| error.describe())?;
+                                let frame = decoded
+                                    .frames
+                                    .into_iter()
+                                    .next()
+                                    .ok_or_else(|| crate::fl!("signature-no-frames"))?;
+                                let bitmap = Bitmap {
+                                    width: frame.width,
+                                    height: frame.height,
+                                    pixels: frame.pixels.to_vec(),
+                                };
+                                signature::from_image(&bitmap)
+                                    .ok_or_else(|| crate::fl!("signature-not-found"))
+                            }),
+                            |result| {
+                                Message::SignatureImageMade(result.unwrap_or_else(|_| {
+                                    Err(crate::fl!("signature-reading-stopped"))
+                                }))
+                            },
+                        )
                     }
-                    Task::none()
+                    Err(error) => {
+                        if let Some(dialog) = self.signature_dialog.as_mut() {
+                            dialog.error = Some(error);
+                        }
+                        Task::none()
+                    }
                 }
-            },
+            }
             Message::SignatureImageMade(result) => {
                 if let Some(dialog) = self.signature_dialog.as_mut() {
                     match result {
@@ -399,19 +438,22 @@ impl PdfWindow {
                     SignatureTab::Image => dialog.image.as_ref().map(|(png, _)| png.clone()),
                 };
                 let Some(png) = png else {
-                    dialog.error = Some("Sign first, then save.".into());
+                    dialog.error = Some(crate::fl!("signature-sign-first"));
                     return Task::none();
                 };
                 let description = match dialog.description.trim() {
                     "" if dialog.tab == SignatureTab::Type => dialog.typed.trim().to_owned(),
-                    "" => format!("Signature {}", self.signatures.len() + 1),
+                    "" => {
+                        let number = self.signatures.len() + 1;
+                        crate::fl!("signature-default-name", number = number)
+                    }
                     description => description.to_owned(),
                 };
                 dialog.saving = true;
                 Task::perform(
                     spawn(move || {
                         let store = SignatureStore::default_location()
-                            .ok_or("no data folder: HOME is not set")?;
+                            .ok_or_else(|| crate::fl!("signature-no-data-folder"))?;
                         store
                             .add(&description, &png)
                             .map(|_| ())
@@ -419,7 +461,7 @@ impl PdfWindow {
                     }),
                     |result| {
                         Message::SignatureSaved(
-                            result.unwrap_or_else(|_| Err("saving stopped".into())),
+                            result.unwrap_or_else(|_| Err(crate::fl!("signature-saving-stopped"))),
                         )
                     },
                 )
@@ -441,7 +483,9 @@ impl PdfWindow {
                             dialog.saving = false;
                             dialog.error = Some(error);
                         }
-                        None => self.notice = Some(format!("Could not change signatures: {error}")),
+                        None => {
+                            self.notice = Some(crate::fl!("signature-change-failed", error = error))
+                        }
                     },
                 }
                 Task::none()
@@ -481,11 +525,11 @@ impl PdfWindow {
     /// The markup bar at `width`, with groups that do not fit in "More".
     fn markup_bar_at<'a>(&'a self, viewer: &'a PdfViewer, width: f32) -> Element<'a, Message> {
         let tool = viewer.edit.tool;
-        let tool_button = |glyph: Icon, label: &'a str, this: Tool| {
+        let tool_button = |glyph: Icon, label: String, this: Tool| {
             component::toggle_tool(glyph, label, tool == this, edit(EditMessage::SetTool(this)))
         };
         let menu_button = |glyph: Icon,
-                           label: &'a str,
+                           label: String,
                            menu: Menu,
                            selected: bool,
                            content: Element<'a, Message>| {
@@ -538,7 +582,7 @@ impl PdfWindow {
                     )
                 })
             ),
-            menu_section("Color"),
+            menu_section(crate::fl!("markup-menu-color")),
             row(HIGHLIGHT_COLORS.iter().map(|(color, _)| {
                 swatch(
                     Some(*color),
@@ -563,14 +607,17 @@ impl PdfWindow {
             column(LINE_WIDTHS.iter().map(|width| {
                 menu_item(
                     Some(Icon::LineWeight),
-                    format!("{width} pt"),
+                    {
+                        let width: f32 = *width;
+                        crate::fl!("markup-line-width", width = width)
+                    },
                     style.line_width == *width,
                     edit(EditMessage::Style(StyleChange::LineWidth(*width))),
                 )
             })),
             menu_item(
                 Some(Icon::LineStyle),
-                "Dashed",
+                crate::fl!("markup-dashed"),
                 style.dashed,
                 edit(EditMessage::Style(StyleChange::Dashed(!style.dashed))),
             ),
@@ -599,13 +646,14 @@ impl PdfWindow {
         };
         let border_colors = colors(style.color, StyleChange::Color);
         let fill_colors = colors(style.fill, StyleChange::Fill);
+        // Font names, not translated.
         let fonts = [
             (Font::Helvetica, "Helvetica"),
             (Font::Times, "Times"),
             (Font::Courier, "Courier"),
         ];
         let text_menu = column![
-            menu_section("Font"),
+            menu_section(crate::fl!("markup-menu-font")),
             column(fonts.into_iter().map(|(font, label)| {
                 menu_item(
                     None,
@@ -614,7 +662,7 @@ impl PdfWindow {
                     edit(EditMessage::Style(StyleChange::Font(font))),
                 )
             })),
-            menu_section("Size"),
+            menu_section(crate::fl!("markup-menu-size")),
             container(component::connected(
                 FONT_SIZES
                     .iter()
@@ -627,7 +675,7 @@ impl PdfWindow {
                     .collect()
             ))
             .padding([0, 12]),
-            menu_section("Color"),
+            menu_section(crate::fl!("markup-menu-color")),
             row(SWATCHES.iter().take(8).map(|(color, _)| {
                 swatch(
                     Some(*color),
@@ -637,7 +685,7 @@ impl PdfWindow {
             }))
             .spacing(2)
             .padding([0, 12]),
-            menu_section("Alignment"),
+            menu_section(crate::fl!("markup-menu-alignment")),
             container(component::connected(
                 [
                     (Align::Left, Icon::FormatAlignLeft),
@@ -664,6 +712,9 @@ impl PdfWindow {
         .width(Length::Shrink);
 
         let signatures = self.signature_menu();
+        // The menus above read in the interface's direction; the bar does
+        // not mirror.
+        let _fixed = crate::ui::dir::fixed();
         let redactions = self.redaction_count();
         let history = &viewer.edit.history;
         use component::{DIVIDER_WIDTH, TOOL_WIDTH};
@@ -672,35 +723,51 @@ impl PdfWindow {
             row(items).spacing(4).align_y(Center).into()
         };
         let mut drawing_tools = vec![
-            tool_button(Icon::Gesture, "Sketch", Tool::Sketch),
-            tool_button(Icon::Draw, "Draw", Tool::Draw),
+            tool_button(
+                Icon::Gesture,
+                crate::fl!("markup-tool-sketch"),
+                Tool::Sketch,
+            ),
+            tool_button(Icon::Draw, crate::fl!("markup-tool-draw"), Tool::Draw),
             menu_button(
                 shape_tool.map_or(Icon::Shapes, shape_icon),
-                "Shapes",
+                crate::fl!("markup-tool-shapes"),
                 Menu::Shapes,
                 shape_tool.is_some(),
                 shapes.into(),
             ),
-            tool_button(Icon::TextFields, "Text box", Tool::TextBox),
+            tool_button(
+                Icon::TextFields,
+                crate::fl!("markup-tool-text-box"),
+                Tool::TextBox,
+            ),
         ];
         // Images have no text to highlight.
         if !self.image_mode {
             drawing_tools.push(menu_button(
-                highlight_tool.map_or(Icon::InkHighlighter, |style| markup_label(style).1),
-                "Highlight",
+                highlight_tool.map_or(Icon::InkHighlighter, markup_icon),
+                crate::fl!("markup-tool-highlight"),
                 Menu::Highlight,
                 highlight_tool.is_some(),
                 highlight.into(),
             ));
         }
-        drawing_tools.push(tool_button(Icon::StickyNote, "Note", Tool::Note));
+        drawing_tools.push(tool_button(
+            Icon::StickyNote,
+            crate::fl!("markup-tool-note"),
+            Tool::Note,
+        ));
         let drawing_tools_count = drawing_tools.len() as f32;
         // Each slot: its content, its width, when it moves into "More", and
         // whether a divider goes before it in the bar.
         let mut slots: Vec<(Element<'a, Message>, f32, Option<u8>, bool)> = vec![
             if self.image_mode {
                 (
-                    tool_button(Icon::ArrowSelector, "Select", Tool::Select),
+                    tool_button(
+                        Icon::ArrowSelector,
+                        crate::fl!("markup-tool-select"),
+                        Tool::Select,
+                    ),
                     tools(1.0),
                     None,
                     false,
@@ -708,8 +775,16 @@ impl PdfWindow {
             } else {
                 (
                     group(vec![
-                        tool_button(Icon::ArrowSelector, "Select", Tool::Select),
-                        tool_button(Icon::HighlightAlt, "Rectangular selection", Tool::Area),
+                        tool_button(
+                            Icon::ArrowSelector,
+                            crate::fl!("markup-tool-select"),
+                            Tool::Select,
+                        ),
+                        tool_button(
+                            Icon::HighlightAlt,
+                            crate::fl!("markup-tool-area"),
+                            Tool::Area,
+                        ),
                     ]),
                     tools(2.0),
                     None,
@@ -723,7 +798,13 @@ impl PdfWindow {
                 true,
             ),
             (
-                menu_button(Icon::Signature, "Sign", Menu::Signatures, false, signatures),
+                menu_button(
+                    Icon::Signature,
+                    crate::fl!("markup-tool-sign"),
+                    Menu::Signatures,
+                    false,
+                    signatures,
+                ),
                 DIVIDER_WIDTH + TOOL_WIDTH + 4.0,
                 Some(2),
                 true,
@@ -731,16 +812,24 @@ impl PdfWindow {
             (
                 group(if redactions > 0 {
                     vec![
-                        tool_button(Icon::RemoveSelection, "Redact", Tool::Redact),
+                        tool_button(
+                            Icon::RemoveSelection,
+                            crate::fl!("markup-tool-redact"),
+                            Tool::Redact,
+                        ),
                         component::tip(
-                            ui::button(ButtonKind::Tonal, "Apply")
+                            ui::button(ButtonKind::Tonal, crate::fl!("markup-apply"))
                                 .size(button::Size::ExtraSmall)
                                 .on_press(Message::ConfirmRedactions(true)),
-                            "Apply redactions",
+                            crate::fl!("markup-apply-redactions"),
                         ),
                     ]
                 } else {
-                    vec![tool_button(Icon::RemoveSelection, "Redact", Tool::Redact)]
+                    vec![tool_button(
+                        Icon::RemoveSelection,
+                        crate::fl!("markup-tool-redact"),
+                        Tool::Redact,
+                    )]
                 }),
                 DIVIDER_WIDTH + TOOL_WIDTH + 4.0 + if redactions > 0 { 68.0 } else { 0.0 },
                 Some(2),
@@ -750,28 +839,28 @@ impl PdfWindow {
                 group(vec![
                     menu_button(
                         Icon::LineWeight,
-                        "Shape style",
+                        crate::fl!("markup-shape-style"),
                         Menu::LineStyle,
                         false,
                         line_style.into(),
                     ),
                     menu_button(
                         Icon::BorderColor,
-                        "Border color",
+                        crate::fl!("markup-border-color"),
                         Menu::BorderColor,
                         false,
                         border_colors,
                     ),
                     menu_button(
                         Icon::FormatColorFill,
-                        "Fill color",
+                        crate::fl!("markup-fill-color"),
                         Menu::FillColor,
                         false,
                         fill_colors,
                     ),
                     menu_button(
                         Icon::TextFormat,
-                        "Text style",
+                        crate::fl!("markup-text-style"),
                         Menu::TextStyle,
                         false,
                         text_menu.into(),
@@ -785,7 +874,7 @@ impl PdfWindow {
                 group(vec![
                     component::tool(
                         Icon::Delete,
-                        "Delete",
+                        crate::fl!("markup-delete"),
                         viewer
                             .edit
                             .selected
@@ -795,12 +884,12 @@ impl PdfWindow {
                     component::toolbar_divider(),
                     component::tool(
                         Icon::Undo,
-                        "Undo",
+                        crate::fl!("markup-undo"),
                         history.can_undo().then(|| edit(EditMessage::Undo)),
                     ),
                     component::tool(
                         Icon::Redo,
-                        "Redo",
+                        crate::fl!("markup-redo"),
                         history.can_redo().then(|| edit(EditMessage::Redo)),
                     ),
                 ]),
@@ -820,7 +909,7 @@ impl PdfWindow {
             .collect();
         let shown = component::fitting_slots(width, &widths);
         let last = slots.len() - 1;
-        let mut bar = row![].spacing(4).align_y(Center);
+        let mut bar = crate::line![].spacing(4).align_y(Center);
         let mut hidden = Vec::new();
         for (index, ((element, _, _, divider), shown)) in slots.into_iter().zip(shown).enumerate() {
             // Delete, undo and redo sit on the right.
@@ -852,10 +941,10 @@ impl PdfWindow {
         let mut content = column![].width(300).padding([0, 8]);
         if self.signatures.is_empty() {
             content = content.push(
-                container(
-                    ui::styled("No signatures yet.", Type::BodyMedium)
+                container(ui::aligned(
+                    ui::styled(crate::fl!("signature-menu-empty"), Type::BodyMedium)
                         .style(style::on_surface_variant),
-                )
+                ))
                 .padding([8, 16]),
             );
         }
@@ -895,7 +984,7 @@ impl PdfWindow {
                         ui::icon_button(Icon::Delete)
                             .size(button::Size::ExtraSmall)
                             .on_press(Message::RemoveSignature(index)),
-                        "Delete signature"
+                        crate::fl!("signature-delete")
                     )
                 ]
                 .spacing(4)
@@ -907,7 +996,7 @@ impl PdfWindow {
         );
         content = content.push(menu_item(
             Some(Icon::Add),
-            "Create Signature…",
+            crate::fl!("signature-create"),
             false,
             Message::NewSignature,
         ));
@@ -1068,8 +1157,8 @@ impl PdfWindow {
         if entries.is_empty() {
             return component::empty_state(
                 Icon::StickyNote,
-                "No highlights or notes",
-                "Highlights, notes and text boxes appear here.",
+                crate::fl!("markup-notes-empty"),
+                crate::fl!("markup-notes-empty-hint"),
             );
         }
         component::scroll(column(entries).spacing(4).padding(12).width(Fill))
@@ -1095,25 +1184,24 @@ impl PdfWindow {
                 signature_pad(&dialog.strokes, PAD, Message::SignatureStroke)
                     .scale(self.device_scale)
                     .pen(dialog.pen_width, dialog.ink),
-                ui::styled(
-                    "Sign with your mouse, pen or touchpad on the line.",
-                    Type::BodySmall
-                )
-                .style(style::on_surface_variant),
+                ui::aligned(
+                    ui::styled(crate::fl!("signature-draw-hint"), Type::BodySmall)
+                        .style(style::on_surface_variant)
+                ),
                 pen_controls(dialog, true),
             ]
             .spacing(8)
             .into(),
             SignatureTab::Type => column![
                 component::text_field(
-                    "Your name",
+                    &dialog.text.your_name,
                     &dialog.typed,
                     Backdrop::ContainerHigh,
                     |input| { input.on_input(Message::SignatureText) }
                 ),
                 container(
                     text(if dialog.typed.is_empty() {
-                        "Your name".to_owned()
+                        dialog.text.your_name.clone()
                     } else {
                         dialog.typed.clone()
                     })
@@ -1145,14 +1233,13 @@ impl PdfWindow {
                         .content_fit(iced::ContentFit::Contain)
                         .height(120)
                         .into(),
-                    None => ui::styled(
-                        "Choose a photo or scan of your signature on white paper.",
-                        Type::BodyMedium,
-                    )
-                    .style(|_| iced::widget::text::Style {
-                        color: Some(Color::from_rgb(0.4, 0.4, 0.4)),
-                    })
-                    .into(),
+                    None => ui::aligned(
+                        ui::styled(crate::fl!("signature-image-hint"), Type::BodyMedium).style(
+                            |_| iced::widget::text::Style {
+                                color: Some(Color::from_rgb(0.4, 0.4, 0.4)),
+                            },
+                        ),
+                    ),
                 };
                 column![
                     container(preview)
@@ -1163,23 +1250,27 @@ impl PdfWindow {
                             border: iced::border::rounded(shape::MEDIUM),
                             ..Default::default()
                         }),
-                    ui::with_icon(ButtonKind::Tonal, Icon::Upload, "Choose Image…")
-                        .on_press(Message::ChooseSignatureImage),
+                    ui::with_icon(
+                        ButtonKind::Tonal,
+                        Icon::Upload,
+                        crate::fl!("signature-choose-image"),
+                    )
+                    .on_press(Message::ChooseSignatureImage),
                 ]
                 .spacing(8)
                 .into()
             }
         };
         let mut body = column![
-            ui::styled("Create Signature", Type::HeadlineSmall),
+            ui::styled(crate::fl!("signature-dialog-title"), Type::HeadlineSmall),
             component::tabs(vec![
-                tab("Draw", SignatureTab::Draw),
-                tab("Type", SignatureTab::Type),
-                tab("Image", SignatureTab::Image),
+                tab(&dialog.text.draw, SignatureTab::Draw),
+                tab(&dialog.text.type_, SignatureTab::Type),
+                tab(&dialog.text.image, SignatureTab::Image),
             ]),
             surface,
             component::text_field(
-                "Description, such as Full name or Initials",
+                &dialog.text.description,
                 &dialog.description,
                 Backdrop::ContainerHigh,
                 |input| input.on_input(Message::SignatureDescription)
@@ -1188,14 +1279,18 @@ impl PdfWindow {
         .spacing(16)
         .width(PAD.width);
         if let Some(error) = &dialog.error {
-            body = body.push(ui::styled(error.as_str(), Type::BodyMedium).style(style::error_text));
+            body = body.push(ui::aligned(
+                ui::styled(error.as_str(), Type::BodyMedium).style(style::error_text),
+            ));
         }
         body = body.push(
             row![
-                ui::button(ButtonKind::Text, "Clear").on_press(Message::ClearSignature),
+                ui::button(ButtonKind::Text, crate::fl!("signature-clear"))
+                    .on_press(Message::ClearSignature),
                 space::horizontal(),
-                ui::button(ButtonKind::Text, "Cancel").on_press(Message::CancelSignature),
-                ui::button(ButtonKind::Filled, "Save")
+                ui::button(ButtonKind::Text, crate::fl!("common-cancel"))
+                    .on_press(Message::CancelSignature),
+                ui::button(ButtonKind::Filled, crate::fl!("common-save"))
                     .on_press_maybe((!dialog.saving).then_some(Message::SaveSignature)),
             ]
             .spacing(8),
@@ -1224,8 +1319,8 @@ fn pen_controls<'a>(dialog: &SignatureDialog, width: bool) -> Element<'a, Messag
     }))
     .spacing(2)
     .align_y(Center);
-    let mut controls = row![
-        ui::styled("Ink", Type::LabelLarge).style(style::on_surface_variant),
+    let mut controls = crate::line![
+        ui::styled(crate::fl!("signature-ink"), Type::LabelLarge).style(style::on_surface_variant),
         inks
     ]
     .spacing(8)
@@ -1236,7 +1331,8 @@ fn pen_controls<'a>(dialog: &SignatureDialog, width: bool) -> Element<'a, Messag
         };
         controls = controls.push(space::horizontal()).push(
             row![
-                ui::styled("Thickness", Type::LabelLarge).style(style::on_surface_variant),
+                ui::styled(crate::fl!("signature-thickness"), Type::LabelLarge)
+                    .style(style::on_surface_variant),
                 iced::widget::slider(
                     signature::PEN_WIDTHS,
                     dialog.pen_width,
@@ -1284,18 +1380,20 @@ fn note_card<'a>(
                 icon::icon(Icon::StickyNote, 18).style(|_| text::Style {
                     color: Some(NOTE_INK)
                 }),
-                ui::styled(
-                    annotation.author.as_deref().unwrap_or("Note"),
+                ui::aligned(ui::styled(
+                    annotation
+                        .author
+                        .clone()
+                        .unwrap_or_else(|| crate::fl!("markup-kind-note")),
                     Type::LabelLarge
-                )
-                .width(Fill),
+                )),
                 component::tip(
                     note_button(Icon::Delete, edit(EditMessage::Delete)),
-                    "Delete note"
+                    crate::fl!("markup-note-delete")
                 ),
                 component::tip(
                     note_button(Icon::Check, edit(EditMessage::CommitText)),
-                    "Done"
+                    crate::fl!("markup-note-done")
                 ),
             ]
             .spacing(6)
@@ -1303,7 +1401,7 @@ fn note_card<'a>(
             editor
                 .height(140)
                 .size(14)
-                .placeholder("Type a note")
+                .placeholder(crate::fl!("markup-note-placeholder"))
                 .style(move |theme: &Theme, _status| {
                     let scheme = Scheme::of(theme);
                     iced::widget::text_editor::Style {
@@ -1317,12 +1415,7 @@ fn note_card<'a>(
         ]
         .spacing(4),
     )
-    .padding(Padding {
-        top: 6.0,
-        right: 6.0,
-        bottom: 10.0,
-        left: 12.0,
-    })
+    .padding(crate::ui::dir::padding(6.0, 6.0, 10.0, 12.0))
     .width(260)
     .style(move |theme: &Theme| {
         let scheme = Scheme::of(theme);
@@ -1347,11 +1440,11 @@ fn note_entry<'a>(
             let (label, glyph) = markup_label(*style);
             (glyph, label)
         }
-        Kind::Note => (Icon::StickyNote, "Note"),
-        Kind::FreeText => (Icon::TextFields, "Text box"),
-        Kind::Stamp => (Icon::Signature, "Stamp"),
-        Kind::Redact => (Icon::RemoveSelection, "Redaction"),
-        _ => (Icon::Shapes, "Shape"),
+        Kind::Note => (Icon::StickyNote, crate::fl!("markup-kind-note")),
+        Kind::FreeText => (Icon::TextFields, crate::fl!("markup-kind-text-box")),
+        Kind::Stamp => (Icon::Signature, crate::fl!("markup-kind-stamp")),
+        Kind::Redact => (Icon::RemoveSelection, crate::fl!("markup-kind-redaction")),
+        _ => (Icon::Shapes, crate::fl!("markup-kind-shape")),
     };
     let swatch_color = annotation.style.color.map(to_color);
     let marker = container(icon::icon(glyph, 18)).style(move |theme: &Theme| {
@@ -1368,7 +1461,7 @@ fn note_entry<'a>(
         .collect::<Vec<_>>()
         .join(" ")
     {
-        text if text.is_empty() => fallback.to_owned(),
+        text if text.is_empty() => fallback,
         text if text.chars().count() > LONGEST => {
             format!(
                 "{}…",
@@ -1388,11 +1481,11 @@ fn note_entry<'a>(
             marker,
             column![
                 ui::styled(
-                    format!("Page {}", viewer.page_label(page)),
+                    crate::fl!("markup-notes-page", page = viewer.page_label(page)),
                     Type::LabelSmall
                 )
                 .style(style::on_surface_variant),
-                ui::styled(body, Type::BodyMedium).width(Fill),
+                ui::aligned(ui::styled(body, Type::BodyMedium)),
             ]
             .spacing(2)
             .width(Fill),

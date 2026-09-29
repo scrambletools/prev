@@ -15,6 +15,18 @@ pub enum Error {
     /// A page or operation failed.
     Engine(String),
     PageOutOfRange(usize),
+    /// Pages cannot be inserted from a password protected document.
+    PasswordProtected,
+    /// Extracting was asked for no pages.
+    NoPages,
+    /// The crop area misses the page.
+    CropOutsidePage,
+    /// The document was closed while a request waited.
+    Closed,
+    /// The document was saved, but the saved file does not open.
+    SavedUnreadable,
+    /// Writing the file failed.
+    Write(String),
 }
 
 impl std::fmt::Display for Error {
@@ -23,6 +35,14 @@ impl std::fmt::Display for Error {
             Self::Open(message) => write!(formatter, "cannot open document: {message}"),
             Self::Engine(message) => formatter.write_str(message),
             Self::PageOutOfRange(index) => write!(formatter, "page {} does not exist", index + 1),
+            Self::PasswordProtected => formatter.write_str(
+                "the document is password protected; open it and copy its pages instead",
+            ),
+            Self::NoPages => formatter.write_str("no pages to extract"),
+            Self::CropOutsidePage => formatter.write_str("the crop area is outside the page"),
+            Self::Closed => formatter.write_str("document closed"),
+            Self::SavedUnreadable => formatter.write_str("the saved document no longer opens"),
+            Self::Write(message) => formatter.write_str(message),
         }
     }
 }

@@ -29,3 +29,9 @@ strip = true
 # Adds file drag and drop to the clipboard's data device; see vendor/PATCHES.md.
 [patch.crates-io]
 smithay-clipboard = { path = "vendor/smithay-clipboard" }
+# Right to left text in text inputs; see vendor/PATCHES.md.
+iced_graphics = { path = "vendor/iced_graphics" }
+iced_widget = { path = "vendor/iced_widget" }
+# The keyboard layout in use, for the side empty text fields start on; see
+# vendor/PATCHES.md.
+winit = { path = "vendor/winit" }

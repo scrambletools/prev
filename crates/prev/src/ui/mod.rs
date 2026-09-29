@@ -3,8 +3,10 @@
 
 pub mod button;
 pub mod component;
+pub mod dir;
 pub mod enter;
 pub mod export;
+pub mod field;
 pub mod font;
 pub mod icon;
 pub mod motion;
@@ -16,7 +18,7 @@ pub mod smooth;
 pub mod style;
 
 pub use button::{button, icon_button, with_icon};
-pub use font::{Type, styled};
+pub use font::{Type, aligned, aligned_to, styled};
 pub use icon::{Icon, icon};
 pub use scheme::Scheme;
 

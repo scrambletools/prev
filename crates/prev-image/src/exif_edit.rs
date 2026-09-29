@@ -119,11 +119,11 @@ pub fn reset_orientation(tiff: &mut [u8]) -> bool {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExifError(pub &'static str);
+pub struct ExifError;
 
 impl std::fmt::Display for ExifError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(self.0)
+        formatter.write_str("the EXIF data is malformed")
     }
 }
 
@@ -132,7 +132,7 @@ impl std::error::Error for ExifError {}
 /// Removes the GPS directory: its entry in the first directory, and its
 /// data overwritten with zeros. Returns whether there was any.
 pub fn remove_gps(tiff: &mut [u8]) -> Result<bool, ExifError> {
-    let malformed = ExifError("the EXIF data is malformed");
+    let malformed = ExifError;
     let Some(mut tiff) = Tiff::new(tiff) else {
         return Err(malformed);
     };

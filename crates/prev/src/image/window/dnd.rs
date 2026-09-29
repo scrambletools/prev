@@ -52,7 +52,7 @@ impl ImageWindow {
                 (self.add_images(images), others)
             }
             Dropped::Pages(_) => {
-                self.notice = Some("Pages can be dropped on a document.".into());
+                self.notice = Some(crate::fl!("image-drop-pages"));
                 (Task::none(), Vec::new())
             }
             Dropped::Nothing => (Task::none(), Vec::new()),
@@ -128,7 +128,7 @@ impl ImageWindow {
         if drag::start(drag::file_data(&item.path), icon, false) {
             self.drag_started = true;
         } else {
-            self.notice = Some("Could not start dragging.".into());
+            self.notice = Some(crate::fl!("image-drag-failed"));
         }
     }
 

@@ -1,8 +1,9 @@
 //! M3 styles for iced's built-in widgets.
 
+use iced::overlay::menu;
 use iced::widget::{
-    checkbox as checkbox_widget, container, rule, scrollable, slider as slider_widget, text_input,
-    toggler,
+    checkbox as checkbox_widget, container, pick_list, rule, scrollable, slider as slider_widget,
+    text_input, toggler,
 };
 use iced::{Background, Border, Color, Theme, border};
 
@@ -165,6 +166,40 @@ pub fn outlined_field(theme: &Theme, status: text_input::Status) -> text_input::
             scheme.on_surface
         },
         selection: faded(scheme.primary, 0.4),
+    }
+}
+
+/// An outlined drop-down field, like the outlined text field.
+pub fn outlined_select(theme: &Theme, status: pick_list::Status) -> pick_list::Style {
+    let scheme = Scheme::of(theme);
+    let (color, width) = match status {
+        pick_list::Status::Active => (scheme.outline, 1.0),
+        pick_list::Status::Hovered => (scheme.on_surface, 1.0),
+        pick_list::Status::Opened { .. } => (scheme.primary, 2.0),
+    };
+    pick_list::Style {
+        text_color: scheme.on_surface,
+        placeholder_color: scheme.on_surface_variant,
+        handle_color: scheme.on_surface_variant,
+        background: Background::Color(Color::TRANSPARENT),
+        border: Border {
+            color,
+            width,
+            radius: shape::EXTRA_SMALL.into(),
+        },
+    }
+}
+
+/// The list a drop-down field opens, as an M3 menu.
+pub fn select_menu(theme: &Theme) -> menu::Style {
+    let scheme = Scheme::of(theme);
+    menu::Style {
+        background: Background::Color(scheme.surface_container),
+        border: border::rounded(shape::EXTRA_SMALL),
+        text_color: scheme.on_surface,
+        selected_text_color: scheme.on_surface,
+        selected_background: Background::Color(faded(scheme.on_surface, 0.08)),
+        shadow: elevation::shadow(&scheme, 2),
     }
 }
 

@@ -50,3 +50,60 @@ release).
 **Updating:** when iced moves to a newer smithay-clipboard, re-apply the
 patch to that version, or drop the vendored copy if upstream has an
 equivalent drag API.
+
+## iced_graphics 0.14.0 and iced_widget 0.14.2
+
+Copied from crates.io and wired in with `[patch.crates-io]` in the root
+`Cargo.toml`. License: MIT (see each crate's `LICENSE`).
+
+**Why:** iced's text input assumes left to right text. In Hebrew or
+Arabic the cursor was drawn at the wrong character, a selection was not
+drawn at all, the arrow keys moved the cursor against the way they
+point, and a click or drag started left of the text began at its start
+instead of its end.
+
+**Changes:**
+
+- `iced_graphics/src/text/paragraph.rs`: `grapheme_position` finds the
+  grapheme's glyph by its byte offset (glyphs are in visual order) and
+  measures a right to left glyph from its right edge; past the end of the
+  text it uses the logically last glyph.
+- `iced_widget/src/text_input.rs`: a selection is drawn from its leftmost
+  to its rightmost edge, since in right to left text its logical start is
+  on the right; in text that starts right to left, Left and Right are
+  swapped so the cursor moves the way the arrow points; and a press left
+  of such text puts the cursor at its end, which is on the left.
+
+The full diffs are `iced_graphics-rtl.patch` and `iced_widget-rtl.patch`
+(`diff -ruN` of `src/` against the crates.io releases). A test in
+`crates/prev/src/ui/font.rs` checks the cursor positions.
+
+**Updating:** when iced updates, re-apply the patches to the new versions,
+or drop the vendored copies if iced handles right to left text input.
+
+## winit 0.30.13
+
+Copied from crates.io and wired in with `[patch.crates-io]` in the root
+`Cargo.toml`. License: Apache-2.0 (see `LICENSE`).
+
+**Why:** an empty text field starts on the side the user's input
+language writes from, which on Linux is the keyboard layout in use. X11
+and Wayland both tell every client which of the keymap's layouts is
+active, but winit, under iced, keeps that to itself.
+
+**Changes:**
+
+- `src/platform_impl/linux/common/xkb/state.rs`: the XKB state keeps the
+  keymap it was made from, and whenever the active layout changes (and
+  when the state is made) it looks up what that layout types on the
+  three letter rows.
+- `src/platform/keyboard_layout.rs` (new) and `src/platform/mod.rs`:
+  `winit::platform::keyboard_layout::letters()` returns those letters.
+  prev tells the layout's direction from their script
+  (`crates/prev/src/input.rs`), so it needs no list of layout names.
+
+The full diff is `winit-layout.patch` (`diff -ruN` of `src/` against the
+crates.io release).
+
+**Updating:** when iced moves to a newer winit, re-apply the patch to that
+version, or drop the copy if winit comes to expose the active layout.

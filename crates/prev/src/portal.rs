@@ -12,13 +12,24 @@ mod linux {
     use std::path::PathBuf;
 
     pub async fn open_uri(uri: String) -> Result<(), String> {
-        let parsed =
-            ashpd::Uri::parse(&uri).map_err(|error| format!("Invalid link {uri}: {error}"))?;
+        let parsed = ashpd::Uri::parse(&uri).map_err(|error| {
+            crate::fl!(
+                "app-link-invalid",
+                uri = uri.as_str(),
+                error = error.to_string()
+            )
+        })?;
         ashpd::desktop::open_uri::OpenFileRequest::default()
             .send_uri(&parsed)
             .await
             .map(|_| ())
-            .map_err(|error| format!("Could not open {uri}: {error}"))
+            .map_err(|error| {
+                crate::fl!(
+                    "app-link-open-failed",
+                    uri = uri.as_str(),
+                    error = error.to_string()
+                )
+            })
     }
 
     /// Whether the desktop wants animations, from the GNOME interface setting
@@ -35,7 +46,7 @@ mod linux {
         use ashpd::desktop::print::{PreparePrintOptions, PrintOptions, PrintProxy};
         use std::os::fd::AsFd;
 
-        let failed = |error: ashpd::Error| format!("Could not print: {error}");
+        let failed = |error: ashpd::Error| crate::fl!("print-failed", error = error.to_string());
         let proxy = PrintProxy::new().await.map_err(failed)?;
         let prepared = proxy
             .prepare_print(
@@ -52,8 +63,8 @@ mod linux {
             Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => return Ok(()),
             Err(error) => return Err(failed(error)),
         };
-        let file =
-            std::fs::File::open(&path).map_err(|error| format!("Could not print: {error}"))?;
+        let file = std::fs::File::open(&path)
+            .map_err(|error| crate::fl!("print-failed", error = error.to_string()))?;
         proxy
             .print(
                 None,
@@ -78,7 +89,13 @@ mod other {
             .args(["url.dll,FileProtocolHandler", &uri])
             .spawn()
             .map(|_| ())
-            .map_err(|error| format!("Could not open {uri}: {error}"))
+            .map_err(|error| {
+                crate::fl!(
+                    "app-link-open-failed",
+                    uri = uri.as_str(),
+                    error = error.to_string()
+                )
+            })
     }
 
     /// Whether Windows animates controls and elements, its "Animation
@@ -115,14 +132,14 @@ mod other {
             .spawn(move || {
                 let _ = sender.send(crate::print_windows::print(&path, &title));
             })
-            .map_err(|error| format!("Could not print: {error}"))?;
+            .map_err(|error| crate::fl!("print-failed", error = error.to_string()))?;
         receiver
             .await
-            .unwrap_or_else(|_| Err("Printing stopped".to_owned()))
+            .unwrap_or_else(|_| Err(crate::fl!("print-stopped")))
     }
 
     #[cfg(not(windows))]
     pub async fn print(_path: PathBuf, _title: String) -> Result<(), String> {
-        Err("Printing is not available on this system yet.".to_owned())
+        Err(crate::fl!("print-unavailable"))
     }
 }

@@ -3,9 +3,10 @@
 
 use std::path::Path;
 
+use crate::{column, row};
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone};
-use iced::widget::{column, row, text};
-use iced::{Element, Fill};
+use iced::Element;
+use iced::widget::text;
 
 use crate::ui::{self, Type, component, style};
 
@@ -16,21 +17,24 @@ pub type Fact = (String, String);
 pub fn file_facts(path: &Path) -> Vec<Fact> {
     let mut facts = Vec::new();
     if let Some(name) = path.file_name() {
-        facts.push(("Name".to_owned(), name.to_string_lossy().into_owned()));
+        facts.push((
+            crate::fl!("app-fact-name"),
+            name.to_string_lossy().into_owned(),
+        ));
     }
     if let Some(folder) = path.parent() {
         facts.push((
-            "Folder".to_owned(),
+            crate::fl!("app-fact-folder"),
             prev_store::paths::abbreviate_home(folder)
                 .to_string_lossy()
                 .into_owned(),
         ));
     }
     if let Ok(metadata) = std::fs::metadata(path) {
-        facts.push(("Size".to_owned(), human_size(metadata.len())));
+        facts.push((crate::fl!("app-fact-size"), human_size(metadata.len())));
         if let Ok(modified) = metadata.modified() {
             let modified: DateTime<Local> = modified.into();
-            facts.push(("Modified".to_owned(), readable(&modified)));
+            facts.push((crate::fl!("app-fact-modified"), readable(&modified)));
         }
     }
     facts
@@ -38,23 +42,28 @@ pub fn file_facts(path: &Path) -> Vec<Fact> {
 
 /// Bytes as a short size, in the units file managers use.
 pub fn human_size(bytes: u64) -> String {
-    const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
     if bytes < 1000 {
-        return format!("{bytes} bytes");
+        return crate::fl!("app-size-bytes", count = bytes);
     }
     let mut value = bytes as f64;
-    let mut unit = "";
-    for next in UNITS {
+    let mut unit = 0;
+    for next in 0..4 {
         value /= 1000.0;
         unit = next;
         if value < 1000.0 {
             break;
         }
     }
-    if value < 10.0 {
-        format!("{value:.1} {unit}")
+    let size = if value < 10.0 {
+        format!("{value:.1}")
     } else {
-        format!("{value:.0} {unit}")
+        format!("{value:.0}")
+    };
+    match unit {
+        0 => crate::fl!("app-size-kb", size = size),
+        1 => crate::fl!("app-size-mb", size = size),
+        2 => crate::fl!("app-size-gb", size = size),
+        _ => crate::fl!("app-size-tb", size = size),
     }
 }
 
@@ -116,7 +125,7 @@ pub fn pdf_date(raw: &str) -> String {
 /// Sections of facts, as the inspectors show them: a heading, then each
 /// label beside its value. Empty values are left out.
 pub fn sections_view<'a, Message: Clone + 'a>(
-    sections: Vec<(&'a str, Vec<Fact>)>,
+    sections: Vec<(impl text::IntoFragment<'a>, Vec<Fact>)>,
 ) -> Element<'a, Message> {
     let mut content = column![].spacing(6);
     for (heading, facts) in sections {
@@ -131,12 +140,13 @@ pub fn sections_view<'a, Message: Clone + 'a>(
         for (label, value) in facts {
             content = content.push(
                 row![
-                    ui::styled(label, Type::BodySmall)
-                        .style(style::on_surface_variant)
-                        .width(104),
-                    ui::styled(value, Type::BodyMedium)
-                        .wrapping(text::Wrapping::WordOrGlyph)
-                        .width(Fill),
+                    ui::aligned_to(
+                        ui::styled(label, Type::BodySmall).style(style::on_surface_variant),
+                        104,
+                    ),
+                    ui::aligned(
+                        ui::styled(value, Type::BodyMedium).wrapping(text::Wrapping::WordOrGlyph)
+                    ),
                 ]
                 .spacing(8),
             );

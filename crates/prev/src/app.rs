@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use iced::keyboard::{self, Key, Modifiers};
-use iced::widget::{column, container, mouse_area, opaque, row, space, stack, text, toggler};
+use iced::widget::{container, mouse_area, opaque, pick_list, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
 use iced::{Center, Color, Element, Event, Fill, Length, Size, Subscription, Task, Theme, event};
 use prev::dnd::DragEvent;
@@ -16,9 +16,11 @@ use prev::pdf::window::{self as pdf_window, Effect, PdfWindow};
 use prev::shortcuts::{self, Action};
 use prev::ui::button::{self, Kind};
 use prev::ui::component::Backdrop;
+use prev::ui::dir::row;
 use prev::ui::{Icon, Type, component, icon, style};
+use prev::{column, row};
 use prev::{dialog, omarchy, portal, ui};
-use prev_store::settings::{self, Appearance, Settings};
+use prev_store::settings::{self, Appearance, SYSTEM_LANGUAGE, Settings};
 use raw_window_handle::RawWindowHandle;
 
 use crate::External;
@@ -47,6 +49,9 @@ pub struct Prev {
     pending_saves: usize,
     /// Whether the system allows animations (its reduced motion setting).
     system_animations: bool,
+    /// Whether the keyboard layout in use types right to left, if the
+    /// system says.
+    keyboard_rtl: Option<bool>,
     /// Storage paths as typed in the settings dialog, before applying.
     storage_drafts: [String; 3],
     /// Why a typed or chosen path was refused, per storage row.
@@ -68,11 +73,20 @@ impl Storage {
         self as usize
     }
 
-    fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self {
-            Storage::Signatures => "Signatures folder",
-            Storage::Versions => "Version history folder",
-            Storage::Bookmarks => "Bookmarks file",
+            Storage::Signatures => prev::fl!("settings-storage-signatures"),
+            Storage::Versions => prev::fl!("settings-storage-versions"),
+            Storage::Bookmarks => prev::fl!("settings-storage-bookmarks"),
+        }
+    }
+
+    /// The title of the dialog that chooses where to keep it.
+    fn choose_title(self) -> String {
+        match self {
+            Storage::Signatures => prev::fl!("dialog-choose-signatures"),
+            Storage::Versions => prev::fl!("dialog-choose-versions"),
+            Storage::Bookmarks => prev::fl!("dialog-choose-bookmarks"),
         }
     }
 
@@ -90,25 +104,28 @@ impl Storage {
 fn check_storage(storage: Storage, path: &std::path::Path) -> Result<(), String> {
     let shown = shown_path(path);
     if !path.is_absolute() {
-        return Err("Use a full path, such as ~/Documents/prev.".to_owned());
+        return Err(prev::fl!("settings-full-path"));
     }
     let folder = match storage {
         Storage::Bookmarks => {
             if path.is_dir() {
-                return Err(format!("{shown} is a folder, not a file."));
+                return Err(prev::fl!("settings-path-is-folder", path = shown));
             }
             path.parent().unwrap_or(path)
         }
         _ => path,
     };
     if !folder.exists() {
-        return Err(format!(
-            "There is no folder {}. Create it first, or choose one.",
-            shown_path(folder)
+        return Err(prev::fl!(
+            "settings-folder-missing",
+            path = shown_path(folder)
         ));
     }
     if !folder.is_dir() {
-        return Err(format!("{} is a file, not a folder.", shown_path(folder)));
+        return Err(prev::fl!(
+            "settings-path-is-file",
+            path = shown_path(folder)
+        ));
     }
     // Writing a file is the only sure test of permission.
     let probe = folder.join(format!(".prev-write-test-{}", std::process::id()));
@@ -117,9 +134,10 @@ fn check_storage(storage: Storage, path: &std::path::Path) -> Result<(), String>
             let _ = std::fs::remove_file(&probe);
             Ok(())
         }
-        Err(error) => Err(format!(
-            "prev can't write in {}: {error}.",
-            shown_path(folder)
+        Err(error) => Err(prev::fl!(
+            "settings-cannot-write",
+            path = shown_path(folder),
+            error = error.to_string()
         )),
     }
 }
@@ -219,6 +237,12 @@ pub enum Message {
     Perform(window::Id, Action),
     DialogFinished(window::Id, Result<Vec<PathBuf>, String>),
     AppearanceSelected(Appearance),
+    /// A language tag, or `system`.
+    LanguageSelected(String),
+    /// The input language's tag, or `system`.
+    InputLanguageSelected(String),
+    /// The keyboard layout changed direction.
+    KeyboardDirection(Option<bool>),
     OmarchyPaletteToggled(bool),
     DismissNotice(window::Id),
     AnimationsEnabled(Option<bool>),
@@ -234,11 +258,15 @@ impl Prev {
             .map(|path| Settings::load_or_create(path, legacy.as_deref()));
         let (settings, settings_error) = match loaded {
             Some(Ok(settings)) => (settings, None),
-            Some(Err(error)) => (Settings::default(), Some(error.to_string())),
+            Some(Err(error)) => (
+                Settings::default(),
+                Some(prev::i18n::Describe::describe(&error)),
+            ),
             None => (Settings::default(), None),
         };
         // Signatures, versions and bookmarks live where the settings say.
         prev_store::paths::set_locations(settings.locations());
+        prev::i18n::set_language(settings.chosen_language());
         let mut prev = Self {
             drag_origin: None,
             shift: false,
@@ -254,11 +282,13 @@ impl Prev {
             storage_drafts: Default::default(),
             storage_errors: Default::default(),
             system_animations: true,
+            keyboard_rtl: None,
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
         ui::shape::set_surface(prev.settings.corner_radius);
         ui::component::set_floating_transparency(prev.settings.overlay_transparency);
         prev.apply_motion();
+        prev.apply_input_direction();
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
         let system = iced::system::theme().map(Message::SystemTheme);
@@ -716,10 +746,7 @@ impl Prev {
                 }
                 .filter(|folder| folder.is_dir());
                 Task::perform(
-                    dialog::choose_folder(
-                        format!("Choose the {}", storage.label().to_lowercase()),
-                        current,
-                    ),
+                    dialog::choose_folder(storage.choose_title(), current),
                     move |result| Message::StorageChosen(storage, result),
                 )
             }
@@ -739,7 +766,7 @@ impl Prev {
             }
             Message::StorageChosen(_, Ok(None)) => Task::none(),
             Message::StorageChosen(_, Err(error)) => {
-                self.settings_error = Some(format!("Could not show the file dialog: {error}"));
+                self.settings_error = Some(prev::fl!("app-file-dialog-failed", error = error));
                 Task::none()
             }
             Message::AnimationsToggled(enabled) => {
@@ -798,7 +825,7 @@ impl Prev {
                 Ok(paths) => self.open_paths_if_any(paths),
                 Err(error) => {
                     if let Some(window) = self.windows.get_mut(&id) {
-                        window.notice = Some(format!("Could not show the file dialog: {error}"));
+                        window.notice = Some(prev::fl!("app-file-dialog-failed", error = error));
                     }
                     Task::none()
                 }
@@ -807,6 +834,25 @@ impl Prev {
                 self.settings.appearance = appearance;
                 self.save_settings();
                 self.refresh_theme();
+                Task::none()
+            }
+            Message::LanguageSelected(tag) => {
+                self.settings.language = tag;
+                prev::i18n::set_language(self.settings.chosen_language());
+                // Without a keyboard layout, fields follow the interface.
+                self.apply_input_direction();
+                self.save_settings();
+                Task::none()
+            }
+            Message::InputLanguageSelected(tag) => {
+                self.settings.input_language = tag;
+                self.apply_input_direction();
+                self.save_settings();
+                Task::none()
+            }
+            Message::KeyboardDirection(right_to_left) => {
+                self.keyboard_rtl = right_to_left;
+                self.apply_input_direction();
                 Task::none()
             }
             Message::AnimationsEnabled(enabled) => {
@@ -1060,8 +1106,8 @@ impl Prev {
                 .settings
                 .save_to(path)
                 .err()
-                .map(|error| format!("Could not save settings: {error}")),
-            None => Some("No settings location: HOME is not set".to_owned()),
+                .map(|error| prev::fl!("settings-save-failed", error = error.to_string())),
+            None => Some(prev::fl!("settings-no-location")),
         };
     }
 
@@ -1070,7 +1116,7 @@ impl Prev {
         if prev_store::paths::PRODUCTION {
             title
         } else {
-            format!("{title} (dev)")
+            prev::fl!("app-title-dev", title = title)
         }
     }
 
@@ -1107,6 +1153,7 @@ impl Prev {
             frames,
             iced::system::theme_changes().map(Message::SystemTheme),
             Subscription::run(crate::external_events).map(Message::External),
+            Subscription::run(prev::input::keyboard_changes).map(Message::KeyboardDirection),
             window::close_events().map(Message::WindowClosed),
             window::close_requests().map(Message::CloseRequested),
             event::listen_with(|event, status, id| match (event, status) {
@@ -1233,7 +1280,7 @@ impl Prev {
         for storage in Storage::ALL {
             let draft = &self.storage_drafts[storage.index()];
             let changed = *draft != shown_path(storage.path(&self.settings));
-            let mut entry = row![
+            let mut entry = prev::line![
                 container(component::text_field(
                     storage.label(),
                     draft,
@@ -1250,15 +1297,19 @@ impl Prev {
             .align_y(Center);
             if changed {
                 entry = entry.push(
-                    ui::button(Kind::Filled, "Apply").on_press(Message::StorageApply(storage)),
+                    ui::button(Kind::Filled, prev::fl!("settings-storage-apply"))
+                        .on_press(Message::StorageApply(storage)),
                 );
             }
-            entry = entry
-                .push(ui::button(Kind::Tonal, "Choose…").on_press(Message::StorageChoose(storage)));
+            entry = entry.push(
+                ui::button(Kind::Tonal, prev::fl!("settings-storage-choose"))
+                    .on_press(Message::StorageChoose(storage)),
+            );
             rows = rows.push(entry);
             if let Some(problem) = &self.storage_errors[storage.index()] {
-                rows = rows
-                    .push(ui::styled(problem.as_str(), Type::BodySmall).style(style::error_text));
+                rows = rows.push(ui::aligned(
+                    ui::styled(problem.as_str(), Type::BodySmall).style(style::error_text),
+                ));
             }
         }
         let file = self
@@ -1268,10 +1319,7 @@ impl Prev {
             .unwrap_or_default();
         rows.push(
             ui::styled(
-                format!(
-                    "Files already kept at an old place stay there; move them over to keep \
-using them. prev app settings are saved in {file}."
-                ),
+                prev::fl!("settings-storage-note", file = file),
                 Type::BodySmall,
             )
             .style(style::on_surface_variant),
@@ -1280,37 +1328,134 @@ using them. prev app settings are saved in {file}."
     }
 
     /// Settings as a dialog over window `id`. They apply to every window.
+    /// The interface's language: the system's, or one prev has text for,
+    /// each named in its own language.
+    fn language_field(&self) -> Element<'_, Message> {
+        let system = LanguageChoice {
+            tag: SYSTEM_LANGUAGE.to_owned(),
+            label: prev::fl!(
+                "settings-language-system",
+                language = prev::i18n::system_language_name()
+            ),
+        };
+        let mut choices = vec![system];
+        choices.extend(
+            prev::i18n::languages()
+                .iter()
+                .map(|(tag, name)| LanguageChoice {
+                    tag: tag.clone(),
+                    label: name.clone(),
+                }),
+        );
+        // A language prev no longer has shows as following the system.
+        let selected = choices
+            .iter()
+            .find(|choice| choice.tag == self.settings.language)
+            .unwrap_or(&choices[0])
+            .clone();
+        pick_list(choices, Some(selected), |choice: LanguageChoice| {
+            Message::LanguageSelected(choice.tag)
+        })
+        .font(ui::font::TEXT)
+        .text_size(16)
+        .padding([10, 12])
+        .width(Fill)
+        .style(style::outlined_select)
+        .menu_style(style::select_menu)
+        .into()
+    }
+
+    /// The language typed into text fields: the keyboard layout's, or one
+    /// of the languages in `INPUT_LANGUAGES`, each named in itself.
+    fn input_language_field(&self) -> Element<'_, Message> {
+        let mut choices = vec![LanguageChoice {
+            tag: SYSTEM_LANGUAGE.to_owned(),
+            label: prev::fl!("settings-input-language-system"),
+        }];
+        choices.extend(INPUT_LANGUAGES.iter().map(|(tag, name)| LanguageChoice {
+            tag: (*tag).to_owned(),
+            label: (*name).to_owned(),
+        }));
+        let selected = choices
+            .iter()
+            .find(|choice| choice.tag == self.settings.input_language)
+            .unwrap_or(&choices[0])
+            .clone();
+        pick_list(choices, Some(selected), |choice: LanguageChoice| {
+            Message::InputLanguageSelected(choice.tag)
+        })
+        .font(ui::font::TEXT)
+        .text_size(16)
+        .padding([10, 12])
+        .width(Fill)
+        .style(style::outlined_select)
+        .menu_style(style::select_menu)
+        .into()
+    }
+
+    /// Sets the side empty text fields start on: the chosen input
+    /// language's, else the keyboard layout's, else the interface's.
+    fn apply_input_direction(&self) {
+        let right_to_left = match self.settings.chosen_input_language() {
+            Some(tag) => prev::i18n::is_right_to_left(tag),
+            None => self.keyboard_rtl.unwrap_or_else(prev::i18n::right_to_left),
+        };
+        ui::dir::set_input_right_to_left(right_to_left);
+    }
+
     fn settings_dialog(&self, id: window::Id) -> Element<'_, Message> {
         let appearance = self.settings.appearance;
-        let choice = |glyph: Icon, label: &'static str, value: Appearance| {
+        let choice = |glyph: Icon, label: String, value: Appearance| {
             ui::with_icon(Kind::Tonal, glyph, label)
                 .selected(appearance == value)
                 .on_press(Message::AppearanceSelected(value))
         };
         let omarchy_note = match &self.omarchy {
-            Some(palette) => format!("Colors are built from the accent of “{}”.", palette.name),
-            None => "No Omarchy theme is active.".to_owned(),
+            Some(palette) => prev::fl!("settings-omarchy-note", theme = palette.name.as_str()),
+            None => prev::fl!("settings-omarchy-none"),
         };
         let mut content = column![
             row![
-                ui::styled("Settings", Type::HeadlineSmall).width(Fill),
+                ui::aligned(ui::styled(prev::fl!("settings-title"), Type::HeadlineSmall)),
                 component::tip(
                     ui::icon_button(Icon::Close).on_press(Message::CloseSettings(id)),
-                    "Close"
+                    prev::fl!("common-close")
                 ),
             ]
             .align_y(Center),
-            component::section("Appearance"),
+            component::section(prev::fl!("settings-appearance")),
             component::connected(vec![
-                choice(Icon::Settings, "System", Appearance::System),
-                choice(Icon::LightMode, "Light", Appearance::Light),
-                choice(Icon::DarkMode, "Dark", Appearance::Dark),
+                choice(
+                    Icon::Settings,
+                    prev::fl!("settings-appearance-system"),
+                    Appearance::System
+                ),
+                choice(
+                    Icon::LightMode,
+                    prev::fl!("settings-appearance-light"),
+                    Appearance::Light
+                ),
+                choice(
+                    Icon::DarkMode,
+                    prev::fl!("settings-appearance-dark"),
+                    Appearance::Dark
+                ),
             ]),
-            component::section("Colors"),
+            component::section(prev::fl!("settings-language")),
+            self.language_field(),
+            component::section(prev::fl!("settings-input-language")),
+            self.input_language_field(),
+            ui::aligned(
+                ui::styled(prev::fl!("settings-input-language-note"), Type::BodySmall)
+                    .style(style::on_surface_variant)
+            ),
+            component::section(prev::fl!("settings-colors")),
             row![
                 column![
-                    ui::styled("Use Omarchy accent color", Type::BodyLarge),
-                    ui::styled(omarchy_note, Type::BodyMedium).style(style::on_surface_variant),
+                    ui::styled(prev::fl!("settings-omarchy-accent"), Type::BodyLarge),
+                    ui::aligned(
+                        ui::styled(omarchy_note, Type::BodyMedium).style(style::on_surface_variant)
+                    ),
                 ]
                 .spacing(2)
                 .width(Fill),
@@ -1321,16 +1466,14 @@ using them. prev app settings are saved in {file}."
             ]
             .spacing(16)
             .align_y(Center),
-            component::section("Windows"),
+            component::section(prev::fl!("settings-windows")),
             row![
                 column![
-                    ui::styled("Hide the toolbar when the pointer leaves", Type::BodyLarge),
-                    ui::styled(
-                        "The toolbar floats over the document and slides away while \
-the pointer is outside the window.",
-                        Type::BodyMedium
-                    )
-                    .style(style::on_surface_variant),
+                    ui::styled(prev::fl!("settings-auto-hide"), Type::BodyLarge),
+                    ui::aligned(
+                        ui::styled(prev::fl!("settings-auto-hide-note"), Type::BodyMedium)
+                            .style(style::on_surface_variant)
+                    ),
                 ]
                 .spacing(2)
                 .width(Fill),
@@ -1343,12 +1486,12 @@ the pointer is outside the window.",
             .align_y(Center),
             row![
                 column![
-                    ui::styled("Animations", Type::BodyLarge),
+                    ui::styled(prev::fl!("settings-animations"), Type::BodyLarge),
                     ui::styled(
                         if self.system_animations {
-                            "Sliding bars and panels, growing dialogs and springy buttons."
+                            prev::fl!("settings-animations-note")
                         } else {
-                            "Off while the system asks for reduced motion."
+                            prev::fl!("settings-animations-reduced")
                         },
                         Type::BodyMedium
                     )
@@ -1365,14 +1508,19 @@ the pointer is outside the window.",
             .align_y(Center),
             row![
                 column![
-                    ui::styled("Corner radius", Type::BodyLarge),
-                    ui::styled("For dialogs and the floating toolbar.", Type::BodyMedium)
-                        .style(style::on_surface_variant),
+                    ui::styled(prev::fl!("settings-corner-radius"), Type::BodyLarge),
+                    ui::aligned(
+                        ui::styled(prev::fl!("settings-corner-radius-note"), Type::BodyMedium)
+                            .style(style::on_surface_variant)
+                    ),
                 ]
                 .spacing(2)
                 .width(Fill),
                 ui::styled(
-                    format!("{:.0} px", self.settings.corner_radius),
+                    prev::fl!(
+                        "settings-corner-radius-value",
+                        radius = format!("{:.0}", self.settings.corner_radius)
+                    ),
                     Type::LabelLarge
                 )
                 .style(style::on_surface_variant),
@@ -1395,17 +1543,19 @@ the pointer is outside the window.",
             .align_y(Center),
             row![
                 column![
-                    ui::styled("Overlay transparency", Type::BodyLarge),
-                    ui::styled(
-                        "How much of the page shows through the floating toolbar.",
-                        Type::BodyMedium
-                    )
-                    .style(style::on_surface_variant),
+                    ui::styled(prev::fl!("settings-overlay"), Type::BodyLarge),
+                    ui::aligned(
+                        ui::styled(prev::fl!("settings-overlay-note"), Type::BodyMedium)
+                            .style(style::on_surface_variant)
+                    ),
                 ]
                 .spacing(2)
                 .width(Fill),
                 ui::styled(
-                    format!("{:.0}%", self.settings.overlay_transparency),
+                    prev::fl!(
+                        "settings-overlay-value",
+                        percent = format!("{:.0}", self.settings.overlay_transparency)
+                    ),
                     Type::LabelLarge
                 )
                 .style(style::on_surface_variant),
@@ -1426,12 +1576,14 @@ the pointer is outside the window.",
             ]
             .spacing(16)
             .align_y(Center),
-            component::section("Storage"),
+            component::section(prev::fl!("settings-storage")),
             self.storage_view(),
         ]
         .spacing(12);
         if let Some(error) = &self.settings_error {
-            content = content.push(ui::styled(error, Type::BodyMedium).style(style::error_text));
+            content = content.push(ui::aligned(
+                ui::styled(error, Type::BodyMedium).style(style::error_text),
+            ));
         }
         // Scrolls when the window is too short for all of it.
         let card = container(component::scroll(container(content).padding(24)))
@@ -1446,6 +1598,47 @@ the pointer is outside the window.",
         )
         .on_press(Message::CloseSettings(id))
         .into()
+    }
+}
+
+/// Languages for the input language setting, named in themselves. The
+/// setting only sets the side an empty field starts on, so any language
+/// can be offered, not only those prev has text for.
+const INPUT_LANGUAGES: &[(&str, &str)] = &[
+    ("ar", "العربية"),
+    ("de", "Deutsch"),
+    ("el", "Ελληνικά"),
+    ("en", "English"),
+    ("es", "Español"),
+    ("fa", "فارسی"),
+    ("fr", "Français"),
+    ("he", "עברית"),
+    ("hi", "हिन्दी"),
+    ("it", "Italiano"),
+    ("ja", "日本語"),
+    ("ko", "한국어"),
+    ("nl", "Nederlands"),
+    ("pl", "Polski"),
+    ("ps", "پښتو"),
+    ("pt", "Português"),
+    ("ru", "Русский"),
+    ("tr", "Türkçe"),
+    ("uk", "Українська"),
+    ("ur", "اردو"),
+    ("yi", "ייִדיש"),
+    ("zh", "中文"),
+];
+
+/// An entry of the Settings language list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LanguageChoice {
+    tag: String,
+    label: String,
+}
+
+impl std::fmt::Display for LanguageChoice {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.label)
     }
 }
 
@@ -1493,12 +1686,9 @@ fn start_view(id: window::Id) -> Element<'static, Message> {
         column![
             icon::filled(Icon::Draft, 64).style(style::primary_text),
             ui::styled("prev", Type::DisplaySmall),
-            ui::styled(
-                "Open or drop a PDF, image, SVG or Markdown file.",
-                Type::BodyLarge
-            )
-            .style(style::on_surface_variant),
-            ui::with_icon(Kind::Filled, Icon::FolderOpen, "Open…")
+            ui::styled(prev::fl!("app-start-hint"), Type::BodyLarge)
+                .style(style::on_surface_variant),
+            ui::with_icon(Kind::Filled, Icon::FolderOpen, prev::fl!("app-start-open"))
                 .size(button::Size::Medium)
                 .on_press(Message::Perform(id, Action::Open)),
             row(hints).spacing(24),
@@ -1513,9 +1703,9 @@ fn start_view(id: window::Id) -> Element<'static, Message> {
 
 fn document_view(document: &Document) -> Element<'_, Message> {
     let status = match &document.kind {
-        Ok(Some(kind)) => format!("{}: this viewer is not built yet.", kind_name(*kind)),
-        Ok(None) => "prev can't open this kind of file.".to_owned(),
-        Err(error) => format!("prev can't read this file: {error}"),
+        Ok(Some(kind)) => prev::fl!("app-viewer-missing", kind = kind_name(*kind)),
+        Ok(None) => prev::fl!("app-cannot-open"),
+        Err(error) => prev::fl!("app-cannot-read", error = error.to_string()),
     };
     let name = document.path.file_name().map_or_else(
         || document.path.display().to_string(),
@@ -1579,20 +1769,22 @@ fn wayland_surface(window: &dyn window::Window) -> Option<usize> {
     }
 }
 
-fn action_name(action: Action) -> &'static str {
+fn action_name(action: Action) -> String {
     match action {
-        Action::Open => "Open",
-        Action::Settings => "Settings",
-        _ => "",
+        Action::Open => prev::fl!("action-open"),
+        Action::Settings => prev::fl!("action-settings"),
+        _ => String::new(),
     }
 }
 
 fn kind_name(kind: FileKind) -> String {
     match kind {
-        FileKind::Pdf => "PDF document".to_owned(),
-        FileKind::Image(format) => format!("{format:?} image"),
-        FileKind::Svg => "SVG drawing".to_owned(),
-        FileKind::Markdown => "Markdown document".to_owned(),
+        FileKind::Pdf => prev::fl!("app-kind-pdf"),
+        FileKind::Image(format) => {
+            prev::fl!("app-kind-image", format = prev::i18n::format_name(format))
+        }
+        FileKind::Svg => prev::fl!("app-kind-svg"),
+        FileKind::Markdown => prev::fl!("app-kind-markdown"),
     }
 }
 

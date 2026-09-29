@@ -570,12 +570,12 @@ impl DocumentThread {
             return Ok(());
         }
         let bytes = self.document.save()?;
-        write(&bytes).map_err(Error::Engine)?;
+        write(&bytes).map_err(Error::Write)?;
         let mut reopened = self.engine.open(&self.path)?;
         if let Some(password) = &self.password
             && !reopened.authenticate(password)
         {
-            return Err(Error::Engine("the saved document no longer opens".into()));
+            return Err(Error::SavedUnreadable);
         }
         self.document = reopened;
         Ok(())
@@ -797,5 +797,5 @@ impl DocumentThread {
 
 /// Maps a failed or cancelled future result into the engine error type.
 pub fn flatten<T>(result: std::result::Result<Result<T>, Canceled>) -> Result<T> {
-    result.unwrap_or_else(|_| Err(Error::Engine("document closed".into())))
+    result.unwrap_or_else(|_| Err(Error::Closed))
 }

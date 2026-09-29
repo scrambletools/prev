@@ -2,9 +2,9 @@
 
 use std::time::Duration;
 
-use iced::widget::{
-    Space, column, container, opaque, row, rule, space, stack, text, text_input, tooltip,
-};
+use crate::ui::dir::{column, row};
+use crate::{column, row};
+use iced::widget::{Space, container, opaque, rule, space, stack, text, text_input, tooltip};
 use iced::{Center, Element, Fill, Length, Padding, Theme};
 
 use super::button::{self, Button, Kind, Position, Shape};
@@ -172,9 +172,9 @@ pub fn floating_bars_toggle<'a, Message: Clone + 'a>(message: Message) -> Elemen
             Icon::TopPanelClose
         },
         if floating {
-            "Keep the toolbar shown"
+            crate::fl!("app-toolbar-keep-shown")
         } else {
-            "Hide the toolbar when the pointer leaves"
+            crate::fl!("app-toolbar-auto-hide")
         },
         floating,
         message,
@@ -256,7 +256,7 @@ pub fn overflow<'a, Message: Clone + 'a>(
         button::icon_button(Icon::MoreVert)
             .selected(open)
             .on_press(on_toggle),
-        "More",
+        crate::fl!("app-toolbar-more"),
     );
     let content = open.then(|| {
         super::popover::surface(
@@ -290,7 +290,7 @@ pub fn connected<'a, Message: Clone + 'a>(
 
 /// A connected button group where each button has its own tooltip.
 pub fn connected_with_tips<'a, Message: Clone + 'a>(
-    buttons: Vec<(Button<'a, Message>, Option<&'a str>)>,
+    buttons: Vec<(Button<'a, Message>, Option<text::Fragment<'a>>)>,
 ) -> Element<'a, Message> {
     let count = buttons.len();
     row(buttons
@@ -334,7 +334,7 @@ pub fn tip<'a, Message: 'a>(
 /// An icon button with a tooltip naming it.
 pub fn tool<'a, Message: Clone + 'a>(
     glyph: Icon,
-    label: &'a str,
+    label: impl text::IntoFragment<'a>,
     message: Option<Message>,
 ) -> Element<'a, Message> {
     tip(button::icon_button(glyph).on_press_maybe(message), label)
@@ -343,7 +343,7 @@ pub fn tool<'a, Message: Clone + 'a>(
 /// A toggle icon button with a tooltip.
 pub fn toggle_tool<'a, Message: Clone + 'a>(
     glyph: Icon,
-    label: &'a str,
+    label: impl text::IntoFragment<'a>,
     selected: bool,
     message: Message,
 ) -> Element<'a, Message> {
@@ -412,22 +412,20 @@ pub fn tabs<'a, Message: Clone + 'a>(tabs: Vec<Tab<'a, Message>>) -> Element<'a,
 
 /// A docked side sheet with a title, a close button and content.
 pub fn side_sheet<'a, Message: Clone + 'a>(
-    title: &'a str,
+    title: impl text::IntoFragment<'a>,
     on_close: Message,
     content: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let header = row![
         font::styled(title, Type::TitleLarge),
         space::horizontal(),
-        tip(button::icon_button(Icon::Close).on_press(on_close), "Close"),
+        tip(
+            button::icon_button(Icon::Close).on_press(on_close),
+            crate::fl!("common-close"),
+        ),
     ]
     .align_y(Center)
-    .padding(Padding {
-        top: 12.0,
-        right: 12.0,
-        bottom: 8.0,
-        left: 24.0,
-    });
+    .padding(super::dir::padding(12.0, 12.0, 8.0, 24.0));
     let sheet = container(column![
         header,
         scroll(container(content).padding(Padding {
@@ -445,7 +443,7 @@ pub fn side_sheet<'a, Message: Clone + 'a>(
 }
 
 /// A heading for a group of controls in a sheet.
-pub fn section<'a, Message: 'a>(label: &'a str) -> Element<'a, Message> {
+pub fn section<'a, Message: 'a>(label: impl text::IntoFragment<'a>) -> Element<'a, Message> {
     container(font::styled(label, Type::TitleSmall).style(style::primary_text))
         .padding(Padding {
             top: 12.0,
@@ -479,7 +477,9 @@ pub fn dialog<'a, Message: Clone + 'a>(
         headline.into()
     });
     body = body
-        .push(font::styled(supporting, Type::BodyMedium).style(style::on_surface_variant))
+        .push(font::aligned(
+            font::styled(supporting, Type::BodyMedium).style(style::on_surface_variant),
+        ))
         .push(
             container(row(actions).spacing(8))
                 .align_right(Fill)
@@ -516,7 +516,7 @@ pub fn snackbar<'a, Message: Clone + 'a>(
 ) -> Element<'a, Message> {
     let bar = container(
         row![
-            font::styled(message, Type::BodyMedium).width(Fill),
+            font::aligned(font::styled(message, Type::BodyMedium)),
             button::icon_button(Icon::Close)
                 .size(button::Size::ExtraSmall)
                 .kind(Kind::Standard)
@@ -525,12 +525,7 @@ pub fn snackbar<'a, Message: Clone + 'a>(
         .spacing(8)
         .align_y(Center),
     )
-    .padding(Padding {
-        top: 6.0,
-        right: 8.0,
-        bottom: 6.0,
-        left: 16.0,
-    })
+    .padding(super::dir::padding(6.0, 8.0, 6.0, 16.0))
     .max_width(600)
     .style(style::snackbar);
     stack![
@@ -561,43 +556,53 @@ impl Backdrop {
     }
 }
 
-/// An outlined text field whose label sits in the outline once there is
-/// text, and stands in for the placeholder until then.
+/// An outlined text field whose label stands in for the placeholder, and
+/// moves into the outline once the field has the keyboard focus or text.
 pub fn text_field<'a, Message: Clone + 'a>(
-    label: &'a str,
+    label: impl text::IntoFragment<'a>,
     value: &'a str,
     backdrop: Backdrop,
     configure: impl FnOnce(text_input::TextInput<'a, Message>) -> text_input::TextInput<'a, Message>,
 ) -> Element<'a, Message> {
-    let placeholder = if value.is_empty() { label } else { "" };
-    let field = configure(text_input(placeholder, value))
+    let label = label.into_fragment();
+    let input = configure(text_input("", value))
+        .align_x(super::dir::input_align(value))
         .padding([12, 16])
         .size(Type::BodyLarge.size())
         .font(Type::BodyLarge.font(false))
         .style(style::outlined_field);
-    // The same widgets whether or not there is text, so typing the first
-    // character does not rebuild the field and lose the keyboard focus.
-    let floating: Element<'a, Message> = if value.is_empty() {
-        Space::new().into()
-    } else {
-        container(font::styled(label, Type::BodySmall).style(style::on_surface_variant))
-            .padding([0, 4])
-            .style(move |theme: &Theme| iced::widget::container::Style {
-                background: Some(backdrop.color(&Scheme::of(theme)).into()),
-                ..Default::default()
-            })
-            .into()
+    // Over the outline at the field's start, on a patch of the backdrop
+    // that cuts the outline.
+    let raised = |color: fn(&Theme) -> text::Style| {
+        container(
+            container(font::styled(label.clone(), Type::BodySmall).style(color))
+                .padding([0, 4])
+                .style(move |theme: &Theme| iced::widget::container::Style {
+                    background: Some(backdrop.color(&Scheme::of(theme)).into()),
+                    ..Default::default()
+                }),
+        )
+        .padding(super::dir::padding(0.0, 12.0, 0.0, 12.0))
+        .width(Fill)
+        .align_x(super::dir::horizontal_start())
     };
-    stack![
-        container(field).padding(Padding {
+    // Where the placeholder would be: the field's padding, below the room
+    // left for the raised label.
+    let resting =
+        container(font::styled(label.clone(), Type::BodyLarge).style(style::on_surface_variant))
+            .padding(super::dir::padding(8.0 + 12.0, 16.0, 0.0, 16.0))
+            .width(Fill)
+            .align_x(super::dir::horizontal_start());
+    super::field::labelled(
+        container(input).padding(Padding {
             top: 8.0,
             ..Padding::ZERO
         }),
-        container(floating).padding(Padding {
-            left: 12.0,
-            ..Padding::ZERO
-        }),
-    ]
+        raised(style::on_surface_variant),
+        raised(style::primary_text),
+        resting,
+        value.is_empty(),
+    )
     .into()
 }
 
@@ -613,18 +618,13 @@ pub fn search_bar<'a, Message: Clone + 'a>(
         .padding([0, 4])
         .size(Type::BodyLarge.size())
         .font(Type::BodyLarge.font(false));
-    let mut content = row![
+    let mut content = crate::line![
         icon::icon(Icon::Search, 20).style(style::on_surface_variant),
         input
     ]
     .spacing(4)
     .align_y(Center)
-    .padding(Padding {
-        top: 0.0,
-        right: 4.0,
-        bottom: 0.0,
-        left: 12.0,
-    });
+    .padding(super::dir::padding(0.0, 4.0, 0.0, 12.0));
     for element in trailing {
         content = content.push(element);
     }
@@ -652,15 +652,65 @@ pub fn list_row<'a, Message: Clone + 'a>(
     selected: bool,
     on_press: Option<Message>,
 ) -> Button<'a, Message> {
-    let mut content = row![].spacing(12).align_y(Center);
+    let label = label.into_fragment();
+    let children = list_row_children(leading, label, indent);
+    list_row_button(super::dir::row(children), selected, on_press)
+}
+
+/// A [`list_row`] for text from a document, such as an outline entry or a
+/// bookmark: laid out in the text's own direction, whatever the
+/// interface's, so a long title keeps its beginning in view.
+pub fn content_list_row<'a, Message: Clone + 'a>(
+    leading: Option<Icon>,
+    label: impl text::IntoFragment<'a>,
+    indent: f32,
+    selected: bool,
+    on_press: Option<Message>,
+) -> Button<'a, Message> {
+    let label = label.into_fragment();
+    let right_to_left = super::dir::text_is_rtl(&label);
+    let mut children = list_row_children(leading, label, indent);
+    if right_to_left {
+        children.reverse();
+    }
+    list_row_button(
+        iced::widget::Row::with_children(children),
+        selected,
+        on_press,
+    )
+}
+
+/// A list row's parts in reading order: indent, icon, label, then a space
+/// that keeps them at the start.
+fn list_row_children<'a, Message: 'a>(
+    leading: Option<Icon>,
+    label: text::Fragment<'a>,
+    indent: f32,
+) -> Vec<Element<'a, Message>> {
+    let mut children = Vec::new();
     if indent > 0.0 {
-        content = content.push(Space::new().width(indent));
+        children.push(Space::new().width(indent).into());
     }
     if let Some(glyph) = leading {
-        content = content.push(icon::icon(glyph, 20));
+        children.push(icon::icon(glyph, 20).into());
     }
-    content = content.push(font::styled(label, Type::LabelLarge).wrapping(text::Wrapping::None));
-    button::custom(Kind::Row, content)
+    // The row's order places the label; iced's right alignment would move
+    // it out of view.
+    children.push(
+        font::styled(label, Type::LabelLarge)
+            .wrapping(text::Wrapping::None)
+            .into(),
+    );
+    children.push(Space::new().width(Fill).into());
+    children
+}
+
+fn list_row_button<'a, Message: Clone + 'a>(
+    row: iced::widget::Row<'a, Message>,
+    selected: bool,
+    on_press: Option<Message>,
+) -> Button<'a, Message> {
+    button::custom(Kind::Row, row.spacing(12).align_y(Center).width(Fill))
         .selected(selected)
         .height(40.0)
         .width(Fill)

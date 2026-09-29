@@ -5,8 +5,10 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use crate::ui::dir::column;
+use crate::{column, row};
 use iced::keyboard::Modifiers;
-use iced::widget::{column, container, row, space};
+use iced::widget::{container, space};
 use iced::{Center, Element, Fill, Task};
 use prev_pdf::annotation::Kind;
 use prev_pdf::engine::{ExportOptions, PageDisplay, Reduce};
@@ -15,6 +17,7 @@ use prev_pdf::worker::flatten;
 use super::markup_ui::{Menu, menu_item};
 use super::{Message, PdfWindow, State, THUMBNAIL_SPACING, thumbnail_height};
 use crate::dialog;
+use crate::i18n::Describe;
 use crate::image::editor::spawn;
 use crate::pdf::export::{self, Format};
 use crate::pdf::viewer::{PdfMessage, PdfViewer, Pick};
@@ -131,7 +134,7 @@ impl PdfWindow {
             }
             PageAction::Paste => {
                 let Some((bytes, _)) = clipboard() else {
-                    self.notice = Some("There are no copied pages to paste.".into());
+                    self.notice = Some(crate::fl!("pages-no-copied"));
                     return Task::none();
                 };
                 let at = viewer.insertion_point();
@@ -142,7 +145,7 @@ impl PdfWindow {
                 let receiver = viewer.handle.extract(pages.clone());
                 let count = pages.len();
                 return Task::perform(receiver, move |result| {
-                    Message::PagesCopied(count, flatten(result).map_err(|error| error.to_string()))
+                    Message::PagesCopied(count, flatten(result).map_err(|error| error.describe()))
                 });
             }
             PageAction::InsertFile => {
@@ -189,12 +192,9 @@ impl PdfWindow {
                 // Pages are now the latest thing copied, ahead of any text
                 // or image on the clipboard.
                 std::thread::spawn(crate::paste::mark_pages);
-                self.notice = Some(match count {
-                    1 => "Copied 1 page.".to_owned(),
-                    count => format!("Copied {count} pages."),
-                });
+                self.notice = Some(crate::fl!("pages-copied", count = count));
             }
-            Err(error) => self.notice = Some(format!("Could not copy the pages: {error}")),
+            Err(error) => self.notice = Some(crate::fl!("pages-copy-failed", error = error)),
         }
     }
 
@@ -221,7 +221,11 @@ impl PdfWindow {
                     })
                     .collect::<Result<Vec<_>, String>>()
             }),
-            |result| Message::InsertRead(result.unwrap_or_else(|_| Err("reading stopped".into()))),
+            |result| {
+                Message::InsertRead(
+                    result.unwrap_or_else(|_| Err(crate::fl!("pages-reading-stopped"))),
+                )
+            },
         )
     }
 
@@ -229,7 +233,7 @@ impl PdfWindow {
         let documents = match result {
             Ok(documents) => documents,
             Err(error) => {
-                self.notice = Some(format!("Could not read the file: {error}"));
+                self.notice = Some(crate::fl!("pages-read-failed", error = error));
                 return Task::none();
             }
         };
@@ -317,7 +321,7 @@ impl PdfWindow {
         let pages = drag.pages;
         let receiver = viewer.handle.extract(pages.clone());
         Task::perform(receiver, move |result| {
-            Message::PagesDragReady(pages, flatten(result).map_err(|error| error.to_string()))
+            Message::PagesDragReady(pages, flatten(result).map_err(|error| error.describe()))
         })
     }
 
@@ -380,58 +384,62 @@ impl PdfWindow {
     // The Pages menu.
 
     pub(super) fn pages_menu<'a>(&'a self, viewer: &'a PdfViewer) -> Element<'a, Message> {
+        let _reading = crate::ui::dir::reading();
         let open = self.menu == Some(Menu::Pages);
         let anchor = component::tip(
             ui::icon_button(Icon::Stacks)
                 .selected(open)
                 .on_press(Message::Menu(Some(Menu::Pages))),
-            "Pages",
+            crate::fl!("pages-menu"),
         );
         let count = viewer.target_pages().len();
-        let plural = |one: &'a str, many: &'a str| if count == 1 { one } else { many };
-        let item = |glyph: Icon, label: &'a str, action: PageAction| {
+        let item = |glyph: Icon, label: String, action: PageAction| {
             menu_item(Some(glyph), label, false, Message::PageAction(action))
         };
         let pasteable = clipboard();
         // Rotating is on the toolbar beside this menu.
         let mut items = vec![
-            item(Icon::NoteAdd, "Insert Blank Page", PageAction::InsertBlank),
-            item(Icon::FileOpen, "Insert from File…", PageAction::InsertFile),
+            item(
+                Icon::NoteAdd,
+                crate::fl!("pages-insert-blank"),
+                PageAction::InsertBlank,
+            ),
+            item(
+                Icon::FileOpen,
+                crate::fl!("pages-insert-file"),
+                PageAction::InsertFile,
+            ),
             item(
                 Icon::ContentCopy,
-                plural("Copy Page", "Copy Pages"),
+                crate::fl!("pages-copy", count = count),
                 PageAction::Copy,
             ),
         ];
         if let Some((_, pages)) = pasteable {
             items.push(menu_item(
                 Some(Icon::ContentPaste),
-                if pages == 1 {
-                    "Paste Page".to_owned()
-                } else {
-                    format!("Paste {pages} Pages")
-                },
+                crate::fl!("pages-paste", count = pages),
                 false,
                 Message::PageAction(PageAction::Paste),
             ));
         }
         if viewer.edit.area.is_some() {
-            items.push(item(Icon::Crop, "Crop to Selection", PageAction::Crop));
+            items.push(item(Icon::Crop, crate::fl!("pages-crop"), PageAction::Crop));
         }
         items.push(item(
             Icon::SelectAll,
-            "Select All Pages",
+            crate::fl!("pages-select-all"),
             PageAction::SelectAll,
         ));
         items.push(item(
             Icon::Delete,
-            plural("Delete Page", "Delete Pages"),
+            crate::fl!("pages-delete", count = count),
             PageAction::Delete,
         ));
         if self.redaction_count() > 0 {
             items.push(item(
                 Icon::RemoveSelection,
-                "Apply Redactions…",
+                crate::fl!("pages-apply-redactions"),
                 PageAction::Redact,
             ));
         }
@@ -461,7 +469,10 @@ impl PdfWindow {
         if let Some(store) = prev_store::versions::VersionStore::default_location()
             && let Err(error) = store.forget(&self.path)
         {
-            self.notice = Some(format!("Could not delete earlier versions: {error}"));
+            self.notice = Some(crate::fl!(
+                "pages-forget-versions-failed",
+                error = error.to_string()
+            ));
         }
         let Some(viewer) = self.viewer_mut() else {
             return Task::none();
@@ -478,22 +489,13 @@ impl PdfWindow {
         component::dialog(
             base,
             Some(Icon::RemoveSelection),
-            "Apply redactions?",
-            format!(
-                "Text, images and drawings under {} are removed from the document for good, \
-and the marks become black boxes. This can't be undone, and the earlier versions of this \
-file that prev keeps are deleted.",
-                if count == 1 {
-                    "the mark".to_owned()
-                } else {
-                    format!("the {count} marks")
-                }
-            ),
+            crate::fl!("pages-redact-title"),
+            crate::fl!("pages-redact-body", count = count),
             vec![
-                ui::button(ButtonKind::Text, "Cancel")
+                ui::button(ButtonKind::Text, crate::fl!("common-cancel"))
                     .on_press(Message::ConfirmRedactions(false))
                     .into(),
-                ui::button(ButtonKind::Filled, "Apply")
+                ui::button(ButtonKind::Filled, crate::fl!("pages-redact-apply"))
                     .on_press(Message::ApplyRedactions)
                     .into(),
             ],
@@ -507,7 +509,7 @@ file that prev keeps are deleted.",
             if let ExportMessage::Done(result) = message {
                 self.notice = Some(match result {
                     Ok(done) => done,
-                    Err(error) => format!("Could not export: {error}"),
+                    Err(error) => crate::fl!("pages-export-failed", error = error),
                 });
             }
             return Task::none();
@@ -526,11 +528,11 @@ file that prev keeps are deleted.",
             ExportMessage::Choose => {
                 if export.format == Format::Pdf && export.encrypt {
                     if export.password.is_empty() {
-                        export.error = Some("Enter a password.".into());
+                        export.error = Some(crate::fl!("pages-export-no-password"));
                         return Task::none();
                     }
                     if export.password != export.confirm {
-                        export.error = Some("The passwords don't match.".into());
+                        export.error = Some(crate::fl!("pages-export-password-mismatch"));
                         return Task::none();
                     }
                 }
@@ -539,26 +541,30 @@ file that prev keeps are deleted.",
                     .path
                     .file_stem()
                     .map(|stem| stem.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "document".into());
-                let suffix = if export.format == Format::Pdf && !export.selected_only {
-                    " (exported)"
+                    .unwrap_or_else(|| crate::fl!("pages-export-untitled"));
+                let stem = if export.format == Format::Pdf && !export.selected_only {
+                    // Without the direction marks right to left languages
+                    // place around values, which would end up in the name.
+                    crate::fl!("pages-export-file-name", name = stem)
+                        .replace(['\u{2068}', '\u{2069}'], "")
                 } else {
-                    ""
+                    stem
                 };
-                let name = format!("{stem}{suffix}.{}", export.format.extension());
-                return Task::perform(dialog::save_file("Export".into(), name), |result| {
-                    Message::Export(ExportMessage::Target(result))
-                });
+                let name = format!("{stem}.{}", export.format.extension());
+                return Task::perform(
+                    dialog::save_file(crate::fl!("pages-export-title"), name),
+                    |result| Message::Export(ExportMessage::Target(result)),
+                );
             }
             ExportMessage::Target(Ok(Some(target))) => return self.run_export(target),
             ExportMessage::Target(Ok(None)) => {}
             ExportMessage::Target(Err(error)) => {
-                export.error = Some(format!("Could not show the file dialog: {error}"));
+                export.error = Some(crate::fl!("pdf-file-dialog-failed", error = error));
             }
             ExportMessage::Done(result) => {
                 self.notice = Some(match result {
                     Ok(done) => done,
-                    Err(error) => format!("Could not export: {error}"),
+                    Err(error) => crate::fl!("pages-export-failed", error = error),
                 });
             }
         }
@@ -573,7 +579,7 @@ file that prev keeps are deleted.",
             return Task::none();
         };
         if target == self.path {
-            self.notice = Some("Export to a new file; this document saves itself.".into());
+            self.notice = Some(crate::fl!("pages-export-same-file"));
             return Task::none();
         }
         let pages = if export.selected_only {
@@ -585,7 +591,7 @@ file that prev keeps are deleted.",
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
-        self.notice = Some(format!("Exporting “{name}”…"));
+        self.notice = Some(crate::fl!("pages-export-exporting", name = name.as_str()));
         if export.format == Format::Pdf {
             let options = ExportOptions {
                 password: export.encrypt.then(|| export.password.clone()),
@@ -604,8 +610,8 @@ file that prev keeps are deleted.",
             return Task::perform(receiver, move |result| {
                 Message::Export(ExportMessage::Done(
                     flatten(result)
-                        .map(|()| format!("Exported “{name}”."))
-                        .map_err(|error| error.to_string()),
+                        .map(|()| crate::fl!("pages-export-done", name = name.as_str()))
+                        .map_err(|error| error.describe()),
                 ))
             });
         }
@@ -618,17 +624,17 @@ file that prev keeps are deleted.",
             async move {
                 let mut rendered: Vec<Arc<dyn PageDisplay>> = Vec::new();
                 for display in displays {
-                    rendered.push(flatten(display.await).map_err(|error| error.to_string())?);
+                    rendered.push(flatten(display.await).map_err(|error| error.describe())?);
                 }
                 spawn(move || export::write_images(&target, &rendered, format, dpi, quality))
                     .await
-                    .unwrap_or_else(|_| Err("exporting stopped".into()))
+                    .unwrap_or_else(|_| Err(crate::fl!("pages-export-stopped")))
             },
             move |result| {
                 Message::Export(ExportMessage::Done(result.map(
                     |written| match written.len() {
-                        1 => format!("Exported “{name}”."),
-                        count => format!("Exported {count} images."),
+                        1 => crate::fl!("pages-export-done", name = name.as_str()),
+                        count => crate::fl!("pages-export-done-images", count = count),
                     },
                 )))
             },
@@ -657,54 +663,46 @@ file that prev keeps are deleted.",
                 })
                 .collect(),
         );
-        let check = |label: &'a str, checked: bool, message: fn(bool) -> ExportMessage| {
+        let check = |label: String, checked: bool, message: fn(bool) -> ExportMessage| {
             iced::widget::checkbox(checked)
                 .label(label)
                 .on_toggle(move |value| send(message(value)))
                 .style(style::checkbox)
         };
         let selected = viewer.target_pages().len();
-        let pages_label = if selected == 1 {
-            "Only the selected page".to_owned()
-        } else {
-            format!("Only the {selected} selected pages")
-        };
+        let pages_label = crate::fl!("pages-export-selected-only", count = selected);
         let mut body = column![
-            ui::styled("Export", Type::HeadlineSmall),
-            component::section("Format"),
+            ui::styled(crate::fl!("pages-export-title"), Type::HeadlineSmall),
+            component::section(crate::fl!("pages-export-format")),
             formats,
         ]
         .spacing(12)
         .width(440);
         if export.format == Format::Pdf {
             body = body.push(check(
-                "Reduce file size (images at 150 dpi)",
+                crate::fl!("pages-export-reduce"),
                 export.reduce,
                 ExportMessage::Reduce,
             ));
             body = body.push(check(
-                "Flatten annotations and form fields",
+                crate::fl!("pages-export-flatten"),
                 export.flatten,
                 ExportMessage::Flatten,
             ));
             if export.flatten {
-                body = body.push(
-                    ui::styled(
-                        "Markup and filled-in fields become part of the pages and can no \
-longer be edited. Redaction marks not yet applied are left out.",
-                        Type::BodySmall,
-                    )
-                    .style(style::on_surface_variant),
-                );
+                body = body.push(ui::aligned(
+                    ui::styled(crate::fl!("pages-export-flatten-detail"), Type::BodySmall)
+                        .style(style::on_surface_variant),
+                ));
             }
             body = body.push(check(
-                "Encrypt with a password",
+                crate::fl!("pages-export-encrypt"),
                 export.encrypt,
                 ExportMessage::Encrypt,
             ));
             if export.encrypt {
                 body = body.push(component::text_field(
-                    "Password",
+                    crate::i18n::lasting(crate::fl!("pages-export-password")),
                     &export.password,
                     Backdrop::ContainerHigh,
                     |input| {
@@ -714,7 +712,7 @@ longer be edited. Redaction marks not yet applied are left out.",
                     },
                 ));
                 body = body.push(component::text_field(
-                    "Verify password",
+                    crate::i18n::lasting(crate::fl!("pages-export-verify-password")),
                     &export.confirm,
                     Backdrop::ContainerHigh,
                     |input| {
@@ -726,38 +724,43 @@ longer be edited. Redaction marks not yet applied are left out.",
                 ));
             }
         } else {
-            body = body.push(component::section("Resolution"));
+            body = body.push(component::section(crate::fl!("pages-export-resolution")));
             body = body.push(component::connected(
                 export::RESOLUTIONS
                     .iter()
                     .map(|dpi| {
-                        ui::button(ButtonKind::Tonal, format!("{dpi:.0} dpi"))
-                            .size(button::Size::ExtraSmall)
-                            .selected(export.dpi == *dpi)
-                            .on_press(send(ExportMessage::Dpi(*dpi)))
+                        ui::button(
+                            ButtonKind::Tonal,
+                            crate::fl!("pages-export-dpi", dpi = (dpi.round() as i64)),
+                        )
+                        .size(button::Size::ExtraSmall)
+                        .selected(export.dpi == *dpi)
+                        .on_press(send(ExportMessage::Dpi(*dpi)))
                     })
                     .collect(),
             ));
             if export.format == Format::Jpeg {
-                body = body.push(component::section("Quality"));
+                body = body.push(component::section(crate::fl!("pages-export-quality")));
                 body = body.push(component::connected(
-                    export::QUALITIES
-                        .iter()
+                    export::qualities()
+                        .into_iter()
                         .map(|(label, quality)| {
-                            ui::button(ButtonKind::Tonal, *label)
+                            ui::button(ButtonKind::Tonal, label)
                                 .size(button::Size::ExtraSmall)
-                                .selected(export.quality == *quality)
-                                .on_press(send(ExportMessage::Quality(*quality)))
+                                .selected(export.quality == quality)
+                                .on_press(send(ExportMessage::Quality(quality)))
                         })
                         .collect(),
                 ));
             }
             let note = if export.format.is_multipage() {
-                "All pages go into one file."
+                crate::fl!("pages-export-one-file")
             } else {
-                "Each page is saved as its own file, numbered after the name you choose."
+                crate::fl!("pages-export-file-per-page")
             };
-            body = body.push(ui::styled(note, Type::BodySmall).style(style::on_surface_variant));
+            body = body.push(ui::aligned(
+                ui::styled(note, Type::BodySmall).style(style::on_surface_variant),
+            ));
         }
         body = body.push(
             iced::widget::checkbox(export.selected_only)
@@ -766,13 +769,17 @@ longer be edited. Redaction marks not yet applied are left out.",
                 .style(style::checkbox),
         );
         if let Some(error) = &export.error {
-            body = body.push(ui::styled(error.as_str(), Type::BodyMedium).style(style::error_text));
+            body = body.push(ui::aligned(
+                ui::styled(error.as_str(), Type::BodyMedium).style(style::error_text),
+            ));
         }
         body = body.push(
             row![
                 space::horizontal(),
-                ui::button(ButtonKind::Text, "Cancel").on_press(send(ExportMessage::Cancel)),
-                ui::button(ButtonKind::Filled, "Export…").on_press(send(ExportMessage::Choose)),
+                ui::button(ButtonKind::Text, crate::fl!("common-cancel"))
+                    .on_press(send(ExportMessage::Cancel)),
+                ui::button(ButtonKind::Filled, crate::fl!("pages-export-choose"))
+                    .on_press(send(ExportMessage::Choose)),
             ]
             .spacing(8)
             .align_y(Center),

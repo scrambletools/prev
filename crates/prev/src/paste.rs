@@ -49,7 +49,7 @@ fn wl_paste(args: &[&str]) -> Result<Vec<u8>, String> {
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .output()
-        .map_err(|_| "install wl-clipboard to paste images".to_owned())?;
+        .map_err(|_| crate::fl!("app-paste-needs-wl-clipboard"))?;
     // wl-paste fails when the clipboard is empty.
     Ok(if output.status.success() {
         output.stdout
@@ -138,7 +138,7 @@ pub fn mark_pages() {
 /// The pixels as a PNG.
 fn png_bytes(bitmap: &Bitmap) -> Result<Vec<u8>, String> {
     let image = image::RgbaImage::from_raw(bitmap.width, bitmap.height, bitmap.pixels.clone())
-        .ok_or("the area has no pixels")?;
+        .ok_or_else(|| crate::fl!("app-copy-no-pixels"))?;
     let mut png = Vec::new();
     image
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
@@ -155,18 +155,18 @@ pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
         .args(["--type", "image/png"])
         .stdin(Stdio::piped())
         .spawn()
-        .map_err(|_| "install wl-clipboard to copy images".to_owned())?;
+        .map_err(|_| crate::fl!("app-copy-needs-wl-clipboard"))?;
     child
         .stdin
         .take()
-        .ok_or("wl-copy has no input")?
+        .ok_or_else(|| crate::fl!("app-copy-no-input"))?
         .write_all(&png)
         .map_err(|error| error.to_string())?;
     let status = child.wait().map_err(|error| error.to_string())?;
     status
         .success()
         .then_some(())
-        .ok_or_else(|| "wl-copy failed".to_owned())
+        .ok_or_else(|| crate::fl!("app-copy-failed"))
 }
 
 #[cfg(windows)]
@@ -185,7 +185,7 @@ mod windows {
 
     fn open() -> Result<Clipboard, String> {
         Clipboard::new_attempts(10)
-            .map_err(|error| format!("Could not open the clipboard: {error}"))
+            .map_err(|error| crate::fl!("app-clipboard-open-failed", error = error.to_string()))
     }
 
     fn registered(name: &str) -> Option<u32> {
@@ -256,7 +256,9 @@ mod windows {
     pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
         let png = png_bytes(bitmap)?;
         let _open = open()?;
-        let failed = |error: clipboard_win::ErrorCode| format!("Could not copy the image: {error}");
+        let failed = |error: clipboard_win::ErrorCode| {
+            crate::fl!("app-copy-image-failed", error = error.to_string())
+        };
         raw::empty().map_err(failed)?;
         if let Some(format) = registered("PNG") {
             raw::set_without_clear(format, &png).map_err(failed)?;

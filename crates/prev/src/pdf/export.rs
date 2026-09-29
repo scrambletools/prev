@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::i18n::Describe;
 use prev_image::decode::Frame;
 use prev_image::encode::{self, SaveFormat};
 use prev_pdf::engine::{Bitmap, PageDisplay, page_pixels};
@@ -69,7 +70,14 @@ impl Format {
 
 pub const RESOLUTIONS: [f32; 4] = [72.0, 150.0, 300.0, 600.0];
 /// JPEG quality choices as (label, quality).
-pub const QUALITIES: [(&str, u8); 4] = [("Low", 50), ("Medium", 75), ("High", 92), ("Best", 98)];
+pub fn qualities() -> [(String, u8); 4] {
+    [
+        (crate::fl!("pages-export-quality-low"), 50),
+        (crate::fl!("pages-export-quality-medium"), 75),
+        (crate::fl!("pages-export-quality-high"), 92),
+        (crate::fl!("pages-export-quality-best"), 98),
+    ]
+}
 
 /// The file for page `index` of `count` when each page gets its own:
 /// "name.png" becomes "name-3.png".
@@ -106,7 +114,7 @@ fn render(display: &Arc<dyn PageDisplay>, dpi: f32) -> Result<Bitmap, String> {
                 height,
             },
         )
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.describe())
 }
 
 fn rgb(bitmap: &Bitmap) -> Vec<u8> {
@@ -168,7 +176,7 @@ pub fn write_images(
             delay: std::time::Duration::ZERO,
         };
         let bytes = encode::encode(&frame, format.save_format(quality))
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| error.describe())?;
         let path = page_path(target, index, pages.len());
         prev_store::atomic::write(&path, &bytes).map_err(|error| error.to_string())?;
         written.push(path);

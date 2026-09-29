@@ -95,7 +95,7 @@ impl PdfWindow {
                 (self.viewer_task(task), Vec::new())
             }
             Dropped::Pages(_) => {
-                self.notice = Some("Pages can be dropped on a document.".into());
+                self.notice = Some(crate::fl!("drag-pages-need-document"));
                 (Task::none(), Vec::new())
             }
             Dropped::Image(image) => (
@@ -162,7 +162,7 @@ impl PdfWindow {
                 at,
             ))),
             None => {
-                self.notice = Some("prev can't open this image.".into());
+                self.notice = Some(crate::fl!("drag-image-unsupported"));
                 Task::none()
             }
         }
@@ -191,7 +191,7 @@ impl PdfWindow {
         let bitmap = match result {
             Ok(bitmap) => bitmap,
             Err(error) => {
-                self.notice = Some(format!("Could not drag the area: {error}"));
+                self.notice = Some(crate::fl!("drag-area-failed", error = error));
                 return Task::none();
             }
         };
@@ -212,7 +212,7 @@ impl PdfWindow {
         let bytes = match result {
             Ok(bytes) => bytes,
             Err(error) => {
-                self.notice = Some(format!("Could not drag the pages: {error}"));
+                self.notice = Some(crate::fl!("drag-pages-failed", error = error));
                 return Task::none();
             }
         };
@@ -223,13 +223,19 @@ impl PdfWindow {
             .path
             .file_stem()
             .map(|stem| stem.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Pages".into());
+            .unwrap_or_else(|| crate::fl!("drag-file-pages"));
         let labels: Vec<String> = pages.iter().map(|page| viewer.page_label(*page)).collect();
         let name = match labels.as_slice() {
-            [one] => format!("{stem} (page {one}).pdf"),
-            [first, .., last] => format!("{stem} (pages {first}–{last}).pdf"),
-            [] => format!("{stem}.pdf"),
+            [one] => crate::fl!("drag-file-one-page", name = stem, page = one.as_str()),
+            [first, .., last] => crate::fl!(
+                "drag-file-page-range",
+                name = stem,
+                first = first.as_str(),
+                last = last.as_str()
+            ),
+            [] => stem,
         };
+        let name = format!("{name}.pdf");
         let mut data = vec![
             (crate::paste::PAGES_TYPE.to_owned(), bytes.clone()),
             ("application/pdf".to_owned(), bytes.clone()),
@@ -261,7 +267,7 @@ impl PdfWindow {
         if started {
             self.drag_started = true;
         } else {
-            self.notice = Some("Could not start dragging.".into());
+            self.notice = Some(crate::fl!("drag-start-failed"));
         }
         started
     }

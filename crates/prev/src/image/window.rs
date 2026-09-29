@@ -6,14 +6,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::ui::dir::column;
+use crate::{column, row};
 use bytes::Bytes;
 use iced::advanced::image::Allocation;
 use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::image::Handle;
 use iced::widget::scrollable::{self, Direction};
 use iced::widget::{
-    Id, column, container, image, mouse_area, operation, row, scrollable as scroll, slider, space,
-    text, toggler,
+    Id, container, image, mouse_area, operation, scrollable as scroll, slider, space, text, toggler,
 };
 use iced::{Center, Element, Fill, Length, Padding, Task};
 use prev_image::ImageFormat;
@@ -28,6 +29,7 @@ use super::canvas::{CanvasEvent, ImageCanvas, Selection};
 use super::editor::{self, Editor, spawn};
 use super::view::{self, Fit, Placement, ZOOM_STEP};
 use crate::dialog;
+use crate::i18n::Describe;
 use crate::pdf::viewer::editing::EditMessage;
 use crate::pdf::viewer::{PdfMessage, Zoom};
 use crate::pdf::window::{self as pdf_window, PdfWindow};
@@ -358,10 +360,10 @@ fn frame_handle(frame: &Frame) -> Handle {
 fn load(path: &Path, source: Source) -> Result<LoadedImage, String> {
     match source {
         Source::Svg => {
-            let svg = Svg::parse_file(path).map_err(|error| error.to_string())?;
+            let svg = Svg::parse_file(path).map_err(|error| error.describe())?;
             let (width, height) = svg.size();
             let scale = THUMBNAIL_SIZE as f32 / width.max(height).max(1.0);
-            let thumbnail = svg.render(scale).map_err(|error| error.to_string())?;
+            let thumbnail = svg.render(scale).map_err(|error| error.describe())?;
             Ok(LoadedImage {
                 width: width.round().max(1.0) as u32,
                 height: height.round().max(1.0) as u32,
@@ -372,7 +374,7 @@ fn load(path: &Path, source: Source) -> Result<LoadedImage, String> {
             })
         }
         Source::Raster(format) => {
-            let decoded = decode_file(path, format).map_err(|error| error.to_string())?;
+            let decoded = decode_file(path, format).map_err(|error| error.describe())?;
             let (width, height) = (decoded.width(), decoded.height());
             let thumbnail = thumbnail_of(&decoded.frames[0]);
             let mut full = None;
@@ -432,10 +434,19 @@ fn downscale(pixels: &Bytes, width: u32, height: u32, divisor: u32) -> Option<Ha
     ))
 }
 
+/// Between the details in the toolbar.
+const DETAILS_SEPARATOR: &str = "  ·  ";
+
 fn format_bytes(bytes: u64) -> String {
     match bytes {
-        0..1_000_000 => format!("{:.0} KB", bytes as f64 / 1000.0),
-        _ => format!("{:.1} MB", bytes as f64 / 1_000_000.0),
+        0..1_000_000 => crate::fl!(
+            "image-size-kb",
+            size = format!("{:.0}", bytes as f64 / 1000.0)
+        ),
+        _ => crate::fl!(
+            "image-size-mb",
+            size = format!("{:.1}", bytes as f64 / 1_000_000.0)
+        ),
     }
 }
 
@@ -554,7 +565,7 @@ impl ImageWindow {
         Task::perform(spawn(move || load(&path, source)), move |result| {
             Message::Loaded(
                 index,
-                result.unwrap_or_else(|_| Err("loading stopped".into())),
+                result.unwrap_or_else(|_| Err(crate::fl!("image-loading-stopped"))),
             )
         })
     }
@@ -834,11 +845,11 @@ impl ImageWindow {
                     Some(inspector.description.trim().to_owned()).filter(|text| !text.is_empty());
                 self.metadata_edit(move |bytes| {
                     metadata::set_description_and_keywords(bytes, description.as_deref(), &keywords)
-                        .map_err(|error| error.to_string())
+                        .map_err(|error| error.describe())
                 })
             }
             Message::RemoveLocation => self.metadata_edit(|bytes| {
-                metadata::remove_location(bytes).map_err(|error| error.to_string())
+                metadata::remove_location(bytes).map_err(|error| error.describe())
             }),
             Message::MetadataSaved(result) => {
                 if let Err(error) = result {
@@ -850,15 +861,15 @@ impl ImageWindow {
                 let path = self.items[self.current].path.clone();
                 Task::perform(
                     spawn(move || {
-                        let store =
-                            VersionStore::default_location().ok_or("No place to keep versions")?;
-                        store
-                            .restore(&path, &version)
-                            .map_err(|error| format!("Could not revert: {error}"))
+                        let store = VersionStore::default_location()
+                            .ok_or_else(|| crate::fl!("image-no-version-store"))?;
+                        store.restore(&path, &version).map_err(|error| {
+                            crate::fl!("image-revert-failed", error = error.to_string())
+                        })
                     }),
                     |result| {
                         Message::Reverted(
-                            result.unwrap_or_else(|_| Err("reverting stopped".into())),
+                            result.unwrap_or_else(|_| Err(crate::fl!("image-reverting-stopped"))),
                         )
                     },
                 )
@@ -961,12 +972,15 @@ impl ImageWindow {
             },
             Message::ExportTarget(Ok(None)) => Task::none(),
             Message::ExportTarget(Err(error)) => {
-                self.notice = Some(format!("Could not show the save dialog: {error}"));
+                self.notice = Some(crate::fl!(
+                    "export-dialog-failed",
+                    error = error.to_string()
+                ));
                 Task::none()
             }
             Message::Exported(result) => {
                 self.notice = Some(match result {
-                    Ok(path) => format!("Exported {}", path.display()),
+                    Ok(path) => crate::fl!("export-done", path = path.display().to_string()),
                     Err(error) => error,
                 });
                 Task::none()
@@ -1203,11 +1217,7 @@ impl ImageWindow {
             _ => {}
         }
         if self.marked() {
-            self.notice = Some(
-                "Images with markup can't be edited. Export to keep the markup, or delete it \
-                 and close the markup bar."
-                    .into(),
-            );
+            self.notice = Some(crate::fl!("image-marked-no-edit"));
             return Task::none();
         }
         let index = self.current;
@@ -1217,7 +1227,7 @@ impl ImageWindow {
             return Task::none();
         };
         if !shown.is_editable() {
-            self.notice = Some("Animations and SVG drawings can't be edited.".into());
+            self.notice = Some(crate::fl!("image-cannot-edit"));
             return Task::none();
         }
         if shown.editor.is_none() {
@@ -1253,18 +1263,18 @@ impl ImageWindow {
                 stack.push(Operation::FlipVertical);
                 true
             }),
-            Edit::Crop => match selection
-                .and_then(|selection| editor::selection_to_crop(selection, size))
-            {
-                Some(crop) => editor.change(|stack| {
-                    stack.push(Operation::Crop(crop));
-                    true
-                }),
-                None => {
-                    self.notice = Some("Drag a selection first (Select tool), then crop.".into());
-                    return Task::none();
+            Edit::Crop => {
+                match selection.and_then(|selection| editor::selection_to_crop(selection, size)) {
+                    Some(crop) => editor.change(|stack| {
+                        stack.push(Operation::Crop(crop));
+                        true
+                    }),
+                    None => {
+                        self.notice = Some(crate::fl!("image-crop-needs-selection"));
+                        return Task::none();
+                    }
                 }
-            },
+            }
             Edit::Undo => editor.change(|stack| stack.undo()),
             Edit::Redo => editor.change(|stack| stack.redo()),
             Edit::Color(adjust) => {
@@ -1296,7 +1306,7 @@ impl ImageWindow {
                     size_input.1.trim().parse::<u32>(),
                 );
                 let (Ok(width), Ok(height)) = parsed else {
-                    self.notice = Some("Enter a width and height in pixels.".into());
+                    self.notice = Some(crate::fl!("image-size-needed"));
                     return Task::none();
                 };
                 if (width, height) == size
@@ -1372,7 +1382,11 @@ impl ImageWindow {
         let job = editor.render_full();
         Task::perform(spawn(move || Arc::new(job())), move |result| match result {
             Ok(frame) => Message::FullRendered(index, generation, frame),
-            Err(_) => Message::Saved(index, generation, Err("rendering stopped".into())),
+            Err(_) => Message::Saved(
+                index,
+                generation,
+                Err(crate::fl!("image-rendering-stopped")),
+            ),
         })
     }
 
@@ -1437,9 +1451,7 @@ impl ImageWindow {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            self.notice = Some(format!(
-                "Changes to “{name}” can't be saved in its format. Use Export (Ctrl+Shift+S)."
-            ));
+            self.notice = Some(crate::fl!("image-cannot-save-format", name = name));
             return Task::none();
         };
         let keep_original = !editor.original_kept;
@@ -1450,7 +1462,7 @@ impl ImageWindow {
                 Message::Saved(
                     index,
                     generation,
-                    result.unwrap_or_else(|_| Err("saving stopped".into())),
+                    result.unwrap_or_else(|_| Err(crate::fl!("image-saving-stopped"))),
                 )
             },
         )
@@ -1475,7 +1487,9 @@ impl ImageWindow {
         Task::perform(
             spawn(move || editor::edit_metadata(&path, keep_original, edit)),
             |result| {
-                Message::MetadataSaved(result.unwrap_or_else(|_| Err("saving stopped".into())))
+                Message::MetadataSaved(
+                    result.unwrap_or_else(|_| Err(crate::fl!("image-saving-stopped"))),
+                )
             },
         )
     }
@@ -1512,7 +1526,7 @@ impl ImageWindow {
         let format = match self.items[self.current].source {
             Source::Svg => "png",
             Source::Raster(_) if !shown.is_editable() => {
-                self.notice = Some("Animations can't be exported yet.".into());
+                self.notice = Some(crate::fl!("image-cannot-export-animation"));
                 return Task::none();
             }
             Source::Raster(format) => editor::default_format_choice(format, false),
@@ -1541,7 +1555,7 @@ impl ImageWindow {
         let name =
             name.unwrap_or_else(|| editor::export_name(&self.items[self.current].path, format));
         Task::perform(
-            dialog::save_file_with_menus("Export".into(), name, folder, Vec::new()),
+            dialog::save_file_with_menus(crate::fl!("export-title"), name, folder, Vec::new()),
             Message::ExportTarget,
         )
     }
@@ -1558,11 +1572,11 @@ impl ImageWindow {
             let scale = scale.unwrap_or(1.0);
             return Task::perform(
                 spawn(move || {
-                    let frame = svg.render(scale).map_err(|error| error.to_string())?;
+                    let frame = svg.render(scale).map_err(|error| error.describe())?;
                     editor::export(&original, &frame, &path, format).map(|()| path)
                 }),
                 |result| {
-                    Message::Exported(result.unwrap_or_else(|_| Err("exporting stopped".into())))
+                    Message::Exported(result.unwrap_or_else(|_| Err(crate::fl!("export-stopped"))))
                 },
             );
         }
@@ -1581,7 +1595,9 @@ impl ImageWindow {
         let PendingExport { path, format, .. } = pending;
         Task::perform(
             spawn(move || editor::export(&original, &frame, &path, format).map(|()| path)),
-            |result| Message::Exported(result.unwrap_or_else(|_| Err("exporting stopped".into()))),
+            |result| {
+                Message::Exported(result.unwrap_or_else(|_| Err(crate::fl!("export-stopped"))))
+            },
         )
     }
 
@@ -1700,7 +1716,7 @@ impl ImageWindow {
         let canvas: Element<'_, Message> = match &self.items[self.current].state {
             ItemState::Failed(error) => component::empty_state(
                 Icon::BrokenImage,
-                "prev can't open this image",
+                crate::fl!("image-open-failed"),
                 error.as_str(),
             ),
             _ => match self.placement() {
@@ -1725,7 +1741,7 @@ impl ImageWindow {
                 .width(Fill)
                 .height(Fill)
                 .into(),
-                None => component::empty_state(Icon::Image, "Opening…", ""),
+                None => component::empty_state(Icon::Image, crate::fl!("image-opening"), ""),
             },
         };
         self.frame_view(canvas, None, space().into())
@@ -1740,7 +1756,8 @@ impl ImageWindow {
         overlay: Element<'a, Message>,
     ) -> Element<'a, Message> {
         let bottom = markup_bar.is_some();
-        let mut content = row![].height(Fill);
+        // The panels keep their sides in every language.
+        let mut content = iced::widget::Row::new().height(Fill);
         if self.sidebar && self.items.len() > 1 {
             content = content
                 .push(below_bars(
@@ -1819,10 +1836,10 @@ impl ImageWindow {
                 ui::export::Sizes {
                     options: editor::SVG_SIZES,
                     chosen: &choice.size,
-                    note: format!(
-                        "{:.0} × {:.0} pixels",
-                        (width * scale).round(),
-                        (height * scale).round()
+                    note: crate::fl!(
+                        "export-size-pixels",
+                        width = ((width * scale).round() as u32),
+                        height = ((height * scale).round() as u32)
                     ),
                 }
             });
@@ -1851,24 +1868,30 @@ impl ImageWindow {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let extension = pending
-            .path
-            .extension()
-            .map(|extension| format!("ends in .{}", extension.to_string_lossy()))
-            .unwrap_or_else(|| "has no extension".into());
+        let format = editor::format_label(&pending.format_choice);
+        let body = match pending.path.extension() {
+            Some(extension) => crate::fl!(
+                "image-name-mismatch",
+                name = name,
+                format = format,
+                extension = extension.to_string_lossy().into_owned()
+            ),
+            None => crate::fl!(
+                "image-name-mismatch-no-extension",
+                name = name,
+                format = format
+            ),
+        };
         component::dialog(
             page,
             Some(Icon::Warning),
-            "The name doesn't match the format",
-            format!(
-                "“{name}” will be saved as a {} file, but its name {extension}. Other apps may not open it.",
-                editor::format_label(&pending.format_choice)
-            ),
+            crate::fl!("image-name-mismatch-title"),
+            body,
             vec![
-                ui::button(Kind::Text, "Choose Again")
+                ui::button(Kind::Text, crate::fl!("image-choose-again"))
                     .on_press(Message::ExportChooseAgain)
                     .into(),
-                ui::button(Kind::Text, "Save as Is")
+                ui::button(Kind::Text, crate::fl!("image-save-as-is"))
                     .on_press(Message::ExportAsIs)
                     .into(),
             ],
@@ -1884,32 +1907,36 @@ impl ImageWindow {
     }
 
     fn toolbar_at<'a>(&'a self, width: f32) -> Element<'a, Message> {
+        let _fixed = crate::ui::dir::fixed();
         let item = &self.items[self.current];
         let mut details = item
             .size
-            .map(|(width, height)| format!("{width} × {height}"))
+            .map(|(width, height)| crate::fl!("image-dimensions", width = width, height = height))
             .unwrap_or_default();
         let shown = self.shown();
         if let Some(shown) = shown
             && shown.image.frames.len() > 1
         {
-            details.push_str(&format!(
-                "  ·  frame {} of {}",
-                self.frame + 1,
-                shown.image.frames.len()
+            details.push_str(DETAILS_SEPARATOR);
+            details.push_str(&crate::fl!(
+                "image-frame-position",
+                current = (self.frame + 1),
+                total = shown.image.frames.len()
             ));
         }
         if self.items.len() > 1 {
-            details.push_str(&format!(
-                "  ·  {} of {}",
-                self.current + 1,
-                self.items.len()
+            details.push_str(DETAILS_SEPARATOR);
+            details.push_str(&crate::fl!(
+                "image-position",
+                current = (self.current + 1),
+                total = self.items.len()
             ));
         }
         if let Some(editor) = shown.and_then(|shown| shown.editor.as_ref())
             && !editor.is_saved()
         {
-            details.push_str("  ·  edited");
+            details.push_str(DETAILS_SEPARATOR);
+            details.push_str(&crate::fl!("image-edited"));
         }
         let markable = shown.is_some_and(Shown::is_editable);
         let marked = self.marked();
@@ -1917,10 +1944,10 @@ impl ImageWindow {
         let editor = shown
             .and_then(|shown| shown.editor.as_ref())
             .filter(|_| !marked);
-        let when = |glyph: Icon, label: &'static str, enabled: bool, message: Message| {
+        let when = |glyph: Icon, label: String, enabled: bool, message: Message| {
             component::tool(glyph, label, enabled.then_some(message))
         };
-        let panel = |glyph: Icon, label: &'static str, which: Panel| {
+        let panel = |glyph: Icon, label: String, which: Panel| {
             component::toggle_tool(
                 glyph,
                 label,
@@ -1929,7 +1956,7 @@ impl ImageWindow {
             )
         };
         // Tools that change pixels, for images that can be edited.
-        let edit_panel = |glyph: Icon, label: &'static str, which: Panel| {
+        let edit_panel = |glyph: Icon, label: String, which: Panel| {
             if markable {
                 panel(glyph, label, which)
             } else {
@@ -1951,7 +1978,7 @@ impl ImageWindow {
                         } else {
                             Icon::LeftPanelOpen
                         },
-                        "Sidebar",
+                        crate::fl!("image-sidebar"),
                         self.sidebar,
                         Message::ToggleSidebar,
                     ),
@@ -1967,7 +1994,7 @@ impl ImageWindow {
         }
         // As in the PDF toolbar: what is shown and the view on the left,
         // editing, panels and export on the right.
-        let details_width = details.chars().count() as f32 * 7.5 + 8.0;
+        let details_width = ui::font::measure(&details, Type::BodyMedium).ceil() + 8.0;
         slots.push((
             row![
                 ui::styled(details, Type::BodyMedium)
@@ -1985,12 +2012,23 @@ impl ImageWindow {
         let zoom = self.markup_zoom().unwrap_or(self.zoom());
         slots.push((
             component::group([
-                component::tool(Icon::ZoomOut, "Zoom out", Some(Message::ZoomOut)),
-                ui::styled(format!("{:.0}%", zoom * 100.0), Type::LabelLarge)
-                    .width(48)
-                    .align_x(Center)
-                    .into(),
-                component::tool(Icon::ZoomIn, "Zoom in", Some(Message::ZoomIn)),
+                component::tool(
+                    Icon::ZoomOut,
+                    crate::fl!("image-zoom-out"),
+                    Some(Message::ZoomOut),
+                ),
+                ui::styled(
+                    crate::fl!("image-zoom", percent = ((zoom * 100.0).round() as i64)),
+                    Type::LabelLarge,
+                )
+                .width(48)
+                .align_x(Center)
+                .into(),
+                component::tool(
+                    Icon::ZoomIn,
+                    crate::fl!("image-zoom-in"),
+                    Some(Message::ZoomIn),
+                ),
             ]),
             TOOL_WIDTH * 2.0 + 48.0 + 8.0,
             Some(4),
@@ -2004,13 +2042,13 @@ impl ImageWindow {
             component::group([
                 component::toggle_tool(
                     Icon::FitPage,
-                    "Fit to window",
+                    crate::fl!("image-fit"),
                     fitted,
                     Message::FitToWindow,
                 ),
                 component::toggle_tool(
                     Icon::OneToOne,
-                    "Actual size",
+                    crate::fl!("image-actual-size"),
                     !fitted && (zoom - 1.0).abs() < 0.005,
                     Message::ActualSize,
                 ),
@@ -2036,8 +2074,18 @@ impl ImageWindow {
             };
             slots.push((
                 component::group([
-                    when(Icon::Undo, "Undo", can_undo, Message::Undo),
-                    when(Icon::Redo, "Redo", can_redo, Message::Redo),
+                    when(
+                        Icon::Undo,
+                        crate::fl!("image-undo"),
+                        can_undo,
+                        Message::Undo,
+                    ),
+                    when(
+                        Icon::Redo,
+                        crate::fl!("image-redo"),
+                        can_redo,
+                        Message::Redo,
+                    ),
                 ]),
                 tools(2.0),
                 None,
@@ -2048,25 +2096,25 @@ impl ImageWindow {
             component::group([
                 when(
                     Icon::RotateLeft,
-                    "Rotate left",
+                    crate::fl!("image-rotate-left"),
                     editable,
                     Message::Edit(Edit::RotateLeft),
                 ),
                 when(
                     Icon::RotateRight,
-                    "Rotate right",
+                    crate::fl!("image-rotate-right"),
                     editable,
                     Message::Edit(Edit::RotateRight),
                 ),
                 when(
                     Icon::Flip,
-                    "Flip horizontal",
+                    crate::fl!("image-flip-horizontal"),
                     editable,
                     Message::Edit(Edit::FlipHorizontal),
                 ),
                 when(
                     Icon::FlipVertical,
-                    "Flip vertical",
+                    crate::fl!("image-flip-vertical"),
                     editable,
                     Message::Edit(Edit::FlipVertical),
                 ),
@@ -2080,16 +2128,16 @@ impl ImageWindow {
                 if markable {
                     component::toggle_tool(
                         Icon::HighlightAlt,
-                        "Rectangular selection",
+                        crate::fl!("image-select"),
                         self.selecting,
                         Message::ToggleSelecting,
                     )
                 } else {
-                    component::tool(Icon::HighlightAlt, "Rectangular selection", None)
+                    component::tool(Icon::HighlightAlt, crate::fl!("image-select"), None)
                 },
                 when(
                     Icon::Crop,
-                    "Crop to selection",
+                    crate::fl!("image-crop"),
                     editable && self.selection.is_some(),
                     Message::Edit(Edit::Crop),
                 ),
@@ -2100,19 +2148,27 @@ impl ImageWindow {
         ));
         slots.push((
             component::group([
-                edit_panel(Icon::Resize, "Adjust size", Panel::AdjustSize),
-                edit_panel(Icon::Tune, "Adjust color", Panel::AdjustColor),
-                panel(Icon::Info, "Inspector", Panel::Inspector),
+                edit_panel(
+                    Icon::Resize,
+                    crate::fl!("image-adjust-size-tool"),
+                    Panel::AdjustSize,
+                ),
+                edit_panel(
+                    Icon::Tune,
+                    crate::fl!("image-adjust-color-tool"),
+                    Panel::AdjustColor,
+                ),
+                panel(Icon::Info, crate::fl!("image-inspector"), Panel::Inspector),
                 if markable {
                     component::toggle_tool(
                         Icon::EditDocument,
-                        "Markup",
+                        crate::fl!("image-markup"),
                         self.markup()
                             .is_some_and(|markup| markup.window.markup_bar_shown()),
                         Message::ToggleMarkup,
                     )
                 } else {
-                    component::tool(Icon::EditDocument, "Markup", None)
+                    component::tool(Icon::EditDocument, crate::fl!("image-markup"), None)
                 },
             ]),
             DIVIDER_WIDTH + tools(4.0) + 8.0,
@@ -2124,7 +2180,7 @@ impl ImageWindow {
                 ui::icon_button(Icon::FileExport)
                     .kind(Kind::Tonal)
                     .on_press_maybe((markable || is_svg).then_some(Message::Export)),
-                "Export",
+                crate::fl!("image-export"),
             ),
             component::TOOL_WIDTH,
             Some(6),
@@ -2133,7 +2189,11 @@ impl ImageWindow {
         slots.push((
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
-                component::tool(Icon::Settings, "Settings", Some(Message::OpenSettings)),
+                component::tool(
+                    Icon::Settings,
+                    crate::fl!("image-settings"),
+                    Some(Message::OpenSettings),
+                ),
             ]),
             TOOL_WIDTH * 2.0 + 4.0,
             None,
@@ -2144,7 +2204,7 @@ impl ImageWindow {
             .map(|(_, width, order, _)| (*width, *order))
             .collect();
         let shown = component::fitting_slots(width, &widths);
-        let mut bar = row![].spacing(8).align_y(Center);
+        let mut bar = crate::line![].spacing(8).align_y(Center);
         let mut hidden = Vec::new();
         for (index, ((element, _, _, divider), shown)) in slots.into_iter().zip(shown).enumerate() {
             if index == right {
@@ -2173,16 +2233,16 @@ impl ImageWindow {
 
     fn panel_view(&self, panel: Panel) -> Element<'_, Message> {
         let (title, content) = match panel {
-            Panel::AdjustColor => ("Adjust Color", self.color_panel()),
-            Panel::AdjustSize => ("Adjust Size", self.size_panel()),
-            Panel::Inspector => ("Inspector", self.inspector_panel()),
+            Panel::AdjustColor => (crate::fl!("image-adjust-color"), self.color_panel()),
+            Panel::AdjustSize => (crate::fl!("image-adjust-size"), self.size_panel()),
+            Panel::Inspector => (crate::fl!("image-inspector"), self.inspector_panel()),
         };
         component::side_sheet(title, Message::TogglePanel(panel), content)
     }
 
     fn color_panel(&self) -> Element<'_, Message> {
         let adjust = self.color;
-        let control = |label: &'static str,
+        let control = |label: String,
                        range: std::ops::RangeInclusive<f32>,
                        value: f32,
                        set: fn(ColorAdjust, f32) -> ColorAdjust| {
@@ -2192,7 +2252,7 @@ impl ImageWindow {
             };
             column![
                 row![
-                    ui::styled(label, Type::BodyMedium).width(Fill),
+                    ui::aligned(ui::styled(label, Type::BodyMedium)),
                     ui::styled(format!("{value:+.2}"), Type::LabelMedium)
                         .style(style::on_surface_variant),
                 ],
@@ -2207,40 +2267,63 @@ impl ImageWindow {
             .spacing(0)
         };
         column![
-            control("Exposure", -2.0..=2.0, adjust.exposure, |a, v| {
-                ColorAdjust { exposure: v, ..a }
+            control(
+                crate::fl!("image-exposure"),
+                -2.0..=2.0,
+                adjust.exposure,
+                |a, v| { ColorAdjust { exposure: v, ..a } }
+            ),
+            control(
+                crate::fl!("image-contrast"),
+                -1.0..=1.0,
+                adjust.contrast,
+                |a, v| { ColorAdjust { contrast: v, ..a } }
+            ),
+            control(
+                crate::fl!("image-saturation"),
+                0.0..=2.0,
+                adjust.saturation,
+                |a, v| { ColorAdjust { saturation: v, ..a } }
+            ),
+            control(
+                crate::fl!("image-temperature"),
+                -1.0..=1.0,
+                adjust.temperature,
+                |a, v| {
+                    ColorAdjust {
+                        temperature: v,
+                        ..a
+                    }
+                }
+            ),
+            control(crate::fl!("image-tint"), -1.0..=1.0, adjust.tint, |a, v| {
+                ColorAdjust { tint: v, ..a }
             }),
-            control("Contrast", -1.0..=1.0, adjust.contrast, |a, v| {
-                ColorAdjust { contrast: v, ..a }
-            }),
-            control("Saturation", 0.0..=2.0, adjust.saturation, |a, v| {
-                ColorAdjust { saturation: v, ..a }
-            }),
-            control("Temperature", -1.0..=1.0, adjust.temperature, |a, v| {
-                ColorAdjust {
-                    temperature: v,
+            control(
+                crate::fl!("image-sepia"),
+                0.0..=1.0,
+                adjust.sepia,
+                |a, v| ColorAdjust { sepia: v, ..a }
+            ),
+            control(
+                crate::fl!("image-sharpness"),
+                0.0..=1.0,
+                adjust.sharpness,
+                |a, v| { ColorAdjust { sharpness: v, ..a } }
+            ),
+            component::section(crate::fl!("image-levels")),
+            control(
+                crate::fl!("image-black-point"),
+                0.0..=0.9,
+                adjust.black,
+                |a, v| ColorAdjust {
+                    black: v.min(a.white - 0.05),
                     ..a
                 }
-            }),
-            control("Tint", -1.0..=1.0, adjust.tint, |a, v| ColorAdjust {
-                tint: v,
-                ..a
-            }),
-            control("Sepia", 0.0..=1.0, adjust.sepia, |a, v| ColorAdjust {
-                sepia: v,
-                ..a
-            }),
-            control("Sharpness", 0.0..=1.0, adjust.sharpness, |a, v| {
-                ColorAdjust { sharpness: v, ..a }
-            }),
-            component::section("Levels"),
-            control("Black point", 0.0..=0.9, adjust.black, |a, v| ColorAdjust {
-                black: v.min(a.white - 0.05),
-                ..a
-            }),
+            ),
             // A log scale centres the default gamma of 1: one third to three.
             control(
-                "Midtones",
+                crate::fl!("image-midtones"),
                 -1.0..=1.0,
                 adjust.gamma.ln() / 3f32.ln(),
                 |a, v| ColorAdjust {
@@ -2248,13 +2331,22 @@ impl ImageWindow {
                     ..a
                 },
             ),
-            control("White point", 0.1..=1.0, adjust.white, |a, v| ColorAdjust {
-                white: v.max(a.black + 0.05),
-                ..a
-            }),
+            control(
+                crate::fl!("image-white-point"),
+                0.1..=1.0,
+                adjust.white,
+                |a, v| ColorAdjust {
+                    white: v.max(a.black + 0.05),
+                    ..a
+                }
+            ),
             container(
-                ui::with_icon(Kind::Outlined, Icon::ResetAll, "Reset All")
-                    .on_press(Message::Edit(Edit::ResetColor))
+                ui::with_icon(
+                    Kind::Outlined,
+                    Icon::ResetAll,
+                    crate::fl!("image-reset-all")
+                )
+                .on_press(Message::Edit(Edit::ResetColor))
             )
             .padding(Padding {
                 top: 12.0,
@@ -2269,31 +2361,35 @@ impl ImageWindow {
         let current = self.items[self.current].size.unwrap_or((0, 0));
         column![
             ui::styled(
-                format!("Current size: {} × {} pixels", current.0, current.1),
+                crate::fl!("image-current-size", width = current.0, height = current.1),
                 Type::BodyMedium
             )
             .style(style::on_surface_variant),
             component::text_field(
-                "Width",
+                crate::fl!("image-width"),
                 &self.size_input.0,
                 Backdrop::ContainerLow,
                 |input| input.on_input(Message::SizeWidth),
             ),
             component::text_field(
-                "Height",
+                crate::fl!("image-height"),
                 &self.size_input.1,
                 Backdrop::ContainerLow,
                 |input| input.on_input(Message::SizeHeight),
             ),
             row![
-                ui::styled("Scale proportionally", Type::BodyLarge).width(Fill),
+                ui::aligned(ui::styled(
+                    crate::fl!("image-scale-proportionally"),
+                    Type::BodyLarge
+                )),
                 toggler(self.keep_proportions)
                     .on_toggle(Message::KeepProportions)
                     .size(28)
                     .style(style::switch),
             ]
             .align_y(Center),
-            ui::button(Kind::Filled, "Resize").on_press(Message::Edit(Edit::ApplySize)),
+            ui::button(Kind::Filled, crate::fl!("image-resize"))
+                .on_press(Message::Edit(Edit::ApplySize)),
         ]
         .spacing(16)
         .into()
@@ -2305,7 +2401,7 @@ impl ImageWindow {
             .as_ref()
             .filter(|inspector| inspector.index == self.current)
         else {
-            return ui::styled("Loading…", Type::BodyMedium)
+            return ui::styled(crate::fl!("image-inspector-loading"), Type::BodyMedium)
                 .style(style::on_surface_variant)
                 .into();
         };
@@ -2313,42 +2409,48 @@ impl ImageWindow {
         let item = &self.items[self.current];
         let mut file = crate::info::file_facts(&item.path);
         file.push((
-            "Format".to_owned(),
+            crate::fl!("image-format"),
             match item.source {
-                Source::Raster(format) => format.name().to_owned(),
+                Source::Raster(format) => crate::i18n::format_name(format),
                 Source::Svg => "SVG".to_owned(),
             },
         ));
         if let Some((width, height)) = item.size {
             file.push((
-                "Dimensions".to_owned(),
-                format!("{width} × {height} pixels"),
+                crate::fl!("image-dimensions-label"),
+                crate::fl!("image-pixels", width = width, height = height),
             ));
         }
-        let mut content = column![crate::info::sections_view(vec![("File", file)])].spacing(6);
-        let mut section = "";
-        for (group, label, value) in &inspector.details.fields {
-            if group != section {
-                section = group;
-                content = content.push(component::section(group));
+        let mut content = column![crate::info::sections_view(vec![(
+            crate::fl!("image-file"),
+            file
+        )])]
+        .spacing(6);
+        let mut section = None;
+        for field in &inspector.details.fields {
+            if section != Some(field.section) {
+                section = Some(field.section);
+                content = content.push(component::section(meta_section(field.section)));
             }
             content = content.push(
                 row![
-                    ui::styled(label, Type::BodySmall)
-                        .style(style::on_surface_variant)
-                        .width(104),
-                    ui::styled(value, Type::BodyMedium).width(Fill),
+                    ui::aligned_to(
+                        ui::styled(meta_label(field.label), Type::BodySmall)
+                            .style(style::on_surface_variant),
+                        104,
+                    ),
+                    ui::aligned(ui::styled(meta_value(&field.value), Type::BodyMedium)),
                 ]
                 .spacing(8),
             );
         }
         if inspector.details.fields.is_empty() {
             content = content.push(
-                ui::styled("No camera information.", Type::BodyMedium)
+                ui::styled(crate::fl!("image-no-camera"), Type::BodyMedium)
                     .style(style::on_surface_variant),
             );
         }
-        content = content.push(component::section("Location"));
+        content = content.push(component::section(crate::fl!("image-location")));
         content = match inspector.details.location {
             Some((latitude, longitude)) => content
                 .push(
@@ -2360,31 +2462,35 @@ impl ImageWindow {
                     .align_y(Center),
                 )
                 .push(
-                    ui::with_icon(Kind::Outlined, Icon::LocationOff, "Remove Location Info")
-                        .on_press(Message::RemoveLocation),
+                    ui::with_icon(
+                        Kind::Outlined,
+                        Icon::LocationOff,
+                        crate::fl!("image-remove-location"),
+                    )
+                    .on_press(Message::RemoveLocation),
                 ),
             None => content.push(
-                ui::styled("No location information.", Type::BodyMedium)
+                ui::styled(crate::fl!("image-no-location"), Type::BodyMedium)
                     .style(style::on_surface_variant),
             ),
         };
         content = content
-            .push(component::section("Keywords and Description"))
+            .push(component::section(crate::fl!("image-keywords-description")))
             .push(component::text_field(
-                "Keywords, separated by commas",
+                crate::fl!("image-keywords-hint"),
                 &inspector.keywords,
                 Backdrop::ContainerLow,
                 |input| input.on_input(Message::KeywordsChanged),
             ))
             .push(component::text_field(
-                "Description",
+                crate::fl!("image-description"),
                 &inspector.description,
                 Backdrop::ContainerLow,
                 |input| input.on_input(Message::DescriptionChanged),
             ))
             .push(
                 container(
-                    ui::button(Kind::Tonal, "Save")
+                    ui::button(Kind::Tonal, crate::fl!("common-save"))
                         .on_press_maybe(inspector.writable_xmp.then_some(Message::SaveMetadata)),
                 )
                 .padding(Padding {
@@ -2393,18 +2499,15 @@ impl ImageWindow {
                 }),
             );
         if !inspector.writable_xmp {
-            content = content.push(
-                ui::styled(
-                    "Keywords can be saved in JPEG, PNG and WebP files.",
-                    Type::BodySmall,
-                )
-                .style(style::on_surface_variant),
-            );
+            content = content.push(ui::aligned(
+                ui::styled(crate::fl!("image-keywords-unsupported"), Type::BodySmall)
+                    .style(style::on_surface_variant),
+            ));
         }
-        content = content.push(component::section("Revert To"));
+        content = content.push(component::section(crate::fl!("image-revert-to")));
         if inspector.versions.is_empty() {
             content = content.push(
-                ui::styled("No earlier versions.", Type::BodyMedium)
+                ui::styled(crate::fl!("image-no-versions"), Type::BodyMedium)
                     .style(style::on_surface_variant),
             );
         }
@@ -2418,7 +2521,8 @@ impl ImageWindow {
                             .style(style::on_surface_variant),
                     ]
                     .width(Fill),
-                    ui::button(Kind::Text, "Revert").on_press(Message::Revert(version.clone())),
+                    ui::button(Kind::Text, crate::fl!("image-revert"))
+                        .on_press(Message::Revert(version.clone())),
                 ]
                 .spacing(12)
                 .align_y(Center),
@@ -2496,4 +2600,110 @@ fn below_bars(element: Element<'_, Message>, bottom_bar: bool) -> Element<'_, Me
         component::floating_room(true),
         component::floating_room(bottom_bar),
     )
+}
+
+/// The inspector's heading for a group of the camera's fields.
+fn meta_section(section: metadata::Section) -> String {
+    use metadata::Section;
+    match section {
+        Section::Camera => crate::fl!("image-meta-camera"),
+        Section::Exposure => crate::fl!("image-meta-exposure"),
+        Section::Image => crate::fl!("image-meta-image"),
+    }
+}
+
+fn meta_label(label: metadata::Label) -> String {
+    use metadata::Label;
+    match label {
+        Label::Make => crate::fl!("image-meta-make"),
+        Label::Model => crate::fl!("image-meta-model"),
+        Label::Lens => crate::fl!("image-meta-lens"),
+        Label::ExposureTime => crate::fl!("image-meta-exposure-time"),
+        Label::FNumber => crate::fl!("image-meta-f-number"),
+        Label::Iso => crate::fl!("image-meta-iso"),
+        Label::FocalLength => crate::fl!("image-meta-focal-length"),
+        Label::ExposureBias => crate::fl!("image-meta-exposure-bias"),
+        Label::Flash => crate::fl!("image-meta-flash"),
+        Label::DateTaken => crate::fl!("image-meta-date-taken"),
+        Label::Orientation => crate::fl!("image-meta-orientation"),
+        Label::ColorSpace => crate::fl!("image-meta-color-space"),
+        Label::Software => crate::fl!("image-meta-software"),
+        Label::Artist => crate::fl!("image-meta-artist"),
+        Label::Copyright => crate::fl!("image-meta-copyright"),
+    }
+}
+
+fn meta_value(value: &metadata::Value) -> String {
+    use metadata::{ColorSpace, FlashMode, Value};
+    let yes = |on: bool| if on { "yes" } else { "no" };
+    match value {
+        Value::Text(text) => text.clone(),
+        Value::Seconds(value) => crate::fl!("image-meta-seconds", value = value.as_str()),
+        Value::Millimeters(value) => crate::fl!("image-meta-millimeters", value = value.as_str()),
+        Value::Ev(value) => crate::fl!("image-meta-ev", value = value.as_str()),
+        Value::Orientation(value) => {
+            let value = *value;
+            crate::fl!("image-meta-orientation-value", value = value)
+        }
+        Value::Flash {
+            fired,
+            mode,
+            red_eye,
+        } => {
+            let mode = match mode {
+                FlashMode::On => "on",
+                FlashMode::Off => "off",
+                FlashMode::Auto => "auto",
+                FlashMode::Unknown => "unknown",
+            };
+            crate::fl!(
+                "image-meta-flash-value",
+                fired = yes(*fired),
+                mode = mode,
+                redeye = yes(*red_eye)
+            )
+        }
+        Value::ColorSpace(space) => {
+            let (space, code) = match space {
+                ColorSpace::Srgb => ("srgb", 1),
+                ColorSpace::AdobeRgb => ("adobe", 2),
+                ColorSpace::Uncalibrated => ("uncalibrated", 0xffff),
+                ColorSpace::Other(code) => ("other", *code),
+            };
+            crate::fl!("image-meta-color-space-value", space = space, code = code)
+        }
+    }
+}
+
+#[cfg(test)]
+mod meta_tests {
+    use prev_image::metadata::{ColorSpace, FlashMode, Label, Value};
+
+    use super::{meta_label, meta_value};
+
+    #[test]
+    fn words_camera_values() {
+        assert_eq!(meta_label(Label::ExposureTime), "Exposure time");
+        assert_eq!(meta_value(&Value::Seconds("1/200".into())), "1/200 s");
+        assert_eq!(meta_value(&Value::Orientation(6)), "Rotated 90° clockwise");
+        assert_eq!(meta_value(&Value::Orientation(9)), "Unknown (9)");
+        let flash = |fired, mode, red_eye| {
+            meta_value(&Value::Flash {
+                fired,
+                mode,
+                red_eye,
+            })
+        };
+        assert_eq!(flash(true, FlashMode::Auto, false), "Fired, auto");
+        assert_eq!(flash(false, FlashMode::Unknown, false), "Did not fire");
+        assert_eq!(
+            flash(true, FlashMode::On, true),
+            "Fired, forced on, red-eye reduction"
+        );
+        assert_eq!(meta_value(&Value::ColorSpace(ColorSpace::Srgb)), "sRGB");
+        assert_eq!(
+            meta_value(&Value::ColorSpace(ColorSpace::Other(7))),
+            "Other (7)"
+        );
+    }
 }

@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::{atomic, paths};
 
 const LEGACY_FILE_NAME: &str = "settings.toml";
+/// The `language` and `input-language` setting that follows the system.
+pub const SYSTEM_LANGUAGE: &str = "system";
 /// M3's extra large corner, which dialogs use.
 pub const DEFAULT_CORNER_RADIUS: f32 = 28.0;
 
@@ -18,6 +20,13 @@ pub const DEFAULT_CORNER_RADIUS: f32 = 28.0;
 #[serde(default, rename_all = "kebab-case")]
 pub struct Settings {
     pub appearance: Appearance,
+    /// The interface's language, as a tag such as `he` or `pt-BR`, or
+    /// `system` to follow the system's language.
+    pub language: String,
+    /// The language typed into text fields, as a tag, which sets the side
+    /// an empty field starts on; or `system` to follow the keyboard layout
+    /// in use.
+    pub input_language: String,
     /// Use the active Omarchy theme's colors when its mode matches.
     pub omarchy_palette: bool,
     /// Float the toolbar over the document and hide it while the pointer
@@ -50,6 +59,8 @@ impl Default for Settings {
         });
         Self {
             appearance: Appearance::System,
+            language: SYSTEM_LANGUAGE.to_owned(),
+            input_language: SYSTEM_LANGUAGE.to_owned(),
             omarchy_palette: true,
             auto_hide_toolbar: false,
             corner_radius: DEFAULT_CORNER_RADIUS,
@@ -63,6 +74,19 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// The chosen language's tag, or `None` to follow the system.
+    pub fn chosen_language(&self) -> Option<&str> {
+        let tag = self.language.trim();
+        (!tag.is_empty() && tag != SYSTEM_LANGUAGE).then_some(tag)
+    }
+
+    /// The chosen input language's tag, or `None` to follow the keyboard
+    /// layout.
+    pub fn chosen_input_language(&self) -> Option<&str> {
+        let tag = self.input_language.trim();
+        (!tag.is_empty() && tag != SYSTEM_LANGUAGE).then_some(tag)
+    }
+
     /// Where the stores keep their files.
     pub fn locations(&self) -> paths::Locations {
         paths::Locations {
@@ -275,5 +299,28 @@ mod tests {
             Settings::load_from(&path),
             Err(LoadError::Parse(_))
         ));
+    }
+
+    #[test]
+    fn language_follows_the_system_unless_chosen() {
+        let mut settings = Settings::default();
+        assert_eq!(settings.language, SYSTEM_LANGUAGE);
+        assert_eq!(settings.chosen_language(), None);
+        settings.language = "he".into();
+        assert_eq!(settings.chosen_language(), Some("he"));
+        settings.language = String::new();
+        assert_eq!(settings.chosen_language(), None);
+        let text = toml::to_string(&Settings::default()).unwrap();
+        assert!(text.contains("language = \"system\""), "{text}");
+    }
+
+    #[test]
+    fn input_language_follows_the_keyboard_unless_chosen() {
+        let mut settings = Settings::default();
+        assert_eq!(settings.chosen_input_language(), None);
+        settings.input_language = "ar".into();
+        assert_eq!(settings.chosen_input_language(), Some("ar"));
+        let text = toml::to_string(&Settings::default()).unwrap();
+        assert!(text.contains("input-language = \"system\""), "{text}");
     }
 }

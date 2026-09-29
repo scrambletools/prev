@@ -21,27 +21,19 @@ pub enum External {
 
 static EXTERNAL_EVENTS: Mutex<Option<UnboundedReceiver<External>>> = Mutex::new(None);
 
-const USAGE: &str = "\
-Usage: prev [FILE]...
-
-View and edit PDFs and images. Files open in windows of the running prev,
-which starts if needed.
-
-Options:
-  -h, --help     Show this help
-  -V, --version  Show the version
-";
-
 fn main() -> iced::Result {
     #[cfg(windows)]
     attach_console();
+    // The input language Windows keeps for this thread, where iced runs.
+    #[cfg(windows)]
+    prev::input::remember_interface_thread();
     let mut paths: Vec<PathBuf> = Vec::new();
     let mut options_done = false;
     for argument in std::env::args_os().skip(1) {
         if !options_done {
             match argument.to_str() {
                 Some("-h" | "--help") => {
-                    print!("{USAGE}");
+                    println!("{}", prev::fl!("usage-help"));
                     return Ok(());
                 }
                 Some("-V" | "--version") => {
@@ -58,7 +50,10 @@ fn main() -> iced::Result {
                     continue;
                 }
                 Some(option) if option.starts_with('-') && option.len() > 1 => {
-                    eprintln!("prev: unknown option {option}\n\n{USAGE}");
+                    eprintln!(
+                        "prev: unknown option {option}\n\n{}\n",
+                        prev::fl!("usage-help")
+                    );
                     std::process::exit(2);
                 }
                 _ => {}

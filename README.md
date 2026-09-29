@@ -323,6 +323,13 @@ to it. Packages are built with `PREV_PRODUCTION=1`; see
 | Print | Ctrl+P |
 | Settings | Ctrl+, |
 
+## Translations
+
+prev's interface is in English so far. It follows the system's
+language, or the one chosen under Language in Settings. All of its text
+is in `i18n/<language>/prev.ftl`, one file per language; see
+[docs/TRANSLATING.md](docs/TRANSLATING.md) to add one.
+
 ## License
 
 prev is licensed under the [GNU Affero General Public License v3.0 or

@@ -15,7 +15,7 @@ use std::time::Duration;
 use iced::futures::channel::{mpsc, oneshot};
 use iced::widget::image::Handle;
 use iced::widget::{
-    Id, column, container, image, markdown, operation, rich_text, row, scrollable, text, text_input,
+    Id, column, container, image, markdown, operation, rich_text, scrollable, text, text_input,
 };
 use iced::{Center, Element, Fill, Padding, Task, Theme, padding};
 
@@ -32,8 +32,8 @@ const MAX_WIDTH: f32 = 860.0;
 const SIZES: &[f32] = &[10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 32.0, 40.0];
 const NORMAL_SIZE: usize = 3;
 const SEARCH_WIDTH: f32 = 240.0;
-/// Sizes a document exports at, as (choice id, label, pixels per point).
-const PICTURE_SIZES: &[(&str, &str, f32)] = &[("1", "Actual size", 1.0), ("2", "2×", 2.0)];
+/// Sizes a document exports at, as (choice id, pixels per point).
+const PICTURE_SIZES: &[(&str, f32)] = &[("1", 1.0), ("2", 2.0)];
 /// The longest side a picture may have; WebP allows no more.
 const PICTURE_SIDE: f32 = 16383.0;
 
@@ -251,7 +251,7 @@ impl MarkdownWindow {
             picture_found: Cell::new(0),
         };
         let load = Task::perform(read(path.clone()), |result| {
-            Message::Loaded(result.unwrap_or_else(|_| Err("reading stopped".into())))
+            Message::Loaded(result.unwrap_or_else(|_| Err(crate::fl!("markdown-reading-stopped"))))
         });
         let changes = Task::run(watch(path, watching), |()| Message::FileChanged);
         (window, Task::batch([load, changes]))
@@ -287,7 +287,9 @@ impl MarkdownWindow {
                 Task::none()
             }
             Message::FileChanged => Task::perform(read(self.path.clone()), |result| {
-                Message::Loaded(result.unwrap_or_else(|_| Err("reading stopped".into())))
+                Message::Loaded(
+                    result.unwrap_or_else(|_| Err(crate::fl!("markdown-reading-stopped"))),
+                )
             }),
             Message::ImageLoaded(url, picture) => {
                 match picture {
@@ -390,19 +392,22 @@ impl MarkdownWindow {
                 choice.open = false;
                 let name = crate::image::editor::export_name(&self.path, &choice.format);
                 Task::perform(
-                    dialog::save_file("Export".into(), name),
+                    dialog::save_file(crate::fl!("export-title"), name),
                     Message::ExportTarget,
                 )
             }
             Message::ExportTarget(Ok(Some(target))) => self.export_to(target),
             Message::ExportTarget(Ok(None)) => Task::none(),
             Message::ExportTarget(Err(error)) => {
-                self.notice = Some(format!("Could not show the save dialog: {error}"));
+                self.notice = Some(crate::fl!(
+                    "export-dialog-failed",
+                    error = error.to_string()
+                ));
                 Task::none()
             }
             Message::Exported(result) => {
                 self.notice = Some(match result {
-                    Ok(path) => format!("Exported {}", path.display()),
+                    Ok(path) => crate::fl!("export-done", path = path.display().to_string()),
                     Err(error) => error,
                 });
                 Task::none()
@@ -474,7 +479,7 @@ impl MarkdownWindow {
         let body: Element<'_, Message> = match &self.error {
             Some(error) => container(component::empty_state(
                 Icon::Error,
-                "prev can't read this file",
+                crate::fl!("markdown-read-failed"),
                 error.as_str(),
             ))
             .width(Fill)
@@ -483,10 +488,15 @@ impl MarkdownWindow {
             .into(),
             None => self.document(theme),
         };
-        let mut content = row![body].height(Fill);
+        // The inspector keeps its side in every language.
+        let mut content = iced::widget::row![body].height(Fill);
         if self.inspector {
             content = content.push(component::between_bars(
-                component::side_sheet("Inspector", Message::ToggleInspector, self.inspector_view()),
+                component::side_sheet(
+                    crate::fl!("markdown-inspector"),
+                    Message::ToggleInspector,
+                    self.inspector_view(),
+                ),
                 component::floating_room(true),
                 0.0,
             ));
@@ -529,7 +539,11 @@ impl MarkdownWindow {
                 sizes: Some(ui::export::Sizes {
                     options: PICTURE_SIZES,
                     chosen: &choice.size,
-                    note: format!("The whole document, {width:.0} × {height:.0} pixels"),
+                    note: crate::fl!(
+                        "markdown-export-size",
+                        width = (width as u32),
+                        height = (height as u32)
+                    ),
                 }),
                 on_format: Message::ExportFormat,
                 on_quality: Message::ExportQuality,
@@ -598,13 +612,15 @@ impl MarkdownWindow {
             crate::image::editor::spawn(move || {
                 crate::image::editor::export(&original, &frame, &target, format).map(|()| target)
             }),
-            |result| Message::Exported(result.unwrap_or_else(|_| Err("exporting stopped".into()))),
+            |result| {
+                Message::Exported(result.unwrap_or_else(|_| Err(crate::fl!("export-stopped"))))
+            },
         )
     }
 
     fn draw_picture(&self, scale: f32) -> Result<prev_image::decode::Frame, String> {
         use iced::advanced::renderer::Headless;
-        let failed = || "Could not draw the document".to_owned();
+        let failed = || crate::fl!("markdown-draw-failed");
         let theme = self.theme.borrow().clone().ok_or_else(failed)?;
         let mut renderer = picture_renderer().ok_or_else(failed)?;
         let height = self.measure().ok_or_else(failed)?;
@@ -690,20 +706,23 @@ impl MarkdownWindow {
     }
 
     fn toolbar(&self) -> Element<'_, Message> {
+        let _fixed = crate::ui::dir::fixed();
         let found = self.found.get();
         let matches = if self.query.trim().is_empty() {
             String::new()
         } else if found == 0 {
-            "Not found".to_owned()
+            crate::fl!("markdown-not-found")
         } else {
-            format!(
-                "{} of {found}",
-                self.current.map_or(0, |current| current.min(found - 1) + 1)
+            crate::fl!(
+                "markdown-match",
+                current = (self.current.map_or(0, |current| current.min(found - 1) + 1)),
+                total = found
             )
         };
         let has_matches = found > 0;
         let search = component::search_bar(
-            text_input("Search", &self.query)
+            text_input(&crate::fl!("markdown-search"), &self.query)
+                .align_x(crate::ui::dir::input_align(&self.query))
                 .id(self.search_id.clone())
                 .on_input(Message::SearchChanged)
                 .on_submit(Message::NextMatch),
@@ -724,26 +743,29 @@ impl MarkdownWindow {
             SEARCH_WIDTH,
         );
         let zoom = self.zoom();
-        let bar = row![
+        let bar = crate::row![
             component::group([
                 component::tool(
                     Icon::ZoomOut,
-                    "Smaller text",
+                    crate::fl!("markdown-smaller-text"),
                     (self.size > 0).then_some(Message::ZoomOut),
                 ),
-                ui::styled(format!("{:.0}%", zoom * 100.0), Type::LabelLarge)
-                    .width(48)
-                    .align_x(Center)
-                    .into(),
+                ui::styled(
+                    crate::fl!("markdown-zoom", percent = ((zoom * 100.0).round() as i64)),
+                    Type::LabelLarge
+                )
+                .width(48)
+                .align_x(Center)
+                .into(),
                 component::tool(
                     Icon::ZoomIn,
-                    "Larger text",
+                    crate::fl!("markdown-larger-text"),
                     (self.size + 1 < SIZES.len()).then_some(Message::ZoomIn),
                 ),
             ]),
             component::group([component::toggle_tool(
                 Icon::OneToOne,
-                "Actual size",
+                crate::fl!("markdown-actual-size"),
                 self.size == NORMAL_SIZE,
                 Message::ActualSize,
             )]),
@@ -752,7 +774,7 @@ impl MarkdownWindow {
             component::toolbar_divider(),
             component::group([component::toggle_tool(
                 Icon::Info,
-                "Inspector",
+                crate::fl!("markdown-inspector"),
                 self.inspector,
                 Message::ToggleInspector,
             )]),
@@ -760,11 +782,15 @@ impl MarkdownWindow {
                 ui::icon_button(Icon::FileExport)
                     .kind(button::Kind::Tonal)
                     .on_press_maybe((!self.items.is_empty()).then_some(Message::Export)),
-                "Export",
+                crate::fl!("markdown-export"),
             ),
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
-                component::tool(Icon::Settings, "Settings", Some(Message::OpenSettings)),
+                component::tool(
+                    Icon::Settings,
+                    crate::fl!("markdown-settings"),
+                    Some(Message::OpenSettings)
+                ),
             ]),
         ]
         .spacing(8)
@@ -775,14 +801,14 @@ impl MarkdownWindow {
     fn inspector_view(&self) -> Element<'_, Message> {
         let (words, lines) = self.counts;
         info::sections_view(vec![
-            ("File", info::file_facts(&self.path)),
+            (crate::fl!("markdown-file"), info::file_facts(&self.path)),
             (
-                "Document",
+                crate::fl!("markdown-document"),
                 vec![
-                    ("Words".to_owned(), words.to_string()),
-                    ("Lines".to_owned(), lines.to_string()),
+                    (crate::fl!("markdown-words"), words.to_string()),
+                    (crate::fl!("markdown-lines"), lines.to_string()),
                     (
-                        "Pictures".to_owned(),
+                        crate::fl!("markdown-pictures"),
                         self.images_requested.len().to_string(),
                     ),
                 ],
@@ -910,6 +936,7 @@ impl<'a> markdown::Viewer<'a, Message> for Viewer<'a> {
     ) -> Element<'a, Message> {
         let font = settings.style.code_block_font;
         let lines = self.highlights.lines(language, code, self.dark);
+        // The document's own lines, never mirrored.
         let lines = column(lines.iter().map(|line| {
             let (spans, current) = self.finder.mark(line);
             let text = rich_text(spans)

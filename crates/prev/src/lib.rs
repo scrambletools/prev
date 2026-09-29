@@ -6,8 +6,10 @@ pub mod dnd;
 mod dnd_windows;
 pub mod drag;
 pub mod filetype;
+pub mod i18n;
 pub mod image;
 pub mod info;
+pub mod input;
 #[cfg(unix)]
 pub mod instance;
 #[cfg(windows)]

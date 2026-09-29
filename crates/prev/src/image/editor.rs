@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::i18n::Describe;
 use iced::futures::channel::oneshot;
 use prev_image::ImageFormat;
 use prev_image::decode::Frame;
@@ -136,17 +137,11 @@ pub fn save_in_place(
     format: SaveFormat,
     keep_original: bool,
 ) -> Result<(), String> {
-    let original = std::fs::read(path)
-        .map_err(|error| format!("Could not read {}: {error}", path.display()))?;
-    if keep_original && let Some(store) = VersionStore::default_location() {
-        store
-            .keep(path)
-            .map_err(|error| format!("Could not keep the original version: {error}"))?;
-    }
-    let encoded = encode::encode(frame, format).map_err(|error| error.to_string())?;
+    let original = std::fs::read(path).map_err(|error| read_failed(path, error))?;
+    keep_version(path, keep_original)?;
+    let encoded = encode::encode(frame, format).map_err(|error| error.describe())?;
     let bytes = encode::carry_metadata(&original, encoded);
-    prev_store::atomic::write(path, &bytes)
-        .map_err(|error| format!("Could not save {}: {error}", path.display()))
+    prev_store::atomic::write(path, &bytes).map_err(|error| save_failed(path, error))
 }
 
 /// Rewrites a file through a metadata edit, keeping a version first.
@@ -155,23 +150,43 @@ pub fn edit_metadata(
     keep_original: bool,
     edit: impl FnOnce(Vec<u8>) -> Result<Vec<u8>, String>,
 ) -> Result<(), String> {
-    let original = std::fs::read(path)
-        .map_err(|error| format!("Could not read {}: {error}", path.display()))?;
+    let original = std::fs::read(path).map_err(|error| read_failed(path, error))?;
+    keep_version(path, keep_original)?;
+    let updated = edit(original)?;
+    prev_store::atomic::write(path, &updated).map_err(|error| save_failed(path, error))
+}
+
+fn read_failed(path: &Path, error: impl std::fmt::Display) -> String {
+    crate::fl!(
+        "image-read-failed",
+        path = path.display().to_string(),
+        error = error.to_string()
+    )
+}
+
+fn save_failed(path: &Path, error: impl std::fmt::Display) -> String {
+    crate::fl!(
+        "image-save-failed",
+        path = path.display().to_string(),
+        error = error.to_string()
+    )
+}
+
+/// Keeps the file at `path` as a version first, when `keep_original`.
+fn keep_version(path: &Path, keep_original: bool) -> Result<(), String> {
     if keep_original && let Some(store) = VersionStore::default_location() {
         store
             .keep(path)
-            .map_err(|error| format!("Could not keep the original version: {error}"))?;
+            .map_err(|error| crate::fl!("image-keep-original-failed", error = error.to_string()))?;
     }
-    let updated = edit(original)?;
-    prev_store::atomic::write(path, &updated)
-        .map_err(|error| format!("Could not save {}: {error}", path.display()))
+    Ok(())
 }
 
-/// Export formats as (choice id, menu label, extension).
+/// Export formats as (choice id, format name, extension).
 pub const EXPORT_FORMATS: &[(&str, &str, &str)] = &[
     ("png", "PNG", "png"),
     ("jpeg", "JPEG", "jpg"),
-    ("webp", "WebP (lossless)", "webp"),
+    ("webp", "WebP", "webp"),
     ("tiff", "TIFF", "tiff"),
     ("bmp", "BMP", "bmp"),
     ("tga", "TGA", "tga"),
@@ -180,28 +195,43 @@ pub const EXPORT_FORMATS: &[(&str, &str, &str)] = &[
     ("exr", "OpenEXR", "exr"),
 ];
 
-/// Sizes an SVG drawing exports at, as (choice id, menu label, pixels per
-/// point of the drawing).
-pub const SVG_SIZES: &[(&str, &str, f32)] = &[
-    ("1", "Actual size", 1.0),
-    ("2", "2×", 2.0),
-    ("4", "4×", 4.0),
-];
+/// Sizes an SVG drawing exports at, as (choice id, pixels per point of
+/// the drawing).
+pub const SVG_SIZES: &[(&str, f32)] = &[("1", 1.0), ("2", 2.0), ("4", 4.0)];
 
 pub fn svg_scale_for_choice(choice: &str) -> f32 {
     SVG_SIZES
         .iter()
         .find(|(id, ..)| *id == choice)
-        .map_or(1.0, |(.., scale)| *scale)
+        .map_or(1.0, |(_, scale)| *scale)
 }
 
-/// JPEG quality choices as (choice id, menu label, quality).
-pub const JPEG_QUALITIES: &[(&str, &str, u8)] = &[
-    ("low", "Low", 50),
-    ("medium", "Medium", 75),
-    ("high", "High", DEFAULT_JPEG_QUALITY),
-    ("best", "Best", 98),
+/// JPEG quality choices as (choice id, quality).
+pub const JPEG_QUALITIES: &[(&str, u8)] = &[
+    ("low", 50),
+    ("medium", 75),
+    ("high", DEFAULT_JPEG_QUALITY),
+    ("best", 98),
 ];
+
+/// The label of a JPEG quality choice.
+pub fn quality_label(choice: &str) -> String {
+    match choice {
+        "low" => crate::fl!("export-quality-low"),
+        "medium" => crate::fl!("export-quality-medium"),
+        "best" => crate::fl!("export-quality-best"),
+        _ => crate::fl!("export-quality-high"),
+    }
+}
+
+/// The label of an export size `scale` times the picture's own.
+pub fn size_label(scale: f32) -> String {
+    if scale == 1.0 {
+        crate::fl!("export-size-actual")
+    } else {
+        crate::fl!("export-size-scale", scale = scale)
+    }
+}
 
 pub const DEFAULT_QUALITY_CHOICE: &str = "high";
 
@@ -209,7 +239,7 @@ pub fn format_for_choice(format: &str, quality: &str) -> Option<SaveFormat> {
     let quality = JPEG_QUALITIES
         .iter()
         .find(|(id, ..)| *id == quality)
-        .map_or(DEFAULT_JPEG_QUALITY, |(.., q)| *q);
+        .map_or(DEFAULT_JPEG_QUALITY, |(_, q)| *q);
     Some(match format {
         "png" => SaveFormat::Png,
         "jpeg" => SaveFormat::Jpeg { quality },
@@ -256,7 +286,6 @@ pub fn extension_matches(path: &Path, format: SaveFormat) -> bool {
     }
 }
 
-/// The menu label of a format choice, for messages.
 /// The file extension for an export format choice.
 pub fn format_extension(choice: &str) -> &'static str {
     EXPORT_FORMATS
@@ -265,11 +294,13 @@ pub fn format_extension(choice: &str) -> &'static str {
         .map_or("png", |(.., extension)| extension)
 }
 
-pub fn format_label(choice: &str) -> &'static str {
-    EXPORT_FORMATS
-        .iter()
-        .find(|(id, ..)| *id == choice)
-        .map_or("image", |(_, label, _)| label)
+/// The menu label of a format choice, for messages.
+pub fn format_label(choice: &str) -> String {
+    match EXPORT_FORMATS.iter().find(|(id, ..)| *id == choice) {
+        Some(("webp", ..)) => crate::fl!("export-format-webp"),
+        Some((_, name, _)) => (*name).to_owned(),
+        None => crate::fl!("export-format-unknown"),
+    }
 }
 
 /// The suggested export name for `path` in the format `choice`.
@@ -287,12 +318,13 @@ pub fn export(
     target: &Path,
     format: SaveFormat,
 ) -> Result<(), String> {
-    let encoded = encode::encode(frame, format).map_err(|error| error.to_string())?;
+    let encoded = encode::encode(frame, format).map_err(|error| error.describe())?;
     let bytes = match std::fs::read(original) {
         Ok(original) => encode::carry_metadata(&original, encoded),
         Err(_) => encoded,
     };
-    prev_store::atomic::write(target, &bytes).map_err(|error| format!("Could not export: {error}"))
+    prev_store::atomic::write(target, &bytes)
+        .map_err(|error| crate::fl!("export-failed", error = error.to_string()))
 }
 
 /// Longest side, in points, of the page an image is marked up on, so
@@ -316,18 +348,19 @@ pub fn markup_document(frame: &Frame) -> Result<PathBuf, String> {
         height: frame.height,
         pixels: frame.pixels.clone(),
     };
-    let bytes = prev_pdf::image_document(&bitmap, size).map_err(|error| error.to_string())?;
+    let bytes = prev_pdf::image_document(&bitmap, size).map_err(|error| error.describe())?;
     let file = tempfile::Builder::new()
         .prefix("prev-markup-")
         .suffix(".pdf")
         .tempfile()
-        .map_err(|error| format!("Could not start the markup: {error}"))?;
-    std::fs::write(file.path(), bytes)
-        .map_err(|error| format!("Could not start the markup: {error}"))?;
-    let (_, path) = file
-        .keep()
-        .map_err(|error| format!("Could not start the markup: {error}"))?;
+        .map_err(markup_failed)?;
+    std::fs::write(file.path(), bytes).map_err(markup_failed)?;
+    let (_, path) = file.keep().map_err(markup_failed)?;
     Ok(path)
+}
+
+fn markup_failed(error: impl std::fmt::Display) -> String {
+    crate::fl!("image-markup-start-failed", error = error.to_string())
 }
 
 /// `frame` with `layer`, RGBA pixels of the same size, drawn over it.

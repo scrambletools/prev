@@ -193,7 +193,7 @@ impl<'a, Message: Clone + 'a> Button<'a, Message> {
             Content::Label(glyph, label) => {
                 let label = super::font::styled(label, self.size.label());
                 match glyph {
-                    Some(glyph) => iced::widget::row![icon::icon(glyph, icon_size), label]
+                    Some(glyph) => crate::row![icon::icon(glyph, icon_size), label]
                         .spacing(8)
                         .align_y(iced::Center)
                         .into(),

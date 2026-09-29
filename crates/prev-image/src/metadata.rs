@@ -12,45 +12,178 @@ const EXIF_NS: &str = "http://ns.adobe.com/exif/1.0/";
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Details {
-    /// (section, label, value) in display order.
-    pub fields: Vec<(String, String, String)>,
+    /// The camera's fields, in display order.
+    pub fields: Vec<MetaField>,
     /// Latitude and longitude in degrees.
     pub location: Option<(f64, f64)>,
     pub keywords: Vec<String>,
     pub description: Option<String>,
 }
 
+/// A field of the camera's data shown in the inspector. The inspector
+/// names sections, labels and worded values in the user's language.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetaField {
+    pub section: Section,
+    pub label: Label,
+    pub value: Value,
+}
+
+/// The inspector's groups, like Preview's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Section {
+    Camera,
+    Exposure,
+    Image,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Label {
+    Make,
+    Model,
+    Lens,
+    ExposureTime,
+    FNumber,
+    Iso,
+    FocalLength,
+    ExposureBias,
+    Flash,
+    DateTaken,
+    Orientation,
+    ColorSpace,
+    Software,
+    Artist,
+    Copyright,
+}
+
+/// A field's value: text to show as it is, or one the inspector words.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    /// Shown as stored: names, software, dates, numbers.
+    Text(String),
+    /// An exposure time in seconds, such as "1/200".
+    Seconds(String),
+    /// A length in millimetres, such as "50".
+    Millimeters(String),
+    /// An exposure compensation in EV, such as "-0.7".
+    Ev(String),
+    /// EXIF orientation, 1 to 8.
+    Orientation(u32),
+    Flash {
+        fired: bool,
+        mode: FlashMode,
+        red_eye: bool,
+    },
+    ColorSpace(ColorSpace),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FlashMode {
+    Unknown,
+    /// Fired whatever the light.
+    On,
+    /// Suppressed.
+    Off,
+    Auto,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorSpace {
+    Srgb,
+    AdobeRgb,
+    Uncalibrated,
+    Other(u32),
+}
+
 /// EXIF fields shown in the inspector, grouped like Preview's.
-const SHOWN: &[(&str, exif::Tag)] = &[
-    ("Camera", exif::Tag::Make),
-    ("Camera", exif::Tag::Model),
-    ("Camera", exif::Tag::LensModel),
-    ("Exposure", exif::Tag::ExposureTime),
-    ("Exposure", exif::Tag::FNumber),
-    ("Exposure", exif::Tag::PhotographicSensitivity),
-    ("Exposure", exif::Tag::FocalLength),
-    ("Exposure", exif::Tag::ExposureBiasValue),
-    ("Exposure", exif::Tag::Flash),
-    ("Image", exif::Tag::DateTimeOriginal),
-    ("Image", exif::Tag::Orientation),
-    ("Image", exif::Tag::ColorSpace),
-    ("Image", exif::Tag::Software),
-    ("Image", exif::Tag::Artist),
-    ("Image", exif::Tag::Copyright),
+const SHOWN: &[(Section, Label, exif::Tag)] = &[
+    (Section::Camera, Label::Make, exif::Tag::Make),
+    (Section::Camera, Label::Model, exif::Tag::Model),
+    (Section::Camera, Label::Lens, exif::Tag::LensModel),
+    (
+        Section::Exposure,
+        Label::ExposureTime,
+        exif::Tag::ExposureTime,
+    ),
+    (Section::Exposure, Label::FNumber, exif::Tag::FNumber),
+    (
+        Section::Exposure,
+        Label::Iso,
+        exif::Tag::PhotographicSensitivity,
+    ),
+    (
+        Section::Exposure,
+        Label::FocalLength,
+        exif::Tag::FocalLength,
+    ),
+    (
+        Section::Exposure,
+        Label::ExposureBias,
+        exif::Tag::ExposureBiasValue,
+    ),
+    (Section::Exposure, Label::Flash, exif::Tag::Flash),
+    (
+        Section::Image,
+        Label::DateTaken,
+        exif::Tag::DateTimeOriginal,
+    ),
+    (Section::Image, Label::Orientation, exif::Tag::Orientation),
+    (Section::Image, Label::ColorSpace, exif::Tag::ColorSpace),
+    (Section::Image, Label::Software, exif::Tag::Software),
+    (Section::Image, Label::Artist, exif::Tag::Artist),
+    (Section::Image, Label::Copyright, exif::Tag::Copyright),
 ];
+
+/// The value of `field`, which is shown as `label`.
+fn value_of(label: Label, field: &exif::Field, exif: &exif::Exif) -> Option<Value> {
+    let bare = || {
+        let text = field.display_value().to_string();
+        let text = text.trim_matches('"').trim().to_owned();
+        (!text.is_empty()).then_some(text)
+    };
+    let number = || field.value.get_uint(0);
+    Some(match label {
+        Label::ExposureTime => Value::Seconds(bare()?),
+        Label::FocalLength => Value::Millimeters(bare()?),
+        Label::ExposureBias => Value::Ev(bare()?),
+        // "f/2.8" reads the same everywhere.
+        Label::FNumber => Value::Text(field.display_value().with_unit(exif).to_string()),
+        Label::Orientation => Value::Orientation(number()?),
+        Label::Flash => {
+            let bits = number()?;
+            Value::Flash {
+                fired: bits & 1 != 0,
+                mode: match (bits >> 3) & 3 {
+                    1 => FlashMode::On,
+                    2 => FlashMode::Off,
+                    3 => FlashMode::Auto,
+                    _ => FlashMode::Unknown,
+                },
+                red_eye: bits & 0x40 != 0,
+            }
+        }
+        Label::ColorSpace => Value::ColorSpace(match number()? {
+            1 => ColorSpace::Srgb,
+            2 => ColorSpace::AdobeRgb,
+            0xffff => ColorSpace::Uncalibrated,
+            other => ColorSpace::Other(other),
+        }),
+        _ => Value::Text(bare()?),
+    })
+}
 
 pub fn read(file: &[u8]) -> Details {
     let mut details = Details::default();
     if let Ok(exif) = exif::Reader::new().read_from_container(&mut Cursor::new(file)) {
-        for (section, tag) in SHOWN {
-            if let Some(field) = exif.get_field(*tag, exif::In::PRIMARY) {
-                let value = field.display_value().with_unit(&exif).to_string();
-                let value = value.trim_matches('"').trim().to_owned();
-                if !value.is_empty() {
-                    details
-                        .fields
-                        .push(((*section).to_owned(), tag.to_string(), value));
-                }
+        for &(section, label, tag) in SHOWN {
+            if let Some(field) = exif.get_field(tag, exif::In::PRIMARY)
+                && let Some(value) = value_of(label, field, &exif)
+            {
+                details.fields.push(MetaField {
+                    section,
+                    label,
+                    value,
+                });
             }
         }
         details.location = gps_location(&exif);
@@ -152,11 +285,27 @@ fn xmp_location(document: &roxmltree::Document) -> Option<(f64, f64)> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetadataError(pub String);
+pub enum MetadataError {
+    /// The EXIF data could not be edited to remove the location.
+    RemoveLocation(crate::exif_edit::ExifError),
+    /// Location info can only be removed from JPEG, PNG, WebP and TIFF.
+    LocationUnsupported,
+    /// Keywords and descriptions can only be saved in JPEG, PNG and WebP.
+    XmpUnsupported,
+}
 
 impl std::fmt::Display for MetadataError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
+        match self {
+            Self::RemoveLocation(error) => {
+                write!(formatter, "could not remove the location: {error}")
+            }
+            Self::LocationUnsupported => formatter
+                .write_str("location info can be removed from JPEG, PNG, WebP and TIFF files"),
+            Self::XmpUnsupported => formatter.write_str(
+                "keywords and descriptions can only be saved in JPEG, PNG and WebP files",
+            ),
+        }
     }
 }
 
@@ -169,9 +318,7 @@ pub fn supports_xmp(file: &[u8]) -> bool {
 
 /// Removes GPS data from EXIF (overwriting it) and from XMP.
 pub fn remove_location(file: Vec<u8>) -> Result<Vec<u8>, MetadataError> {
-    let failed = |error: crate::exif_edit::ExifError| {
-        MetadataError(format!("could not remove the location: {error}"))
-    };
+    let failed = MetadataError::RemoveLocation;
     let mut out = file;
     if let Ok(Some(mut image)) = DynImage::from_bytes(Bytes::from(out.clone())) {
         if let Some(exif) = image.exif() {
@@ -185,9 +332,7 @@ pub fn remove_location(file: Vec<u8>) -> Result<Vec<u8>, MetadataError> {
         // A TIFF file is itself the structure EXIF uses.
         crate::exif_edit::remove_gps(&mut out).map_err(failed)?;
     } else {
-        return Err(MetadataError(
-            "location info can be removed from JPEG, PNG, WebP and TIFF files".into(),
-        ));
+        return Err(MetadataError::LocationUnsupported);
     }
     if let Some(packet) = crate::xmp::extract(&out) {
         let text = String::from_utf8_lossy(&packet).into_owned();
@@ -278,9 +423,7 @@ pub fn set_description_and_keywords(
     keywords: &[String],
 ) -> Result<Vec<u8>, MetadataError> {
     if !supports_xmp(&file) {
-        return Err(MetadataError(
-            "keywords and descriptions can only be saved in JPEG, PNG and WebP files".into(),
-        ));
+        return Err(MetadataError::XmpUnsupported);
     }
     let elements = dc_elements(description, keywords);
     let packet = match crate::xmp::extract(&file).and_then(|packet| String::from_utf8(packet).ok())
@@ -382,7 +525,8 @@ mod tests {
             details
                 .fields
                 .iter()
-                .any(|(_, label, value)| label == "Make" && value == "prevcam"),
+                .any(|field| field.label == Label::Make
+                    && field.value == Value::Text("prevcam".into())),
             "{details:?}"
         );
         let (latitude, longitude) = details.location.unwrap();
@@ -402,7 +546,10 @@ mod tests {
         let details = read(&cleaned);
         assert_eq!(details.location, None);
         assert!(
-            details.fields.iter().any(|(_, label, _)| label == "Make"),
+            details
+                .fields
+                .iter()
+                .any(|field| field.label == Label::Make),
             "other EXIF kept"
         );
         let xmp = String::from_utf8(crate::xmp::extract(&cleaned).unwrap()).unwrap();

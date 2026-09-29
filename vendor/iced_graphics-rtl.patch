@@ -1,0 +1,83 @@
+diff -ruN a/src/text/paragraph.rs b/src/text/paragraph.rs
+--- a/src/text/paragraph.rs	2026-09-29 13:47:06.145272846 -0700
++++ b/src/text/paragraph.rs	2026-09-29 13:47:06.146800467 -0700
+@@ -351,43 +351,48 @@
+     fn grapheme_position(&self, line: usize, index: usize) -> Option<Point> {
+         use unicode_segmentation::UnicodeSegmentation;
+ 
++        // prev: the cursor before the grapheme at `index`, in either
++        // direction. The glyphs are in visual order, so the grapheme is
++        // found by its byte offset in the line's text, and a right to left
++        // glyph is entered from its right edge.
+         let run = self.internal().buffer.layout_runs().nth(line)?;
++        let text = run.text;
++        let byte = text
++            .grapheme_indices(true)
++            .nth(index)
++            .map_or(text.len(), |(byte, _)| byte);
++        let place = |glyph: &cosmic_text::LayoutGlyph, x: f32| {
++            Point::new(
++                x + glyph.x_offset * glyph.font_size,
++                glyph.y - glyph.y_offset * glyph.font_size,
++            )
++        };
+ 
+-        // index represents a grapheme, not a glyph
+-        // Let's find the first glyph for the given grapheme cluster
+-        let mut last_start = None;
+-        let mut last_grapheme_count = 0;
+-        let mut graphemes_seen = 0;
+-
+-        let glyph = run
++        if let Some(glyph) = run
+             .glyphs
+             .iter()
+-            .find(|glyph| {
+-                if Some(glyph.start) != last_start {
+-                    last_grapheme_count = run.text[glyph.start..glyph.end]
+-                        .graphemes(false)
+-                        .count();
+-                    last_start = Some(glyph.start);
+-                    graphemes_seen += last_grapheme_count;
+-                }
+-
+-                graphemes_seen >= index
+-            })
+-            .or_else(|| run.glyphs.last())?;
+-
+-        let advance = if index == 0 {
+-            0.0
++            .find(|glyph| glyph.start <= byte && byte < glyph.end)
++        {
++            // Part way into a glyph that draws several graphemes.
++            let before = text[glyph.start..byte].graphemes(true).count() as f32;
++            let total = text[glyph.start..glyph.end].graphemes(true).count().max(1) as f32;
++            let fraction = before / total;
++            let x = if glyph.level.is_rtl() {
++                glyph.x + glyph.w * (1.0 - fraction)
++            } else {
++                glyph.x + glyph.w * fraction
++            };
++            return Some(place(glyph, x));
++        }
++
++        // After the text: past the logically last glyph.
++        let glyph = run.glyphs.iter().max_by_key(|glyph| glyph.end)?;
++        let x = if glyph.level.is_rtl() {
++            glyph.x
+         } else {
+-            glyph.w
+-                * (1.0
+-                    - graphemes_seen.saturating_sub(index) as f32
+-                        / last_grapheme_count.max(1) as f32)
++            glyph.x + glyph.w
+         };
+-
+-        Some(Point::new(
+-            glyph.x + glyph.x_offset * glyph.font_size + advance,
+-            glyph.y - glyph.y_offset * glyph.font_size,
+-        ))
++        Some(place(glyph, x))
+     }
+ }
+ 

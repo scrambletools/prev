@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use crate::i18n::Describe;
 use prev_pdf::engine::{Bitmap, Engine};
 use prev_pdf::geometry::PixelRect;
 use prev_pdf::mupdf_engine::MupdfEngine;
@@ -34,10 +35,10 @@ const MAX_RANGES: usize = 16;
 pub fn print(path: &Path, title: &str) -> Result<(), String> {
     let document = MupdfEngine
         .open(path)
-        .map_err(|error| format!("Could not print: {error}"))?;
+        .map_err(|error| crate::fl!("print-failed", error = error.describe()))?;
     let count = document
         .page_count()
-        .map_err(|error| format!("Could not print: {error}"))?;
+        .map_err(|error| crate::fl!("print-failed", error = error.describe()))?;
     if count == 0 {
         return Ok(());
     }
@@ -45,7 +46,7 @@ pub fn print(path: &Path, title: &str) -> Result<(), String> {
         return Ok(());
     };
     let result = print_pages(dc, title, &pages, |page, dpi| {
-        let display = document.display(page).map_err(|error| error.to_string())?;
+        let display = document.display(page).map_err(|error| error.describe())?;
         let size = display.size();
         let scale = dpi / 72.0;
         display
@@ -58,13 +59,13 @@ pub fn print(path: &Path, title: &str) -> Result<(), String> {
                     height: (size.height * scale).ceil() as u32,
                 },
             )
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.describe())
     });
     // SAFETY: the dialog made this DC for us; it is released once.
     unsafe {
         let _ = DeleteDC(dc);
     }
-    result.map_err(|error| format!("Could not print: {error}"))
+    result.map_err(|error| crate::fl!("print-failed", error = error.to_string()))
 }
 
 /// Shows the print dialog. The printer's DC and the pages to print, from
@@ -95,14 +96,14 @@ fn ask(count: usize) -> Result<Option<(HDC, Vec<usize>)>, String> {
         ..Default::default()
     };
     if dialog.hwndOwner == HWND::default() {
-        return Err("Could not print: no window to show the print dialog over".into());
+        return Err(crate::fl!("print-no-window"));
     }
     // SAFETY: the dialog and its ranges live through the call; the handles
     // it returns are freed below.
     unsafe {
         let _ = OleInitialize(None);
         PrintDlgExW(&mut dialog)
-            .map_err(|error| format!("Could not show the print dialog: {error}"))?;
+            .map_err(|error| crate::fl!("print-dialog-failed", error = error.to_string()))?;
         let _ = GlobalFree(Some(dialog.hDevMode));
         let _ = GlobalFree(Some(dialog.hDevNames));
     }
@@ -170,7 +171,7 @@ fn print_pages(
     // sequence, and every bitmap lives through its StretchDIBits.
     unsafe {
         if StartDocW(dc, &document) <= 0 {
-            return Err("the printer did not start the job".into());
+            return Err(crate::fl!("print-job-not-started"));
         }
         let area = (
             GetDeviceCaps(Some(dc), HORZRES),
@@ -190,7 +191,7 @@ fn print_pages(
             };
             if StartPage(dc) <= 0 {
                 AbortDoc(dc);
-                return Err("the printer stopped".into());
+                return Err(crate::fl!("print-printer-stopped"));
             }
             let (x, y, width, height) =
                 fit(bitmap.width as f32, bitmap.height as f32, area.0, area.1);
@@ -225,7 +226,7 @@ fn print_pages(
             );
             if EndPage(dc) <= 0 {
                 AbortDoc(dc);
-                return Err("the printer stopped".into());
+                return Err(crate::fl!("print-printer-stopped"));
             }
         }
         EndDoc(dc);

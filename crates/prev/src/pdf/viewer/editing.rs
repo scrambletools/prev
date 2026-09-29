@@ -16,6 +16,7 @@ use prev_pdf::geometry::{PixelRect, Point, Quad, Rect};
 use prev_pdf::worker::{Edit, Edited, PageMarkup, Ticket};
 
 use super::{PdfMessage, PdfViewer, Request};
+use crate::i18n::Describe;
 use crate::pdf::history::{Change, History, Stack, Step};
 use crate::pdf::layout;
 use crate::pdf::markup::{self, Handle, Shape, Tool};
@@ -1152,8 +1153,8 @@ impl PdfViewer {
         self.current(receiver, move |result| {
             let result = match result {
                 Ok(Ok(edited)) => Ok(edited),
-                Ok(Err(error)) => Err(error.to_string()),
-                Err(_) => Err("the document closed".into()),
+                Ok(Err(error)) => Err(error.describe()),
+                Err(_) => Err(crate::fl!("markup-document-closed")),
             };
             PdfMessage::Edited(sent.clone(), result)
         })
@@ -1167,8 +1168,9 @@ impl PdfViewer {
         let edited = match result {
             Ok(edited) => edited,
             Err(error) => {
-                self.requests.push(Request::Notice(format!(
-                    "Could not change the document: {error}"
+                self.requests.push(Request::Notice(crate::fl!(
+                    "markup-change-failed",
+                    error = error
                 )));
                 return Task::none();
             }
@@ -1293,7 +1295,7 @@ impl PdfViewer {
         Some(async move {
             match receiver.await {
                 Ok(Ok(bitmap)) => Ok(bitmap),
-                _ => Err("could not render the area".to_owned()),
+                _ => Err(crate::fl!("markup-render-area-failed")),
             }
         })
     }
@@ -1314,11 +1316,11 @@ impl PdfViewer {
             async move {
                 let bitmap = match receiver.await {
                     Ok(Ok(bitmap)) => bitmap,
-                    _ => return Err("could not render the area".to_owned()),
+                    _ => return Err(crate::fl!("markup-render-area-failed")),
                 };
                 crate::image::editor::spawn(move || copy_png(&bitmap))
                     .await
-                    .unwrap_or_else(|_| Err("copying stopped".into()))
+                    .unwrap_or_else(|_| Err(crate::fl!("markup-copy-stopped")))
             },
             |result: Result<(), String>| PdfMessage::Editing(EditMessage::Copied(result.err())),
         ))
@@ -1559,8 +1561,10 @@ impl PdfViewer {
             }
             EditMessage::Copied(error) => {
                 if let Some(error) = error {
-                    self.requests
-                        .push(Request::Notice(format!("Could not copy the area: {error}")));
+                    self.requests.push(Request::Notice(crate::fl!(
+                        "markup-copy-area-failed",
+                        error = error
+                    )));
                 }
                 Task::none()
             }

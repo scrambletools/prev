@@ -18,6 +18,10 @@ bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 iced = { version = "0.14", features = ["advanced", "canvas", "highlighter", "image-without-codecs", "markdown"] }
 iced_runtime = "0.14"
+# The interface's text, from i18n/<language>/prev.ftl (Project Fluent).
+i18n-embed = { version = "0.16", features = ["desktop-requester", "fluent-system"] }
+i18n-embed-fl = "0.10"
+rust-embed = { version = "8", features = ["debug-embed"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 material-colors = { version = "0.4", default-features = false, features = ["std"] }
 raw-window-handle = "0.6"
@@ -38,6 +42,9 @@ prev-store.workspace = true
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "open_uri", "print", "settings"] }
 smithay-clipboard = "0.7"
+# iced's own winit, for the keyboard layout it reads (patched, see
+# vendor/PATCHES.md).
+winit = { version = "0.30", default-features = false, features = ["wayland", "x11"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 rfd = { version = "0.15", default-features = false }
@@ -47,4 +54,4 @@ clipboard-win = "5"
 interprocess = "2"
 windows-core = "0.62"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_SystemServices", "Win32_Storage_Xps", "Win32_UI_Controls_Dialogs", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
-windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Globalization", "Win32_System_Console", "Win32_System_Threading", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
