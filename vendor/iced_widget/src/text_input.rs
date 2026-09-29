@@ -598,6 +598,15 @@ where
                 state.value.raw()
             };
 
+            // prev: the cursor goes by the value, not the placeholder, so
+            // in an empty right aligned field it sits at the right edge,
+            // where right to left typing starts.
+            let cursor_alignment_offset = alignment_offset(
+                text_bounds.width,
+                state.value.raw().min_width(),
+                self.alignment,
+            );
+
             let alignment_offset = alignment_offset(
                 text_bounds.width,
                 paragraph.min_width(),
@@ -606,7 +615,7 @@ where
 
             if let Some((cursor, color)) = cursor {
                 renderer.with_translation(
-                    Vector::new(alignment_offset - offset, 0.0),
+                    Vector::new(cursor_alignment_offset - offset, 0.0),
                     |renderer| {
                         renderer.fill_quad(cursor, color);
                     },

@@ -71,8 +71,10 @@ instead of its end.
 - `iced_widget/src/text_input.rs`: a selection is drawn from its leftmost
   to its rightmost edge, since in right to left text its logical start is
   on the right; in text that starts right to left, Left and Right are
-  swapped so the cursor moves the way the arrow points; and a press left
-  of such text puts the cursor at its end, which is on the left.
+  swapped so the cursor moves the way the arrow points; a press left of
+  such text puts the cursor at its end, which is on the left; and the
+  cursor of an empty field goes by the value, not the placeholder, so in
+  a right aligned field it sits at the right edge.
 
 The full diffs are `iced_graphics-rtl.patch` and `iced_widget-rtl.patch`
 (`diff -ruN` of `src/` against the crates.io releases). A test in

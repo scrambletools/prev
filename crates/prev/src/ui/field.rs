@@ -14,8 +14,8 @@ use iced::{Element, Event, Length, Rectangle, Size, Theme};
 
 type Paragraph = <iced::Renderer as iced::advanced::text::Renderer>::Paragraph;
 
-/// A field and its label in its three places. `field` is a container
-/// whose content is the text input.
+/// A field and its label in its three places. `field` is the text input,
+/// or a container around it.
 pub struct Labelled<'a, Message> {
     field: Element<'a, Message>,
     /// In the outline, while the field is unfocused but has text.
@@ -43,18 +43,14 @@ pub fn labelled<'a, Message: 'a>(
     }
 }
 
-/// Whether the text input inside the field's container has the focus.
+/// Whether the field's text input has the focus. A container passes its
+/// content's tree through as its own, so the field's tree is the input's.
 fn focused(field: &Tree) -> bool {
-    field
-        .children
-        .first()
-        .filter(|input| input.tag == tree::Tag::of::<text_input::State<Paragraph>>())
-        .is_some_and(|input| {
-            input
-                .state
-                .downcast_ref::<text_input::State<Paragraph>>()
-                .is_focused()
-        })
+    field.tag == tree::Tag::of::<text_input::State<Paragraph>>()
+        && field
+            .state
+            .downcast_ref::<text_input::State<Paragraph>>()
+            .is_focused()
 }
 
 impl<'a, Message: 'a> Labelled<'a, Message> {

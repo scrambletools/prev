@@ -1,5 +1,5 @@
---- a/src/text_input.rs	2026-09-29 14:09:03.149756782 -0700
-+++ b/src/text_input.rs	2026-09-29 14:09:03.150571462 -0700
+--- a/src/text_input.rs	2026-09-29 16:53:12.376674715 -0700
++++ b/src/text_input.rs	2026-09-29 16:53:12.377537215 -0700
 @@ -555,13 +555,15 @@
                              right,
                          );
@@ -18,7 +18,32 @@
                                      y: text_bounds.y,
                                      width,
                                      height: text_bounds.height,
-@@ -773,7 +775,9 @@
+@@ -596,6 +598,15 @@
+                 state.value.raw()
+             };
+ 
++            // prev: the cursor goes by the value, not the placeholder, so
++            // in an empty right aligned field it sits at the right edge,
++            // where right to left typing starts.
++            let cursor_alignment_offset = alignment_offset(
++                text_bounds.width,
++                state.value.raw().min_width(),
++                self.alignment,
++            );
++
+             let alignment_offset = alignment_offset(
+                 text_bounds.width,
+                 paragraph.min_width(),
+@@ -604,7 +615,7 @@
+ 
+             if let Some((cursor, color)) = cursor {
+                 renderer.with_translation(
+-                    Vector::new(alignment_offset - offset, 0.0),
++                    Vector::new(cursor_alignment_offset - offset, 0.0),
+                     |renderer| {
+                         renderer.fill_quad(cursor, color);
+                     },
+@@ -773,7 +784,9 @@
                              } else {
                                  None
                              }
@@ -29,7 +54,7 @@
  
                              if state.keyboard_modifiers.shift() {
                                  state.cursor.select_range(
-@@ -798,7 +802,7 @@
+@@ -798,7 +811,7 @@
                                      state,
                                      target,
                                  )
@@ -38,7 +63,7 @@
  
                                  state.cursor.select_range(
                                      self.value.previous_start_of_word(position),
-@@ -861,7 +865,7 @@
+@@ -861,7 +874,7 @@
                          state,
                          target,
                      )
@@ -47,7 +72,7 @@
  
                      let selection_before = state.cursor.selection(&value);
  
-@@ -1047,6 +1051,10 @@
+@@ -1047,6 +1060,10 @@
                      let modified_key =
                          macos_shortcut.as_ref().unwrap_or(modified_key);
  
@@ -58,7 +83,7 @@
                      match modified_key.as_ref() {
                          keyboard::Key::Named(key::Named::Enter) => {
                              if let Some(on_submit) = self.on_submit.clone() {
-@@ -1620,6 +1628,57 @@
+@@ -1620,6 +1637,57 @@
      }
  }
  
