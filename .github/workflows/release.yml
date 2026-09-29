@@ -162,6 +162,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.arch }}
+      - name: Pick the MSVC toolset for MuPDF
+        shell: pwsh
+        run: packaging\windows\msvc-toolset.ps1
       - name: Let mupdf-sys build for ARM64
         if: matrix.arch == 'arm64'
         run: |

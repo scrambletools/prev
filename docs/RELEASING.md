@@ -14,7 +14,7 @@ Everything a release ships is built from this repository:
 | `packaging/nfpm.yaml` | Debian and RPM packages, made with nfpm |
 | `packaging/appimage/build.sh` | The AppImage |
 | `packaging/flatpak/` | Flatpak manifest and the crate sources it builds from |
-| `packaging/windows/` | Windows MSI (WiX 5) and zip, made by `build.ps1`, and the ARM64 patch for mupdf-sys |
+| `packaging/windows/` | Windows MSI (WiX 5) and zip, made by `build.ps1`; the ARM64 patch for mupdf-sys; `msvc-toolset.ps1`, which builds MuPDF with the installed Visual Studio's toolset |
 | `scripts/cross-setup.sh` | Prepares Ubuntu to cross-compile for RISC-V |
 | `.github/workflows/release.yml` | Builds all of them for a tag and drafts the GitHub release |
 

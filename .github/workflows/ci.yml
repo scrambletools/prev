@@ -50,6 +50,9 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - name: Pick the MSVC toolset for MuPDF
+        shell: pwsh
+        run: packaging\windows\msvc-toolset.ps1
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: cargo build --release -p prev
