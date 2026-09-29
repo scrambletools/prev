@@ -1076,6 +1076,47 @@ impl ImageWindow {
         ])
     }
 
+    /// The zoom and the point of the image in the middle of the view, as
+    /// fractions of its size, unless the image is fitted to the window.
+    fn zoomed_center(&self) -> Option<(f32, (f32, f32))> {
+        if !matches!(self.fit, Fit::Zoom(_)) {
+            return None;
+        }
+        let placement = self.placement()?;
+        let fraction = view::image_fraction(
+            &placement,
+            self.view.0 + self.view.2 / 2.0,
+            self.view.1 + self.view.3 / 2.0,
+        );
+        Some((placement.zoom, fraction))
+    }
+
+    /// Shows the image at `zoom` with the point at `fraction` of its size in
+    /// the middle of the view, or fitted to the window without one.
+    fn show_centered(&mut self, center: Option<(f32, (f32, f32))>) -> Task<Message> {
+        let Some((zoom, fraction)) = center else {
+            self.fit = Fit::Fit;
+            return self.schedule();
+        };
+        self.fit = Fit::Zoom(zoom.clamp(view::MIN_ZOOM, view::MAX_ZOOM));
+        let Some(placement) = self.placement() else {
+            return self.schedule();
+        };
+        let (x, y) = view::fraction_to_content(&placement, fraction);
+        let x = (x - self.view.2 / 2.0).clamp(0.0, (placement.content.0 - self.view.2).max(0.0));
+        let y = (y - self.view.3 / 2.0).clamp(0.0, (placement.content.1 - self.view.3).max(0.0));
+        self.view.0 = x;
+        self.view.1 = y;
+        let offset = scrollable::AbsoluteOffset {
+            x: Some(x),
+            y: Some(y),
+        };
+        Task::batch([
+            operation::scroll_to(self.canvas_id.clone(), offset),
+            self.schedule(),
+        ])
+    }
+
     /// Makes the downscaled copy or SVG render the current view needs.
     fn schedule(&mut self) -> Task<Message> {
         let Some(placement) = self.placement() else {

@@ -72,8 +72,15 @@ impl ImageWindow {
                 .update(pdf_window::Message::ToggleMarkupBar)
                 .map(wrap(index));
             if !markup.window.markup_bar_shown() && !markup.window.has_annotations() {
+                // Back to the plain image, as large and at the same spot
+                // as the markup showed it.
+                let scale = markup.scale;
+                let center = markup
+                    .window
+                    .zoomed_center()
+                    .map(|(zoom, fraction)| (zoom_to_scale(zoom) / scale, fraction));
                 self.items[index].markup = None;
-                return self.schedule();
+                return self.show_centered(center);
             }
             return task;
         }
@@ -133,6 +140,13 @@ impl ImageWindow {
         scale: f32,
         result: Result<PathBuf, String>,
     ) -> Task<Message> {
+        // The markup opens as large and at the same spot as the image,
+        // unless the image is fitted to the window. PDF zooms count points
+        // at 96 dpi.
+        let start = (index == self.current)
+            .then(|| self.zoomed_center())
+            .flatten()
+            .map(|(zoom, fraction)| (zoom * scale / zoom_to_scale(1.0), fraction));
         let Some(item) = self.items.get_mut(index) else {
             return Task::none();
         };
@@ -145,6 +159,9 @@ impl ImageWindow {
             }
         };
         let (mut window, opening) = PdfWindow::open_image_markup(file.clone());
+        if let Some((zoom, fraction)) = start {
+            window.start_at(zoom, fraction);
+        }
         let device = window.set_device_scale(self.device_scale);
         window.set_pointer_inside(self.pointer_inside);
         item.markup = Some(Markup {

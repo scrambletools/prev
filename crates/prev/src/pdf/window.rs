@@ -248,6 +248,9 @@ pub struct PdfWindow {
     /// Marking up an image: the document is a page made from the image,
     /// never saved, shown inside the image window with the markup bar.
     image_mode: bool,
+    /// For image markup: the zoom and point to show first, handed to the
+    /// viewer once the document is open.
+    start_view: Option<(f32, (f32, f32))>,
     /// Where the page canvas and the page thumbnails were drawn, for
     /// placing drops.
     canvas_bounds: std::cell::Cell<iced::Rectangle>,
@@ -310,6 +313,7 @@ impl PdfWindow {
             pointer_inside: true,
             inspector: None,
             image_mode: false,
+            start_view: None,
             canvas_bounds: std::cell::Cell::default(),
             thumbnails_bounds: std::cell::Cell::default(),
             outgoing_pages: None,
@@ -331,6 +335,21 @@ impl PdfWindow {
         window.image_mode = true;
         window.markup_bar = true;
         (window, task)
+    }
+
+    /// Shows the page at `zoom` with the point at `fraction` of its size in
+    /// the middle, instead of fitting it, once the document is open.
+    pub fn start_at(&mut self, zoom: f32, fraction: (f32, f32)) {
+        self.start_view = Some((zoom, fraction));
+    }
+
+    /// The zoom and the point of the page in the middle of the view, as
+    /// fractions of its size, unless the page is fitted to the view.
+    pub fn zoomed_center(&self) -> Option<(f32, (f32, f32))> {
+        match &self.state {
+            State::Ready(viewer) => viewer.zoomed_center(),
+            _ => None,
+        }
     }
 
     /// Whether the page has any annotations.
@@ -893,10 +912,14 @@ impl PdfWindow {
             None => Task::none(),
         };
         let image = if self.image_mode {
-            Task::batch([
+            let task = Task::batch([
                 self.viewer_update(PdfMessage::SetMode(ViewMode::SinglePage)),
                 self.viewer_update(PdfMessage::Zoom(Zoom::FitPage)),
-            ])
+            ]);
+            if let State::Ready(viewer) = &mut self.state {
+                viewer.pending_view = self.start_view.take();
+            }
+            task
         } else {
             Task::none()
         };

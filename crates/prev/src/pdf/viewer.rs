@@ -193,6 +193,9 @@ pub struct PdfViewer {
     press: Option<(f32, f32)>,
     dragged: bool,
     pending_copy: bool,
+    /// A zoom and a point of the first page, as fractions of its size, to
+    /// centre once the view's real size is known.
+    pub pending_view: Option<(f32, (f32, f32))>,
     pub search: SearchState,
     requests: Vec<Request>,
     pub markup: HashMap<usize, PageMarkup>,
@@ -257,6 +260,7 @@ impl PdfViewer {
             press: None,
             dragged: false,
             pending_copy: false,
+            pending_view: None,
             search: SearchState::default(),
             requests: Vec::new(),
             markup: HashMap::new(),
@@ -372,6 +376,10 @@ impl PdfViewer {
             PdfMessage::ViewChanged(view) => {
                 let resized = (view.width, view.height) != (self.view.width, self.view.height);
                 self.view = view;
+                if let Some((zoom, fraction)) = self.pending_view.take() {
+                    self.center_on(zoom, fraction);
+                    return self.schedule();
+                }
                 if self.mode == ViewMode::Continuous
                     && let Some(page) = self.layout.current_page(&self.view)
                 {
@@ -518,6 +526,42 @@ impl PdfViewer {
                 self.scroll_to(0.0, 0.0);
             }
         }
+    }
+
+    /// Zooms to `zoom` with the point of the first page at `fraction` of
+    /// its size in the middle of the view.
+    fn center_on(&mut self, zoom: f32, fraction: (f32, f32)) {
+        let Some(size) = self.info.page_sizes.first().copied() else {
+            return;
+        };
+        self.fit = Fit::Zoom(zoom);
+        self.relayout();
+        let point = Point::new(fraction.0 * size.width, fraction.1 * size.height);
+        if let Some((x, y)) = self.layout.to_document(0, point) {
+            self.scroll_to(x - self.view.width / 2.0, y - self.view.height / 2.0);
+        }
+    }
+
+    /// The zoom, and the point of the first page in the middle of the view
+    /// as fractions of its size, when the zoom is not a fit.
+    pub fn zoomed_center(&self) -> Option<(f32, (f32, f32))> {
+        if !matches!(self.fit, Fit::Zoom(_)) {
+            return None;
+        }
+        let size = self.info.page_sizes.first()?;
+        let (page, point) = self.layout.hit_nearest(
+            self.view.x + self.view.width / 2.0,
+            self.view.y + self.view.height / 2.0,
+        )?;
+        (page == 0).then(|| {
+            (
+                self.layout.zoom,
+                (
+                    point.x / size.width.max(1.0),
+                    point.y / size.height.max(1.0),
+                ),
+            )
+        })
     }
 
     fn scroll_to(&mut self, x: f32, y: f32) {

@@ -119,11 +119,10 @@ pub fn window_bars<'a, Message: 'a>(
     shown: bool,
 ) -> Element<'a, Message> {
     if !floating_bars_enabled() {
-        let mut docked = column![top];
-        if let Some(bottom) = bottom {
-            docked = docked.push(bottom);
-        }
-        return docked.push(content).into();
+        // The second bar keeps its place when hidden, so the content stays
+        // the third child and keeps its state, such as the scroll position.
+        let bottom = bottom.unwrap_or_else(|| iced::widget::space().into());
+        return column![top, bottom, content].into();
     }
     let slide = |bar: Element<'a, Message>, from: f32| -> Element<'a, Message> {
         super::enter::enter(
