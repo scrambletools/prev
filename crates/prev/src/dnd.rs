@@ -9,6 +9,13 @@ pub use smithay_clipboard::dnd::*;
 #[cfg(not(target_os = "linux"))]
 pub use other::*;
 
+/// Stops the clipboard worker, which outlives windows, while the Wayland
+/// connection is still open; call it just before the app exits.
+pub fn shutdown_clipboard() {
+    #[cfg(target_os = "linux")]
+    smithay_clipboard::shutdown();
+}
+
 #[cfg(not(target_os = "linux"))]
 mod other {
     /// The mime type of file lists.

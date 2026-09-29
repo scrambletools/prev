@@ -442,7 +442,7 @@ impl Prev {
             .map(|effect| match effect {
                 Effect::EnterFullscreen => self.set_fullscreen(id, Some(true)),
                 Effect::LeaveFullscreen => self.set_fullscreen(id, Some(false)),
-                Effect::Quit => iced::exit(),
+                Effect::Quit => quit(),
             })
             .collect();
         Task::batch(std::iter::once(task).chain(effect_tasks))
@@ -832,7 +832,7 @@ impl Prev {
     fn exit_if_done(&self) -> Task<Message> {
         if self.windows.is_empty() && self.pending_saves == 0 {
             prev::drag::clean_up();
-            iced::exit()
+            quit()
         } else {
             Task::none()
         }
@@ -1018,7 +1018,7 @@ impl Prev {
                     Some(first) => window::gain_focus(*first),
                     None => {
                         prev::drag::clean_up();
-                        iced::exit()
+                        quit()
                     }
                 }
             }
@@ -1447,6 +1447,12 @@ the pointer is outside the window.",
         .on_press(Message::CloseSettings(id))
         .into()
     }
+}
+
+/// Ends the app, stopping the clipboard worker first.
+fn quit<T>() -> Task<T> {
+    prev::dnd::shutdown_clipboard();
+    iced::exit()
 }
 
 /// The seed color and whether the scheme is dark. The Omarchy accent is

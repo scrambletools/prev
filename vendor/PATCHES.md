@@ -30,7 +30,20 @@ installed with `smithay_clipboard::dnd::set_drag_handler`:
 - Hyprland sends no `action` events, so when none arrives the Shift key
   decides between copy and move on both sides.
 
-Clipboard behaviour is unchanged. The full diff is
+**Change:** `src/lib.rs` shares one worker among all `Clipboard`s on a
+display, and dropping them no longer stops it; `smithay_clipboard::shutdown`
+does, and prev calls it just before exiting, while the Wayland connection
+is still open.
+
+**Why:** iced makes a clipboard per window and drops it with the window.
+When prev replaced its start window with a document window, the worker
+released its data devices just as Hyprland sent them a new selection
+offer. libwayland discards events for destroyed objects without taking
+the server-allocated ids they carry, so the next offer's id left a gap in
+its object map ("not a valid new object id"), and the connection, and
+prev, ended.
+
+Clipboard behaviour is otherwise unchanged. The full diff is
 `smithay-clipboard-dnd.patch` (`diff -ruN` of `src/` against the crates.io
 release).
 
