@@ -243,6 +243,30 @@ jobs:
           name: windows-${{ matrix.arch }}
           path: packages/*
 
+  macos:
+    # prev.app in a disk image, for Apple Silicon, signed ad hoc until a
+    # Developer ID signature and notarization are set up.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: macos
+      - name: App and disk image
+        run: packaging/macos/bundle.sh --dmg --out dist
+        env:
+          PREV_PRODUCTION: '1'
+      - name: Check that it runs
+        run: |
+          version=$(dist/prev.app/Contents/MacOS/prev --version)
+          echo "$version"
+          [[ $version == prev\ [0-9]* ]]
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: dist/*.dmg
+
   aur:
     # The AUR package builds from GitHub's source archive of the tag; its
     # checksum is only known once the tag exists.
@@ -265,7 +289,7 @@ jobs:
 
   release:
     if: github.ref_type == 'tag'
-    needs: [packages, flatpak, aur, windows]
+    needs: [packages, flatpak, aur, windows, macos]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -277,7 +301,7 @@ jobs:
       - name: Collect files and notes
         run: |
           mkdir -p upload
-          cp artifacts/packages-*/* artifacts/flatpak-*/* artifacts/windows-*/* upload/
+          cp artifacts/packages-*/* artifacts/flatpak-*/* artifacts/windows-*/* artifacts/macos-*/* upload/
           # The PKGBUILD and its install file, to build the Arch package.
           cp artifacts/aur/* upload/
           (cd upload && sha256sum * >SHA256SUMS)

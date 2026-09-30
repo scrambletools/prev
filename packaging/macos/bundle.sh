@@ -30,7 +30,17 @@ else
     name=prev-dev; id=io.github.scrambletools.prev.dev
 fi
 
-export LIBCLANG_PATH=${LIBCLANG_PATH:-/Library/Developer/CommandLineTools/usr/lib}
+# bindgen, for MuPDF's bindings, needs libclang: the Command Line Tools'
+# or Xcode's.
+if [ -z "${LIBCLANG_PATH:-}" ]; then
+    developer=$(xcode-select -p)
+    for dir in "$developer/usr/lib" "$developer/Toolchains/XcodeDefault.xctoolchain/usr/lib"; do
+        if [ -e "$dir/libclang.dylib" ]; then
+            export LIBCLANG_PATH=$dir
+            break
+        fi
+    done
+fi
 cargo build --release --locked -p prev --manifest-path "$root/Cargo.toml"
 
 app="$out/$name.app"

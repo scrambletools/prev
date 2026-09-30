@@ -39,6 +39,29 @@ jobs:
       - run: desktop-file-validate data/*.desktop
       - run: appstreamcli validate --no-net data/*.metainfo.xml
 
+  macos:
+    # Apple Silicon. HEIC and AVIF are not bundled yet: Homebrew's libheif
+    # brings x265, a GPL encoder prev has no use for.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: libclang for bindgen
+        run: echo "LIBCLANG_PATH=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib" >>"$GITHUB_ENV"
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - name: App and disk image
+        run: packaging/macos/bundle.sh --dmg
+      - name: Check that it runs
+        run: target/macos/prev-dev.app/Contents/MacOS/prev --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prev-macos
+          path: target/macos/*.dmg
+
   windows:
     runs-on: windows-2025
     env:
