@@ -1,0 +1,12 @@
+{
+  "name": "prev-libheif",
+  "version-string": "0",
+  "description": "The libheif prev.exe loads: decoding only, HEIC through libde265 and AVIF through aom",
+  "dependencies": [
+    {
+      "name": "libheif",
+      "default-features": false,
+      "features": ["aom"]
+    }
+  ]
+}

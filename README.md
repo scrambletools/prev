@@ -289,8 +289,8 @@ MuPDF is compiled from source as part of the build.
 
 On Windows, install the Visual Studio C++ build tools and LLVM, and set
 `LIBCLANG_PATH` to LLVM's `bin` folder, then run the same `cargo build`.
-For HEIC and AVIF, put libheif's DLLs beside `prev.exe`: `vcpkg install
-"libheif[core,aom]:x64-windows"` builds them. `packaging/windows/build.ps1`
+For HEIC and AVIF, put `heif.dll` beside `prev.exe`; vcpkg builds it from
+`packaging/windows/vcpkg` (see the README there). `packaging/windows/build.ps1`
 makes the MSI and zip with WiX.
 
 On macOS, install the Xcode Command Line Tools (`xcode-select

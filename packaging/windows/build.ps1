@@ -2,8 +2,9 @@
 #
 #   packaging\windows\build.ps1 -Version 1.1.0 -Source dist -Out out [-Arch arm64]
 #
-# Source holds prev.exe and the DLLs it ships with (heif.dll, libde265.dll,
-# aom.dll). Needs WiX 5 (dotnet tool install --global wix --version 5.0.2).
+# Source holds prev.exe and heif.dll, which has libheif's decoders linked
+# in (packaging/windows/vcpkg). Needs WiX 5 (dotnet tool install --global
+# wix --version 5.0.2).
 param(
     [Parameter(Mandatory)] [string] $Version,
     [Parameter(Mandatory)] [string] $Source,

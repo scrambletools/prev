@@ -44,14 +44,6 @@
         <File Source="$(var.Source)\heif.dll" />
         <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="Heif" Type="integer" Value="1" KeyPath="yes" />
       </Component>
-      <Component Id="De265" Guid="26c14a14-4194-44b3-8a4b-5fde59b0e148">
-        <File Source="$(var.Source)\libde265.dll" />
-        <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="De265" Type="integer" Value="1" KeyPath="yes" />
-      </Component>
-      <Component Id="Aom" Guid="16c9cb56-0bf5-4639-b234-9730fc170925">
-        <File Source="$(var.Source)\aom.dll" />
-        <RegistryValue Root="HKCU" Key="$(var.AppKey)" Name="Aom" Type="integer" Value="1" KeyPath="yes" />
-      </Component>
     </ComponentGroup>
 
     <Component Id="StartMenu" Directory="ProgramMenuFolder">

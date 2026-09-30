@@ -192,18 +192,19 @@ jobs:
           $version = Get-Content -Raw version.txt
           Write-Host $version
           if ($run.ExitCode -ne 0 -or $version -notmatch '^prev \d') { throw "prev.exe --version failed" }
+      # One heif.dll, decoding only, from pinned vcpkg ports.
       - uses: actions/cache@v4
         with:
-          path: C:\vcpkg\installed
-          key: vcpkg-libheif-core-aom-${{ matrix.arch }}-v1
+          path: vcpkg_installed
+          key: vcpkg-libheif-${{ matrix.arch }}-${{ hashFiles('packaging/windows/vcpkg/**') }}
       - name: libheif
-        run: vcpkg install "libheif[core,aom]:${{ matrix.arch }}-windows"
+        run: vcpkg install --x-manifest-root=packaging\windows\vcpkg --x-install-root=vcpkg_installed --triplet ${{ matrix.arch }}-windows-prev
       - name: Collect prev.exe and its DLLs
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target\release\prev.exe dist\
-          Copy-Item C:\vcpkg\installed\${{ matrix.arch }}-windows\bin\*.dll dist\
+          Copy-Item vcpkg_installed\${{ matrix.arch }}-windows-prev\bin\heif.dll dist\
           Get-ChildItem dist
       # Signs prev.exe itself; the bundled DLLs stay as their projects
       # ship them.
