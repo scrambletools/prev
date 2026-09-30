@@ -9,10 +9,9 @@ and [Omarchy](https://omarchy.org).
 
 Website and downloads: **[prev.run](https://prev.run)**
 
-> **Status:** [1.2.1](https://github.com/scrambletools/prev/releases/tag/v1.2.1)
-> is out, for Linux and Windows on x86_64 and ARM64, and Linux on RISC-V.
-> The next release adds macOS on Apple Silicon and the interface in 21
-> languages. PDF, image, SVG and Markdown viewing, image editing, PDF
+> **Status:** [1.3.0](https://github.com/scrambletools/prev/releases/tag/v1.3.0)
+> is out, for Linux and Windows on x86_64 and ARM64, Linux on RISC-V, and
+> macOS on Apple Silicon, with the interface in 21 languages. PDF, image, SVG and Markdown viewing, image editing, PDF
 > markup, form filling, signatures, page editing and redaction all work.
 > See the [development plan](docs/PLAN.md) for what comes next.
 
@@ -176,15 +175,15 @@ packages:
 | System | How |
 |---|---|
 | Arch and Omarchy | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
-| Debian and Ubuntu | `sudo apt install ./prev_1.2.1-1_amd64.deb` |
-| Fedora | `sudo dnf install ./prev-1.2.1-1.x86_64.rpm` |
+| Debian and Ubuntu | `sudo apt install ./prev_1.3.0-1_amd64.deb` |
+| Fedora | `sudo dnf install ./prev-1.3.0-1.x86_64.rpm` |
 | Flatpak | `flatpak install --user prev-x86_64.flatpak` (or `prev-aarch64.flatpak`) |
-| Any distribution | the AppImage: `chmod +x prev-1.2.1-x86_64.AppImage`, then run it |
-| Any distribution | `prev-1.2.1-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
+| Any distribution | the AppImage: `chmod +x prev-1.3.0-x86_64.AppImage`, then run it |
+| Any distribution | `prev-1.3.0-x86_64-linux.tar.gz`, a plain binary and data files to unpack under `/usr` or `~/.local` |
 | Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
 | Windows 10 and 11 | the `.msi` installer: open it; it installs for you alone, with no administrator prompt |
 | Windows, portable | the `-windows.zip`: unpack it anywhere and run `prev.exe` |
-| macOS 11 or later, Apple Silicon | from the next release, `prev-<version>-arm64.dmg`: open it and drag prev to Applications |
+| macOS 11 or later, Apple Silicon | `prev-1.3.0-arm64.dmg`: open it and drag prev to Applications |
 
 Each file is named for the machine it runs on: `x86_64` (`amd64` in
 Debian's names, `x64` on Windows), `aarch64` (`arm64` in Debian's and
@@ -194,8 +193,8 @@ On Arch, until the AUR packages are published:
 
 ```sh
 mkdir prev && cd prev
-curl -LO https://github.com/scrambletools/prev/releases/download/v1.2.1/PKGBUILD
-curl -LO https://github.com/scrambletools/prev/releases/download/v1.2.1/prev.install
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.3.0/PKGBUILD
+curl -LO https://github.com/scrambletools/prev/releases/download/v1.3.0/prev.install
 makepkg -si
 ```
 
