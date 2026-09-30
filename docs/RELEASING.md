@@ -46,7 +46,8 @@ Builds without it are development builds.
    Flatpak's list is missing a crate.
 4. Try the packaging without releasing: run the Release workflow by hand
    (Actions, Release, Run workflow), which builds every package as an
-   artifact.
+   artifact, or with "Packages to build" only one system's, such as
+   `gh workflow run release.yml -f only=macos`.
 5. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. The workflow
    checks that the tag matches `Cargo.toml`, builds the packages and
    drafts a release with them, `SHA256SUMS`, and a `PKGBUILD` with the

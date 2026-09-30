@@ -1,12 +1,18 @@
 name: Release
 
 # A tag such as v1.0.0 builds every package and drafts a GitHub release
-# with them. Running the workflow by hand builds the same packages
-# without a release, to try the packaging.
+# with them. Running the workflow by hand builds the same packages, or
+# only those of one system, without a release, to try the packaging.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      only:
+        description: Packages to build
+        type: choice
+        options: [all, linux, flatpak, windows, macos]
+        default: all
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,6 +23,7 @@ jobs:
     # Built on an older system so the packages run on newer ones too.
     # GitHub has no RISC-V runners, so that build is cross-compiled; there
     # is no AppImage for it, as appimagetool has no RISC-V build.
+    if: ${{ !inputs.only || inputs.only == 'all' || inputs.only == 'linux' }}
     strategy:
       fail-fast: false
       matrix:
@@ -113,6 +120,7 @@ jobs:
           path: dist/*
 
   flatpak:
+    if: ${{ !inputs.only || inputs.only == 'all' || inputs.only == 'flatpak' }}
     strategy:
       fail-fast: false
       matrix:
@@ -144,6 +152,7 @@ jobs:
     # Signing through the SignPath Foundation runs once the repository
     # variable SIGNPATH_ORGANIZATION_ID is set, after SignPath approves the
     # project; until then the files are unsigned.
+    if: ${{ !inputs.only || inputs.only == 'all' || inputs.only == 'windows' }}
     strategy:
       fail-fast: false
       matrix:
@@ -246,6 +255,7 @@ jobs:
   macos:
     # prev.app in a disk image, for Apple Silicon, signed ad hoc until a
     # Developer ID signature and notarization are set up.
+    if: ${{ !inputs.only || inputs.only == 'all' || inputs.only == 'macos' }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
