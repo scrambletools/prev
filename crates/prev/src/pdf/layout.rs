@@ -94,14 +94,17 @@ pub fn resolve_zoom(
     let zoom = match fit {
         Fit::Zoom(zoom) => zoom,
         Fit::Width | Fit::Page => {
-            let (widest, tallest) = match mode {
+            // The widest row in points, and the gaps in it, which stay
+            // the same number of pixels at any zoom.
+            let (widest, gaps, tallest) = match mode {
                 ViewMode::Continuous => (
                     sizes.iter().map(|size| size.width).fold(0.0, f32::max),
+                    0.0,
                     sizes.get(current).map_or(0.0, |size| size.height),
                 ),
                 ViewMode::SinglePage => {
                     let size = sizes.get(current).copied().unwrap_or_default();
-                    (size.width, size.height)
+                    (size.width, 0.0, size.height)
                 }
                 ViewMode::TwoPages => {
                     let pair_width = |left: usize| {
@@ -109,7 +112,7 @@ pub fn resolve_zoom(
                         sizes.get(left).map_or(0.0, |size| size.width)
                             + right
                                 .and_then(|right| sizes.get(right))
-                                .map_or(0.0, |size| size.width + PAGE_GAP)
+                                .map_or(0.0, |size| size.width)
                     };
                     let (left, right) = spread_of(mode, current);
                     let height = [Some(left), right]
@@ -120,11 +123,13 @@ pub fn resolve_zoom(
                         .fold(0.0, f32::max);
                     // Wide enough for a full pair, even beside a last page
                     // shown alone.
-                    (pair_width(left).max(pair_width(0)), height)
+                    let gap = if sizes.len() > 1 { PAGE_GAP } else { 0.0 };
+                    (pair_width(left).max(pair_width(0)), gap, height)
                 }
             };
-            let width_zoom =
-                (viewport.width - 2.0 * MARGIN).max(1.0) / points_to_pixels(1.0) / widest.max(1.0);
+            let width_zoom = (viewport.width - 2.0 * MARGIN - gaps).max(1.0)
+                / points_to_pixels(1.0)
+                / widest.max(1.0);
             if fit == Fit::Width {
                 width_zoom
             } else {
@@ -369,6 +374,23 @@ mod tests {
             resolve_zoom(Fit::Zoom(100.0), ViewMode::Continuous, &sizes, 0, viewport),
             MAX_ZOOM
         );
+    }
+
+    /// The gap between a pair stays 12 pixels at any zoom, so fitting
+    /// the width leaves nothing to scroll sideways, at small zooms too.
+    #[test]
+    fn two_pages_fit_the_width_exactly() {
+        let sizes = vec![Size::new(612.0, 792.0); 4];
+        for width in [600.0, 1000.0, 1360.0, 2400.0] {
+            let viewport = Size::new(width, 700.0);
+            let zoom = resolve_zoom(Fit::Width, ViewMode::TwoPages, &sizes, 0, viewport);
+            let layout = layout(ViewMode::TwoPages, &sizes, 0, zoom, viewport);
+            assert!(
+                (layout.content.width - width).abs() < 0.5,
+                "{width}: content {} wide",
+                layout.content.width
+            );
+        }
     }
 
     #[test]
