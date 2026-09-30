@@ -86,10 +86,10 @@ code {
   text-decoration: none;
 }
 
-nav { display: flex; gap: 20px; flex-wrap: wrap; }
-nav a { color: var(--on-surface-variant); text-decoration: none; font-weight: 500; }
-nav a:hover { color: var(--primary); }
-nav .repo { color: var(--primary); }
+.top nav { display: flex; gap: 20px; flex-wrap: wrap; }
+.top nav a { color: var(--on-surface-variant); text-decoration: none; font-weight: 500; }
+.top nav a:hover { color: var(--primary); }
+.top nav .repo { color: var(--primary); }
 
 main, footer { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
 
@@ -123,6 +123,9 @@ h3 { font-size: 20px; margin: 0 0 6px; font-weight: 650; }
 .grid p { margin: 0; color: var(--on-surface-variant); }
 
 .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 40px; }
+.gallery.three { grid-template-columns: repeat(3, 1fr); }
+.shot.plain { border-radius: 8px; }
+.section-lede { max-width: 720px; margin: 0 auto; text-align: center; color: var(--on-surface-variant); }
 figure { margin: 0; }
 figure.wide { margin-top: 24px; }
 figcaption { margin-top: 10px; text-align: center; color: var(--on-surface-variant); font-size: 15px; }
@@ -139,11 +142,25 @@ td a { white-space: nowrap; }
 .policy li { margin-bottom: 8px; }
 .policy h3 { margin-top: 28px; }
 
+/* The guide: one column of text, its screenshots a little wider. */
+.guide { max-width: 860px; padding-top: 32px; padding-bottom: 56px; }
+.guide h1 { font-size: clamp(40px, 7vw, 56px); margin-bottom: 24px; }
+.guide h2 { margin-top: 56px; scroll-margin-top: 80px; }
+.guide h3 { margin-top: 32px; scroll-margin-top: 80px; }
+.guide figure { margin: 24px 0; }
+.guide .table { margin: 16px 0; }
+.guide li { margin-bottom: 6px; }
+.guide .gallery { margin: 16px 0; gap: 16px; }
+.contents ul { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 24px; list-style: none; }
+.contents li { margin: 0; }
+.contents a { display: inline-block; padding: 6px 14px; border-radius: 999px; background: var(--surface-container); color: var(--on-surface); text-decoration: none; font-size: 15px; }
+.contents a:hover { background: var(--primary-container); color: var(--on-primary-container); }
+
 footer { padding: 32px 16px 48px; border-top: 1px solid var(--outline-variant); color: var(--on-surface-variant); font-size: 15px; }
 
 @media (max-width: 640px) {
   section { padding: 40px 0; }
-  .gallery { grid-template-columns: 1fr; }
+  .gallery, .gallery.three { grid-template-columns: 1fr; }
   /* Each download as a small card: the system, the file, then how. */
   thead { display: none; }
   table, tbody, tr, td { display: block; }
@@ -154,5 +171,5 @@ footer { padding: 32px 16px 48px; border-top: 1px solid var(--outline-variant); 
   td:empty { display: none; }
   td code { white-space: normal; word-break: break-all; }
   .lede { font-size: 18px; }
-  nav { gap: 14px; font-size: 15px; }
+  .top nav { gap: 14px; font-size: 15px; }
 }

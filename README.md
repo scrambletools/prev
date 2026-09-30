@@ -21,13 +21,12 @@ Website and downloads: **[prev.run](https://prev.run)**
 
 ![A form filled in, marked up with a highlight, shapes, a text box and a note, and signed](docs/screenshots/markup.png)
 
-![The signature library with a drawn and a typed signature](docs/screenshots/signatures.png)
+![The Sign menu open over a garden plot application, listing a drawn and a typed signature](docs/screenshots/signatures.png)
 
-<sub>Documents shown: NIST SP 800-63-3, a US government publication in the
-public domain, and a sample form made for prev.</sub>
+<sub>Documents shown: a sample annual report and form made for prev.</sub>
 
 For a walkthrough of every feature with more screenshots, see
-[A tour of prev](docs/GUIDE.md).
+[A tour of prev](https://prev.run/guide.html) on the website.
 
 ## Features
 
@@ -54,7 +53,7 @@ For a walkthrough of every feature with more screenshots, see
     where it should go.
   - Everything is saved as standard PDF annotations that other viewers
     show and edit.
-- **Drag and drop** both ways ([details](docs/GUIDE.md#drag-and-drop)):
+- **Drag and drop** both ways ([details](https://prev.run/guide.html#drag-and-drop)):
   - Drop images, text, files and pages from other windows and apps
     where they should go: images and text onto pages or an image's
     markup, pages and PDFs among the thumbnails, image files into an
@@ -325,10 +324,21 @@ to it. Packages are built with `PREV_PRODUCTION=1`; see
 
 ## Translations
 
-prev's interface is in English so far. It follows the system's
-language, or the one chosen under Language in Settings. All of its text
-is in `i18n/<language>/prev.ftl`, one file per language; see
-[docs/TRANSLATING.md](docs/TRANSLATING.md) to add one.
+prev's interface is in Arabic, Chinese (Simplified and Traditional),
+Danish, Dutch, English (US and UK), French, German, Hebrew, Hindi,
+Italian, Japanese, Korean, Persian, Polish, Portuguese (Brazil), Russian,
+Spanish, Turkish and Ukrainian, laid out right to left for Arabic,
+Hebrew and Persian. It follows the system's language, or the one chosen
+under Language in Settings. The translations other than English are
+first drafts open to further review; corrections are welcome.
+
+| | | |
+|:-:|:-:|:-:|
+| ![prev in English](docs/screenshots/languages/en.png) English | ![prev in Hebrew, laid out right to left](docs/screenshots/languages/he.png) Hebrew | ![prev in Arabic, laid out right to left](docs/screenshots/languages/ar.png) Arabic |
+| ![prev in Japanese](docs/screenshots/languages/ja.png) Japanese | ![prev in Simplified Chinese](docs/screenshots/languages/zh-CN.png) Chinese | ![prev in Russian](docs/screenshots/languages/ru.png) Russian |
+
+All of prev's text is in `i18n/<language>/prev.ftl`, one file per
+language; see [docs/TRANSLATING.md](docs/TRANSLATING.md) to add one.
 
 ## License
 
