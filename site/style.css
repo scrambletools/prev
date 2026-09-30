@@ -149,6 +149,8 @@ td a { white-space: nowrap; }
 .guide h3 { margin-top: 32px; scroll-margin-top: 80px; }
 .guide figure { margin: 24px 0; }
 .guide .table { margin: 16px 0; }
+.guide pre { background: var(--surface-container-high); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+.guide pre code { background: none; padding: 0; overflow-wrap: normal; }
 .guide li { margin-bottom: 6px; }
 .guide .gallery { margin: 16px 0; gap: 16px; }
 .contents ul { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 24px; list-style: none; }

@@ -53,7 +53,9 @@ For a walkthrough of every feature with more screenshots, see
     where it should go.
   - Everything is saved as standard PDF annotations that other viewers
     show and edit.
-- **Drag and drop** both ways ([details](https://prev.run/guide.html#drag-and-drop)):
+- **Drag and drop** both ways, on Linux and Windows
+  ([details](https://prev.run/guide.html#drag-and-drop)); on macOS, files
+  dropped on a window open, and the rest is still to come:
   - Drop images, text, files and pages from other windows and apps
     where they should go: images and text onto pages or an image's
     markup, pages and PDFs among the thumbnails, image files into an
@@ -90,7 +92,7 @@ For a walkthrough of every feature with more screenshots, see
   downsampling images, or as PNG, JPEG, multi-page TIFF, WebP or OpenEXR at 72 to
   600 dpi.
 - **Highlights and notes** sidebar listing every annotation with its text.
-- **Inspector** (Ctrl+I) with the file, the document information (title,
+- **Inspector** (Ctrl+I, [details](https://prev.run/guide.html#inspector)) with the file, the document information (title,
   author, dates, producer, PDF version, encryption) and page size.
 - **Autosave:** edits are written in place a moment after you stop, with
   the original kept for Revert To.
@@ -354,6 +356,45 @@ lists each shortcut too.
 | Export | Ctrl+Shift+S |
 | Print | Ctrl+P |
 | Settings | Ctrl+, |
+
+### Changing shortcuts
+
+Shortcuts can be changed in the `[keys]` table of the settings file:
+`~/.config/prev.toml`, `%APPDATA%\prev\prev.toml` on Windows, or
+`~/Library/Application Support/prev/prev.toml` on macOS. There is no
+place for them in the Settings dialog. Each entry
+names an action and gives it one shortcut, a list of them, or an empty
+list for none; the action's default shortcuts no longer apply, and a
+shortcut given to one action is taken from any other. Entries in a
+`linux`, `windows` or `macos` table apply only on that system and win
+over the shared ones. Restart prev after editing the file.
+
+```toml
+[keys]
+export = "Ctrl+E"
+find-next = ["Ctrl+G", "F3"]
+crop = []
+
+[keys.macos]
+export = "Cmd+Shift+E"
+```
+
+A shortcut is modifiers and a key joined by `+`. `Ctrl` and `Cmd` both
+mean the command key (⌘ on macOS, where Control is left to the system),
+`Alt` and `Option` are the same key, and `Shift`. The key is a single
+character or one of `Esc`, `Enter`, `Tab`, `Space`, `Backspace`,
+`Delete`, `Insert`, `Home`, `End`, `PageUp`, `PageDown`, `Up`, `Down`,
+`Left`, `Right` and `F1` to `F12`. The actions are:
+open, close-window, quit, settings, print, full-screen, slideshow,
+copy, paste, select-all, find, find-next, find-previous, zoom-in,
+zoom-out, actual-size, zoom-to-fit, hide-sidebar, thumbnails, contents,
+notes, bookmarks, markup, bookmark, go-to-page, rotate-left,
+rotate-right, crop, undo, redo, adjust-color, inspector, export,
+next-page, previous-page, first-page, last-page.
+
+Menus on macOS and the hints prev shows name the shortcuts in effect.
+Entries prev cannot read are listed in the Settings dialog, and the rest
+still apply. Escape always closes and cancels.
 
 ## Translations
 

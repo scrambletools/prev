@@ -3,6 +3,25 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- Keyboard shortcuts can be changed in the `[keys]` table of the
+  settings file, for every system or for one; menus on macOS and the
+  hints prev shows name the shortcuts in effect.
+- A Make Default button in Settings makes prev the system's default app
+  for the file types it opens, with a dot showing whether none, some or
+  all of them open with prev. On macOS it asks for the common types,
+  which macOS confirms one by one; on Windows it opens prev's page in
+  Default apps.
+
+### Changed
+
+- A selected annotation shows a thin blue box with square handles,
+  the same in every theme.
+- On Windows, HEIC and AVIF come from one smaller `heif.dll`.
+
 ## [1.3.0] - 2026-09-29
 
 ### Added

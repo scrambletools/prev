@@ -33,6 +33,7 @@
 <li><a href="#exporting">Exporting</a></li>
 <li><a href="#images">Images</a></li>
 <li><a href="#svg-and-markdown">SVG and Markdown</a></li>
+<li><a href="#inspector">Inspector</a></li>
 <li><a href="#drag-and-drop">Drag and drop</a></li>
 <li><a href="#saving-and-versions">Saving and versions</a></li>
 <li><a href="#settings">Settings</a></li>
@@ -42,7 +43,9 @@
   </nav>
 <p>This guide walks through what prev does, in the order you are likely to
 meet it. Keyboard shortcuts are listed in the <a href="https://github.com/scrambletools/prev#keyboard-shortcuts">README</a>;
-on macOS, use ⌘ where this guide says Ctrl.</p>
+on macOS, use ⌘ where this guide says Ctrl and ⌥ (Option) where it says
+Alt, and the menu bar lists each shortcut. Shortcuts can be changed; see
+<a href="#settings">Settings</a>.</p>
 <p class="small">Documents shown: a sample form, a sample annual report, a sample
 account statement, a newsletter and a landscape image, all fictional and
 made for prev.</p>
@@ -53,7 +56,8 @@ window (see <a href="#drag-and-drop">Drag and drop</a> for drops that do more th
 open files). Each document gets its own window; images opened together
 share one window with a thumbnail strip. prev keeps a single running instance,
 so opening another file from the launcher adds a window instead of
-starting over.</p>
+starting over. On macOS, files opened from Finder or dropped on prev's
+icon in the Dock go to the running prev the same way.</p>
 <h2 id="reading-pdfs">Reading PDFs</h2>
 <figure><img class="shot" src="screenshots/table-of-contents.png" alt="A PDF with its table of contents in the sidebar" width="1360" height="796" loading="lazy"></figure>
 <p>The toolbar holds the page number, zoom, fit to page or width, actual
@@ -74,9 +78,12 @@ move a pair at a time.</p>
 Ctrl+G and Ctrl+Shift+G step through them. Text can be selected and
 copied across pages; double-click selects a word and triple-click a line.
 Links inside the document and to the web work, and Ctrl+Shift+F starts a
-full-screen slideshow. The inspector (the info button, or Ctrl+I) shows
-the file, the document's title, author, dates, producer, PDF version and
-encryption, and the page size.</p>
+full-screen slideshow. F11 makes the window full screen; on macOS the
+View menu's Enter Full Screen does too. The <a href="#inspector">inspector</a>
+(Ctrl+I) shows the file and the document's details.</p>
+<p>Print (Ctrl+P) opens the system's print dialog: the desktop's, through
+its portal, on Linux; Windows' print dialog; and on macOS the print panel,
+whose preview shows the pages as prev draws them.</p>
 <h2 id="marking-up">Marking up</h2>
 <figure><img class="shot" src="screenshots/markup.png" alt="A form filled in, marked up with a highlight, shapes, a text box and a note, and signed" width="1360" height="796" loading="lazy"></figure>
 <p>The markup toolbar (the pen button on the right, or Ctrl+Shift+A) follows
@@ -100,7 +107,8 @@ Preview's:</p>
 <p>Paste (Ctrl+V) puts an image or text from the clipboard on the current
 page, whatever tool is chosen: an image at its own size (smaller if it
 doesn't fit), text as a text box. An image file copied in the file
-manager pastes as the image. Pages copied in prev paste as pages instead,
+manager (or Finder) pastes as the image; on Linux, pasting images needs
+wl-clipboard. Pages copied in prev paste as pages instead,
 after the selected one, when they are the latest thing copied.</p>
 <p>Everything is saved as standard PDF annotations that other viewers show
 and edit. Undo and redo (Ctrl+Z, Ctrl+Shift+Z) cover every change,
@@ -184,7 +192,7 @@ file and gives it the same brightness, contrast and color balance. The
 toolbar rotates, flips, crops and resizes (Adjust Size). Adjust Color
 (Ctrl+Shift+C) has exposure, contrast, saturation, temperature, tint,
 sepia, sharpness and levels. Undo and redo are on the toolbar. The
-inspector (Ctrl+I) shows the file and camera details and can remove
+<a href="#inspector">inspector</a> (Ctrl+I) shows the file and camera details and can remove
 location info and edit keywords and a description. Export asks for the
 format (PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR) and, for
 JPEG, the quality, then where to save; the choices are kept for the next
@@ -209,12 +217,34 @@ picture's size in pixels).</p>
 images, and reload when the file changes on disk. The toolbar makes the
 text larger or smaller (Ctrl+= and Ctrl+-, Ctrl+0 for the normal size),
 searches the document (Ctrl+F, then Enter or the arrows for the next and
-previous match) and opens the Inspector with the file's details and word
-count. Code is colored to suit the light or dark look, and pictures show
+previous match) and opens the <a href="#inspector">inspector</a> with the
+file's details and word count. Code is colored to suit the light or dark look, and pictures show
 at their own size, shrunk only to fit the page. Export saves the whole
 document as one picture, in any of the image formats, at its actual size
 or twice as sharp; very long documents are scaled down to fit the
 16,383 pixel height some formats allow.</p>
+<h2 id="inspector">Inspector</h2>
+<figure><img class="shot" src="screenshots/inspector.png" alt="A PDF with the inspector open on the right, listing its file name, folder, size and date, its title, author, subject, keywords, producing application, PDF version and security, and its page count and page size" width="1360" height="796" loading="lazy"></figure>
+<p>The inspector (the info button on the toolbar, or Ctrl+I) opens a panel
+on the right with what prev knows about the file. Close it with its close
+button or Ctrl+I again. Every inspector starts with the file itself: its
+name, the folder it is in, its size and when it was last changed.</p>
+<ul>
+<li><strong>PDFs</strong> add the document's own details, where the file has them: title,
+  author, subject, keywords, when it was created and last changed, the
+  application that made it and the PDF producer, the PDF version and
+  whether it is encrypted, and with what. Under Pages come the number of
+  pages and the current page's size, in millimeters and inches.</li>
+<li><strong>Images</strong> add the format and size in pixels, then what the camera
+  recorded: make, model and lens, exposure time, f-number, ISO and focal
+  length, and when the photo was taken. Where the photo says where it was
+  taken, Location shows the coordinates, and Remove Location Info takes
+  them out of the file. Keywords and a description can be added and
+  saved into JPEG, PNG and WebP files. Revert To lists the earlier
+  versions prev kept, with their dates and sizes, and puts one back.</li>
+<li><strong>Markdown</strong> adds the number of words.</li>
+</ul>
+<figure><img class="shot" src="screenshots/image-inspector.png" alt="A landscape photo with the inspector open, showing the file, the camera make, model and lens, the exposure time, f-number, ISO and focal length, the date taken, the camera's software and the location's coordinates" width="1360" height="796" loading="lazy"></figure>
 <h2 id="drag-and-drop">Drag and drop</h2>
 <figure><img class="shot" src="screenshots/drag-from-browser.gif" alt="Dragging a photo of Saturn from a Wikimedia Commons page in a browser into the empty photo space of a newsletter PDF open in prev, where it lands as a picture, selected, above its caption" width="1360" height="620" loading="lazy"></figure>
 <p class="small">Saturn: NASA/JPL/Space Science Institute, public domain, shown on
@@ -224,6 +254,11 @@ let go, and pages, text, areas and images drag out of prev to other prev
 windows, the file manager and other apps. While a drag that prev can
 take is over a window, the window is highlighted; over the page
 thumbnails, a line shows where the pages would go.</p>
+<p>This is on Linux and Windows. On macOS, files dropped from Finder on a
+window are taken as if dropped in its middle: images join an image
+window, other files open in windows of their own. Dragging pictures and
+text in from other apps, and anything out of prev, is still to come
+there.</p>
 <h3 id="dropping-into-a-document">Dropping into a document</h3>
 <div class="table"><table>
 <thead>
@@ -397,8 +432,9 @@ Windows); it is removed when the next drag starts and when prev quits.</p>
 <p>There is no Save command: edits to PDFs and images are written in place
 a moment after you stop, and when a window closes. Before the first
 write, prev keeps the original as a version in the version history
-folder (<code>~/.local/share/prev/versions</code>, or <code>%APPDATA%\prev\versions</code> on
-Windows, unless the settings say otherwise). For images, the inspector's Revert To
+folder (<code>~/.local/share/prev/versions</code>; <code>%APPDATA%\prev\versions</code> on
+Windows; <code>~/Library/Application Support/prev/versions</code> on macOS),
+unless the settings say otherwise. For images, the inspector's Revert To
 list puts an earlier version back; Revert To for PDFs is still to come.</p>
 <h2 id="settings">Settings</h2>
 <figure><img class="shot" src="screenshots/settings.png" alt="The Settings dialog" width="1360" height="796" loading="lazy"></figure>
@@ -420,11 +456,13 @@ click outside it. Changes apply to every window at once:</p>
 <li><strong>Input language</strong>: the language you type in, which sets the side an
   empty text field starts on: the right for Arabic, Hebrew, Persian, Urdu
   and the other right to left languages. By default it follows the
-  keyboard layout in use (on Windows, the input language), so switching
+  keyboard layout in use (on Windows, the input language; on macOS, the
+  input source in the menu bar), so switching
   layouts moves the cursor of an empty field. Text you type keeps its own
   direction whichever you choose.</li>
 <li><strong>Use Omarchy accent color</strong>: on Omarchy, colors come from the active
-  theme's accent; off, prev uses its own blue.</li>
+  theme's accent; off, prev uses its own blue. Elsewhere, including on
+  Windows and macOS, there is no Omarchy theme and prev uses its blue.</li>
 <li><strong>Hide the toolbar when the pointer leaves</strong>: see below.</li>
 <li><strong>Animations</strong>: off, bars, panels and dialogs appear at once. prev also
   stops moving things when the system asks for reduced motion.</li>
@@ -433,9 +471,29 @@ click outside it. Changes apply to every window at once:</p>
 <li><strong>Corner radius</strong>: rounds dialogs and the floating toolbar, from
   square corners at 0 to a full pill at 32; the default, 28, is
   Material 3's.</li>
+<li><strong>Default app</strong>: Make Default makes prev the app that opens PDFs,
+  images, SVG drawings and Markdown files. It changes the system's setting
+  and saves nothing in prev's own. A dot beside the button shows how many
+  of those file types open with prev now: red for none, amber for some,
+  green for all, with the count below.
+  <ul>
+  <li>On Linux it sets prev for all 41 types in <code>~/.config/mimeapps.list</code>. That needs
+    prev's desktop entry, which the packages and <code>scripts/install.sh</code> install.</li>
+  <li>On macOS it asks for PDF, PNG, JPEG, HEIC, GIF, TIFF, WebP and AVIF, and macOS
+    asks you to confirm each. For other types, such as camera RAW, use Get
+    Info on a file in Finder, then Open with and Change All. prev must run
+    from prev.app.</li>
+  <li>Windows lets only you choose default apps, so there the button opens
+    prev's page in Settings, Apps, Default apps.</li>
+  </ul></li>
 <li><strong>Storage</strong>: where prev keeps signatures, version history and
   bookmarks.</li>
 </ul>
+<p>Keyboard shortcuts can be changed in the <code>[keys]</code> table of the settings
+file, <code>prev.toml</code>; the Settings dialog has no place for them. The
+<a href="https://github.com/scrambletools/prev#changing-shortcuts">README</a> lists the
+actions and how to write a shortcut. Menus on macOS and the hints prev shows
+name the shortcuts in effect.</p>
 <h3 id="the-floating-toolbar">The floating toolbar</h3>
 <figure><img class="shot" src="screenshots/floating-toolbar.png" alt="The toolbar and markup bar floating over the document" width="1360" height="796" loading="lazy"></figure>
 <p>With "Hide the toolbar when the pointer leaves" on (or the top-panel
@@ -444,15 +502,21 @@ as a rounded bar, and the markup bar floats along the bottom. They slide
 in while the pointer is over the window and go away when it leaves, so
 the whole window shows the page. Sidebars and panels stay clear of them.</p>
 <h3 id="where-files-go">Where files go</h3>
-<p>Settings are kept in <code>~/.config/prev.toml</code> (on Windows,
-<code>%APPDATA%\prev\prev.toml</code>), which lists every setting, including where
-prev keeps your files:</p>
-<p>On Linux these are:</p>
-<p><code>toml
-signatures = "~/.local/share/prev/signatures"
+<p>Settings are kept in <code>prev.toml</code>, which lists every setting,
+including where prev keeps your files:</p>
+<div class="table"><table>
+<thead><tr><th>System</th><th>Settings</th><th>Signatures, versions and bookmarks</th></tr></thead>
+<tbody>
+<tr><td>Linux</td><td><code>~/.config/prev.toml</code></td><td><code>~/.local/share/prev</code></td></tr>
+<tr><td>Windows</td><td><code>%APPDATA%\prev\prev.toml</code></td><td><code>%APPDATA%\prev</code></td></tr>
+<tr><td>macOS</td><td><code>~/Library/Application Support/prev/prev.toml</code></td><td><code>~/Library/Application Support/prev</code></td></tr>
+</tbody>
+</table></div>
+<p>On Linux, for example:</p>
+<pre><code>signatures = "~/.local/share/prev/signatures"
 versions = "~/.local/share/prev/versions"
-bookmarks = "~/.local/share/prev/bookmarks.toml"</code></p>
-<p>On Windows they are under <code>%APPDATA%\prev</code>.</p>
+bookmarks = "~/.local/share/prev/bookmarks.toml"</code></pre>
+<p>The Flatpak keeps its own under <code>~/.var/app/io.github.scrambletools.prev</code>.</p>
 <p>Change them in the Storage section: type a path (<code>~</code> works) and press
 Enter or Apply, or pick a folder with Choose. prev checks that the folder
 exists and can be written, uses the new place at once and saves it to
