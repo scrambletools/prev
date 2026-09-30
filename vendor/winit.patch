@@ -1,6 +1,6 @@
 diff -ruN a/Cargo.toml b/Cargo.toml
---- a/Cargo.toml	2026-09-29 18:25:33.797178193 -0700
-+++ b/Cargo.toml	2026-09-29 18:25:33.806117217 -0700
+--- a/Cargo.toml	2026-09-29 19:00:22.103910672 -0700
++++ b/Cargo.toml	2026-09-29 19:00:22.120738679 -0700
 @@ -509,6 +509,7 @@
      "NSRunLoop",
      "NSString",
@@ -11,7 +11,7 @@ diff -ruN a/Cargo.toml b/Cargo.toml
  
 diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 --- a/src/platform/keyboard_layout.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/keyboard_layout.rs	2026-09-29 18:25:33.799666417 -0700
++++ b/src/platform/keyboard_layout.rs	2026-09-29 19:00:22.108775010 -0700
 @@ -0,0 +1,20 @@
 +//! prev: the keyboard layout the user is typing with.
 +//!
@@ -34,8 +34,8 @@ diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 +    *LETTERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(letters);
 +}
 diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
---- a/src/platform/mod.rs	2026-09-29 18:25:33.779281890 -0700
-+++ b/src/platform/mod.rs	2026-09-29 18:25:33.799428493 -0700
+--- a/src/platform/mod.rs	2026-09-29 19:00:22.086835463 -0700
++++ b/src/platform/mod.rs	2026-09-29 19:00:22.108142290 -0700
 @@ -11,6 +11,10 @@
  #[cfg(any(orbital_platform, docsrs))]
  pub mod orbital;
@@ -49,7 +49,7 @@ diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
  pub mod wayland;
 diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 --- a/src/platform/open_files.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/open_files.rs	2026-09-29 18:25:33.799690793 -0700
++++ b/src/platform/open_files.rs	2026-09-29 19:00:22.108804305 -0700
 @@ -0,0 +1,35 @@
 +//! prev: files macOS asks the application to open.
 +//!
@@ -87,8 +87,8 @@ diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 +    }
 +}
 diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
---- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 18:25:33.782456886 -0700
-+++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 18:25:33.800499612 -0700
+--- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 19:00:22.089809984 -0700
++++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 19:00:22.110454886 -0700
 @@ -7,7 +7,8 @@
  #[cfg(x11_platform)]
  use x11_dl::xlib_xcb::xcb_connection_t;
@@ -178,8 +178,8 @@ diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linu
  
      /// Reload the modifiers.
 diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
---- a/src/platform_impl/macos/app_state.rs	2026-09-29 18:25:33.788720867 -0700
-+++ b/src/platform_impl/macos/app_state.rs	2026-09-29 18:25:33.802718474 -0700
+--- a/src/platform_impl/macos/app_state.rs	2026-09-29 19:00:22.095850739 -0700
++++ b/src/platform_impl/macos/app_state.rs	2026-09-29 19:00:22.114826525 -0700
 @@ -8,7 +8,9 @@
  use objc2_app_kit::{
      NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
@@ -211,3 +211,98 @@ diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_s
      }
  );
  
+@@ -136,7 +151,9 @@
+         #[allow(deprecated)]
+         app.activateIgnoringOtherApps(self.ivars().activate_ignoring_other_apps);
+ 
+-        if self.ivars().default_menu {
++        // prev: only when the application has no menu yet; iced starts
++        // the application, which may put up its own, before this runs.
++        if self.ivars().default_menu && unsafe { app.mainMenu() }.is_none() {
+             // The menubar initialization should be before the `NewEvents` event, to allow
+             // overriding of the default menu even if it's created
+             menu::initialize(&app);
+diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
+--- a/src/platform_impl/macos/view.rs	2026-09-29 19:00:22.097178176 -0700
++++ b/src/platform_impl/macos/view.rs	2026-09-29 19:00:22.114866089 -0700
+@@ -524,6 +524,29 @@
+             self.update_modifiers(event, true);
+         }
+ 
++        // prev: the menu bar's Cut, Copy, Paste and Select All take their
++        // keys before the view sees them; these hand the keys on, so the
++        // application handles them as it does without a menu.
++        #[method(cut:)]
++        fn cut(&self, _sender: Option<&AnyObject>) {
++            self.edit_key("x", 7);
++        }
++
++        #[method(copy:)]
++        fn copy(&self, _sender: Option<&AnyObject>) {
++            self.edit_key("c", 8);
++        }
++
++        #[method(paste:)]
++        fn paste(&self, _sender: Option<&AnyObject>) {
++            self.edit_key("v", 9);
++        }
++
++        #[method(selectAll:)]
++        fn select_all(&self, _sender: Option<&AnyObject>) {
++            self.edit_key("a", 0);
++        }
++
+         #[method(insertTab:)]
+         fn insert_tab(&self, _sender: Option<&AnyObject>) {
+             trace_scope!("insertTab:");
+@@ -784,6 +807,50 @@
+ );
+ 
+ impl WinitView {
++    /// prev: sends the application Command and `character` (virtual key
++    /// `key_code`), for an edit command from the menu bar. When the menu
++    /// item's key equivalent chose it, that key press is the current
++    /// event and goes on as it is; chosen with the mouse, a press and
++    /// release are made, then the real modifier state is sent again.
++    fn edit_key(&self, character: &str, key_code: u16) {
++        use objc2_app_kit::{NSEventModifierFlags, NSEventType};
++        let mtm = MainThreadMarker::from(self);
++        let app = NSApplication::sharedApplication(mtm);
++        if let Some(event) = app.currentEvent() {
++            if unsafe { event.r#type() } == NSEventType::KeyDown {
++                let _: () = unsafe { objc2::msg_send![self, keyDown: &*event] };
++                return;
++            }
++        }
++        let characters = NSString::from_str(character);
++        let window_number = unsafe { self.window().windowNumber() };
++        let make = |kind: NSEventType, flags: NSEventModifierFlags| unsafe {
++            NSEvent::keyEventWithType_location_modifierFlags_timestamp_windowNumber_context_characters_charactersIgnoringModifiers_isARepeat_keyCode(
++                kind,
++                NSPoint::new(0.0, 0.0),
++                flags,
++                0.0,
++                window_number,
++                None,
++                &characters,
++                &characters,
++                false,
++                key_code,
++            )
++        };
++        let command = NSEventModifierFlags::NSEventModifierFlagCommand;
++        if let Some(down) = make(NSEventType::KeyDown, command) {
++            let _: () = unsafe { objc2::msg_send![self, keyDown: &*down] };
++        }
++        if let Some(up) = make(NSEventType::KeyUp, command) {
++            let _: () = unsafe { objc2::msg_send![self, keyUp: &*up] };
++        }
++        let now = unsafe { NSEvent::modifierFlags_class() };
++        if let Some(flags) = make(NSEventType::FlagsChanged, now) {
++            self.update_modifiers(&flags, true);
++        }
++    }
++
+     pub(super) fn new(
+         app_delegate: &ApplicationDelegate,
+         window: &WinitWindow,

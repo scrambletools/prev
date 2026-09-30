@@ -151,7 +151,9 @@ impl ApplicationDelegate {
         #[allow(deprecated)]
         app.activateIgnoringOtherApps(self.ivars().activate_ignoring_other_apps);
 
-        if self.ivars().default_menu {
+        // prev: only when the application has no menu yet; iced starts
+        // the application, which may put up its own, before this runs.
+        if self.ivars().default_menu && unsafe { app.mainMenu() }.is_none() {
             // The menubar initialization should be before the `NewEvents` event, to allow
             // overriding of the default menu even if it's created
             menu::initialize(&app);

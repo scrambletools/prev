@@ -16,6 +16,8 @@ pub mod instance;
 #[path = "instance_windows.rs"]
 pub mod instance;
 pub mod markdown;
+#[cfg(target_os = "macos")]
+pub mod menu_macos;
 pub mod omarchy;
 pub mod paste;
 pub mod pdf;

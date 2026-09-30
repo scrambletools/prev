@@ -15,6 +15,9 @@ use prev::{omarchy, ui};
 #[derive(Debug, Clone)]
 pub enum External {
     OpenPaths(Vec<PathBuf>),
+    /// A menu bar item was chosen.
+    #[cfg(target_os = "macos")]
+    Menu(prev::shortcuts::Action),
     OmarchyThemeChanged,
     Drag(prev::dnd::DragEvent),
 }
@@ -91,10 +94,12 @@ fn main() -> iced::Result {
     // running prev instead of starting another.
     #[cfg(target_os = "macos")]
     {
-        let sender = sender.clone();
+        let files = sender.clone();
         winit::platform::open_files::set_handler(move |paths| {
-            send(&sender, External::OpenPaths(paths))
+            send(&files, External::OpenPaths(paths))
         });
+        let menu = sender.clone();
+        prev::menu_macos::set_handler(move |action| send(&menu, External::Menu(action)));
     }
 
     let omarchy_dir = omarchy::current_theme_dir();

@@ -524,6 +524,29 @@ declare_class!(
             self.update_modifiers(event, true);
         }
 
+        // prev: the menu bar's Cut, Copy, Paste and Select All take their
+        // keys before the view sees them; these hand the keys on, so the
+        // application handles them as it does without a menu.
+        #[method(cut:)]
+        fn cut(&self, _sender: Option<&AnyObject>) {
+            self.edit_key("x", 7);
+        }
+
+        #[method(copy:)]
+        fn copy(&self, _sender: Option<&AnyObject>) {
+            self.edit_key("c", 8);
+        }
+
+        #[method(paste:)]
+        fn paste(&self, _sender: Option<&AnyObject>) {
+            self.edit_key("v", 9);
+        }
+
+        #[method(selectAll:)]
+        fn select_all(&self, _sender: Option<&AnyObject>) {
+            self.edit_key("a", 0);
+        }
+
         #[method(insertTab:)]
         fn insert_tab(&self, _sender: Option<&AnyObject>) {
             trace_scope!("insertTab:");
@@ -784,6 +807,50 @@ declare_class!(
 );
 
 impl WinitView {
+    /// prev: sends the application Command and `character` (virtual key
+    /// `key_code`), for an edit command from the menu bar. When the menu
+    /// item's key equivalent chose it, that key press is the current
+    /// event and goes on as it is; chosen with the mouse, a press and
+    /// release are made, then the real modifier state is sent again.
+    fn edit_key(&self, character: &str, key_code: u16) {
+        use objc2_app_kit::{NSEventModifierFlags, NSEventType};
+        let mtm = MainThreadMarker::from(self);
+        let app = NSApplication::sharedApplication(mtm);
+        if let Some(event) = app.currentEvent() {
+            if unsafe { event.r#type() } == NSEventType::KeyDown {
+                let _: () = unsafe { objc2::msg_send![self, keyDown: &*event] };
+                return;
+            }
+        }
+        let characters = NSString::from_str(character);
+        let window_number = unsafe { self.window().windowNumber() };
+        let make = |kind: NSEventType, flags: NSEventModifierFlags| unsafe {
+            NSEvent::keyEventWithType_location_modifierFlags_timestamp_windowNumber_context_characters_charactersIgnoringModifiers_isARepeat_keyCode(
+                kind,
+                NSPoint::new(0.0, 0.0),
+                flags,
+                0.0,
+                window_number,
+                None,
+                &characters,
+                &characters,
+                false,
+                key_code,
+            )
+        };
+        let command = NSEventModifierFlags::NSEventModifierFlagCommand;
+        if let Some(down) = make(NSEventType::KeyDown, command) {
+            let _: () = unsafe { objc2::msg_send![self, keyDown: &*down] };
+        }
+        if let Some(up) = make(NSEventType::KeyUp, command) {
+            let _: () = unsafe { objc2::msg_send![self, keyUp: &*up] };
+        }
+        let now = unsafe { NSEvent::modifierFlags_class() };
+        if let Some(flags) = make(NSEventType::FlagsChanged, now) {
+            self.update_modifiers(&flags, true);
+        }
+    }
+
     pub(super) fn new(
         app_delegate: &ApplicationDelegate,
         window: &WinitWindow,

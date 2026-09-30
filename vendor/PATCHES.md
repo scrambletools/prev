@@ -106,7 +106,9 @@ keeps to itself:
 - the files macOS asks the app to open. Finder, the Dock and `open`
   hand a Mac app its files through the application delegate's
   `application:openURLs:`, not as arguments, and winit owns the
-  delegate.
+  delegate;
+- and on macOS it gets in the way of a menu bar (see the last two
+  changes).
 
 **Changes:**
 
@@ -122,6 +124,14 @@ keeps to itself:
   `src/platform/open_files.rs` (new), which keeps them until prev sets a
   handler; `Cargo.toml` adds the `NSURL` feature it needs.
 - `src/platform/mod.rs`: the two new modules.
+- `src/platform_impl/macos/app_state.rs`: winit's default menu goes up
+  only when the application has none, since iced starts prev, which puts
+  up its menu bar, before winit's launch handler runs.
+- `src/platform_impl/macos/view.rs`: the view answers `cut:`, `copy:`,
+  `paste:` and `selectAll:` from the menu bar by handing the application
+  the Command key press, the one that chose the item or, when it was
+  chosen with the mouse, one made for it; without this, the menu's key
+  equivalents would keep those keys from prev's text fields.
 
 The full diff is `winit.patch` (`diff -ruN` of `src/` and `Cargo.toml`
 against the crates.io release).

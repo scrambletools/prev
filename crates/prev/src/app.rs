@@ -52,6 +52,8 @@ pub struct Prev {
     /// Whether the keyboard layout in use types right to left, if the
     /// system says.
     keyboard_rtl: Option<bool>,
+    /// The window that last had the focus, which menu bar items act on.
+    focused: Option<window::Id>,
     /// Storage paths as typed in the settings dialog, before applying.
     storage_drafts: [String; 3],
     /// Why a typed or chosen path was refused, per storage row.
@@ -247,6 +249,11 @@ pub enum Message {
     DismissNotice(window::Id),
     AnimationsEnabled(Option<bool>),
     FinalSaveDone,
+    /// Window `id` got the keyboard focus.
+    WindowFocused(window::Id),
+    /// Files chosen in an Open dialog shown with no window open.
+    #[cfg(target_os = "macos")]
+    OpenChosen(Result<Vec<PathBuf>, String>),
 }
 
 impl Prev {
@@ -283,12 +290,15 @@ impl Prev {
             storage_errors: Default::default(),
             system_animations: true,
             keyboard_rtl: None,
+            focused: None,
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
         ui::shape::set_surface(prev.settings.corner_radius);
         ui::component::set_floating_transparency(prev.settings.overlay_transparency);
         prev.apply_motion();
         prev.apply_input_direction();
+        #[cfg(target_os = "macos")]
+        prev::menu_macos::install();
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
         let system = iced::system::theme().map(Message::SystemTheme);
@@ -530,6 +540,30 @@ impl Prev {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::External(External::OpenPaths(paths)) => self.open_paths(paths),
+            #[cfg(target_os = "macos")]
+            Message::External(External::Menu(action)) => {
+                let target = self
+                    .focused
+                    .filter(|id| self.windows.contains_key(id))
+                    .or_else(|| self.windows.keys().next().copied());
+                match (target, action) {
+                    (Some(id), action) => self.shortcut(id, action),
+                    (None, Action::Quit) => quit(),
+                    (None, Action::Open) => {
+                        Task::perform(dialog::open_files(), Message::OpenChosen)
+                    }
+                    (None, _) => Task::none(),
+                }
+            }
+            Message::WindowFocused(id) => {
+                self.focused = Some(id);
+                Task::none()
+            }
+            #[cfg(target_os = "macos")]
+            Message::OpenChosen(result) => match result {
+                Ok(paths) => self.open_paths_if_any(paths),
+                Err(_) => Task::none(),
+            },
             Message::External(External::OmarchyThemeChanged) => {
                 self.reload_omarchy();
                 Task::none()
@@ -684,40 +718,20 @@ impl Prev {
                     iced::widget::operation::focus_next()
                 }
             }
-            Message::Key(id, key, modifiers) => {
-                let action = shortcuts::lookup(&key, modifiers);
-                if action == Some(Action::Escape)
-                    && self
-                        .windows
-                        .get(&id)
-                        .is_some_and(|window| window.settings_open)
-                {
-                    return self.update(Message::CloseSettings(id));
+            Message::Key(id, key, modifiers) => match shortcuts::lookup(&key, modifiers) {
+                Some(action) => self.shortcut(id, action),
+                None => {
+                    let handled = self.pdf_mut(id).and_then(|pdf| pdf.key(&key, modifiers));
+                    if let Some(task) = handled {
+                        let task = task.map(move |message| Message::Pdf(id, message));
+                        return Task::batch([task, self.with_pdf(id, |_| Task::none())]);
+                    }
+                    self.images_mut(id)
+                        .and_then(|images| images.key(&key, modifiers))
+                        .map(|task| task.map(move |message| Message::Image(id, message)))
+                        .unwrap_or_else(Task::none)
                 }
-                let handled = self.pdf_mut(id).and_then(|pdf| match action {
-                    Some(action) => pdf.shortcut(action),
-                    None => pdf.key(&key, modifiers),
-                });
-                if let Some(task) = handled {
-                    let task = task.map(move |message| Message::Pdf(id, message));
-                    return Task::batch([task, self.with_pdf(id, |_| Task::none())]);
-                }
-                let handled = self
-                    .markdown_mut(id)
-                    .and_then(|document| document.shortcut(action?));
-                if let Some(task) = handled {
-                    return task.map(move |message| Message::Markdown(id, message));
-                }
-                let handled = self.images_mut(id).and_then(|images| match action {
-                    Some(action) => images.shortcut(action),
-                    None => images.key(&key, modifiers),
-                });
-                match (handled, action) {
-                    (Some(task), _) => task.map(move |message| Message::Image(id, message)),
-                    (None, Some(action)) => self.perform(id, action),
-                    (None, None) => Task::none(),
-                }
-            }
+            },
             Message::Modifiers(id, modifiers) => {
                 // Shift moves dropped pages instead of copying them, and
                 // takes dropped images as files.
@@ -839,6 +853,8 @@ impl Prev {
             Message::LanguageSelected(tag) => {
                 self.settings.language = tag;
                 prev::i18n::set_language(self.settings.chosen_language());
+                #[cfg(target_os = "macos")]
+                prev::menu_macos::install();
                 // Without a keyboard layout, fields follow the interface.
                 self.apply_input_direction();
                 self.save_settings();
@@ -1044,6 +1060,36 @@ impl Prev {
         }
     }
 
+    /// Runs `action` in window `id`, from its shortcut or a menu item: the
+    /// window's document takes it first, then the app.
+    fn shortcut(&mut self, id: window::Id, action: Action) -> Task<Message> {
+        if action == Action::Escape
+            && self
+                .windows
+                .get(&id)
+                .is_some_and(|window| window.settings_open)
+        {
+            return self.update(Message::CloseSettings(id));
+        }
+        if let Some(task) = self.pdf_mut(id).and_then(|pdf| pdf.shortcut(action)) {
+            let task = task.map(move |message| Message::Pdf(id, message));
+            return Task::batch([task, self.with_pdf(id, |_| Task::none())]);
+        }
+        if let Some(task) = self
+            .markdown_mut(id)
+            .and_then(|document| document.shortcut(action))
+        {
+            return task.map(move |message| Message::Markdown(id, message));
+        }
+        match self
+            .images_mut(id)
+            .and_then(|images| images.shortcut(action))
+        {
+            Some(task) => task.map(move |message| Message::Image(id, message)),
+            None => self.perform(id, action),
+        }
+    }
+
     fn perform(&mut self, id: window::Id, action: Action) -> Task<Message> {
         match action {
             Action::Open => Task::perform(dialog::open_files(), move |result| {
@@ -1177,6 +1223,7 @@ impl Prev {
                 (Event::Window(window::Event::Rescaled(scale)), _) => {
                     Some(Message::ScaleFactor(id, scale))
                 }
+                (Event::Window(window::Event::Focused), _) => Some(Message::WindowFocused(id)),
                 (Event::Window(window::Event::Resized(size)), _) => {
                     Some(Message::Resized(id, size))
                 }

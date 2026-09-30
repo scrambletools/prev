@@ -71,6 +71,7 @@ cat > "$app/Contents/Info.plist" <<EOF
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSHumanReadableCopyright</key><string>AGPL-3.0-or-later</string>
+    <key>NSLocalNetworkUsageDescription</key><string>The print panel looks for printers on your network. prev itself does not use the network.</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>

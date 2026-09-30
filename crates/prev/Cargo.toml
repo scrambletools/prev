@@ -51,6 +51,7 @@ winit = { version = "0.30", default-features = false, features = ["wayland", "x1
 # iced's own winit, for the files Finder opens (patched, see
 # vendor/PATCHES.md).
 winit = { version = "0.30", default-features = false }
+muda = { version = "0.20", default-features = false }
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAccessibility", "NSBitmapImageRep", "NSGraphics", "NSImageRep", "NSPasteboard", "NSPrintInfo", "NSPrintOperation", "NSPrintPanel", "NSResponder", "NSView", "NSWorkspace", "objc2-core-foundation"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSGeometry", "NSObjCRuntime", "NSRange", "NSString"] }
