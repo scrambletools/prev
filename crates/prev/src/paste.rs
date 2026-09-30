@@ -1,9 +1,9 @@
 //! Reading the system clipboard for Paste: an image, text, or a marker
 //! that pages copied in prev are the latest thing copied; and copying
-//! images and that marker. Through wl-clipboard on Linux, and the Windows
-//! clipboard on Windows.
+//! images and that marker. Through wl-clipboard on Linux, the Windows
+//! clipboard on Windows, and the general pasteboard on macOS.
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 use std::process::{Command, Stdio};
 
 use prev_image::ImageFormat;
@@ -42,7 +42,7 @@ pub(crate) const TEXT_TYPES: [&str; 5] = [
     "TEXT",
 ];
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 fn wl_paste(args: &[&str]) -> Result<Vec<u8>, String> {
     let output = Command::new("wl-paste")
         .args(args)
@@ -60,7 +60,7 @@ fn wl_paste(args: &[&str]) -> Result<Vec<u8>, String> {
 
 /// Reads the clipboard. Blocks; run it off the UI thread. `Err` when
 /// wl-clipboard is missing.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn read() -> Result<Clip, String> {
     let listed = String::from_utf8_lossy(&wl_paste(&["--list-types"])?).into_owned();
     let types: Vec<&str> = listed.lines().map(str::trim).collect();
@@ -125,7 +125,7 @@ fn image_file(uris: &str) -> Option<Bitmap> {
 
 /// Marks pages as the latest thing copied, replacing what the clipboard
 /// held. Blocks briefly; wl-copy keeps serving it in the background.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn mark_pages() {
     let _ = Command::new("wl-copy")
         .args(["--type", PAGES_TYPE, "pages"])
@@ -147,7 +147,7 @@ fn png_bytes(bitmap: &Bitmap) -> Result<Vec<u8>, String> {
 }
 
 /// Copies `bitmap` as a PNG image, replacing what the clipboard held.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
     use std::io::Write;
     let png = png_bytes(bitmap)?;
@@ -167,6 +167,89 @@ pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
         .success()
         .then_some(())
         .ok_or_else(|| crate::fl!("app-copy-failed"))
+}
+
+#[cfg(target_os = "macos")]
+pub use mac::{copy_image, mark_pages, read};
+
+/// The macOS general pasteboard, its types named for `choose`: prev's
+/// page marker, images, a copied file's URL and UTF-8 text.
+#[cfg(target_os = "macos")]
+#[allow(unsafe_code)]
+mod mac {
+    use objc2::rc::Retained;
+    use objc2_app_kit::NSPasteboard;
+    use objc2_foundation::{NSData, NSString};
+    use prev_pdf::engine::Bitmap;
+
+    use super::{Clip, PAGES_TYPE, choose, png_bytes};
+
+    /// Pasteboard types and the names `choose` knows them by.
+    const TYPES: [(&str, &str); 10] = [
+        ("io.github.scrambletools.prev.pages", PAGES_TYPE),
+        ("public.png", "image/png"),
+        ("public.jpeg", "image/jpeg"),
+        ("org.webmproject.webp", "image/webp"),
+        ("public.avif", "image/avif"),
+        ("public.tiff", "image/tiff"),
+        ("com.microsoft.bmp", "image/bmp"),
+        ("com.compuserve.gif", "image/gif"),
+        ("public.file-url", "text/uri-list"),
+        ("public.utf8-plain-text", "text/plain;charset=utf-8"),
+    ];
+
+    fn board() -> Retained<NSPasteboard> {
+        NSPasteboard::generalPasteboard()
+    }
+
+    fn pasteboard_type(name: &str) -> Option<&'static str> {
+        TYPES
+            .iter()
+            .find(|(_, known)| *known == name)
+            .map(|(kind, _)| *kind)
+    }
+
+    /// Reads the pasteboard. The general pasteboard may be read from any
+    /// thread.
+    pub fn read() -> Result<Clip, String> {
+        let board = board();
+        let offered: Vec<String> = board
+            .types()
+            .map(|types| types.iter().map(|kind| kind.to_string()).collect())
+            .unwrap_or_default();
+        let names: Vec<&str> = TYPES
+            .iter()
+            .filter(|(kind, _)| offered.iter().any(|offered| offered == kind))
+            .map(|(_, name)| *name)
+            .collect();
+        Ok(choose(&names, |name| {
+            pasteboard_type(name)
+                .and_then(|kind| board.dataForType(&NSString::from_str(kind)))
+                .map(|data| data.to_vec())
+                .unwrap_or_default()
+        }))
+    }
+
+    /// Marks pages as the latest thing copied, replacing what the
+    /// pasteboard held.
+    pub fn mark_pages() {
+        let board = board();
+        board.clearContents();
+        let kind = NSString::from_str(pasteboard_type(PAGES_TYPE).unwrap_or_default());
+        board.setString_forType(&NSString::from_str("pages"), &kind);
+    }
+
+    /// Copies `bitmap` as a PNG image, replacing what the pasteboard held.
+    pub fn copy_image(bitmap: &Bitmap) -> Result<(), String> {
+        let png = png_bytes(bitmap)?;
+        let board = board();
+        board.clearContents();
+        let data = NSData::with_bytes(&png);
+        board
+            .setData_forType(Some(&data), &NSString::from_str("public.png"))
+            .then_some(())
+            .ok_or_else(|| crate::fl!("app-copy-failed"))
+    }
 }
 
 #[cfg(windows)]

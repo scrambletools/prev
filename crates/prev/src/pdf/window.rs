@@ -1897,7 +1897,10 @@ impl PdfWindow {
             Sidebar::Bookmarks if self.bookmarks.is_empty() => component::empty_state(
                 Icon::Bookmarks,
                 crate::fl!("pdf-no-bookmarks"),
-                crate::fl!("pdf-no-bookmarks-detail"),
+                crate::fl!(
+                    "pdf-no-bookmarks-detail",
+                    keys = crate::shortcuts::keys("D", false)
+                ),
             ),
             Sidebar::Bookmarks => component::scroll(
                 column(self.bookmarks.iter().map(|bookmark| {

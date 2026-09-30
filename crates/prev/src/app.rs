@@ -1679,7 +1679,7 @@ fn start_view(id: window::Id) -> Element<'static, Message> {
         .map(|(action, label)| {
             row![
                 ui::styled(action_name(*action), Type::BodyMedium).style(style::on_surface_variant),
-                ui::styled(*label, Type::LabelLarge),
+                ui::styled(shortcuts::platform_label(label), Type::LabelLarge),
             ]
             .spacing(8)
             .into()

@@ -1451,7 +1451,11 @@ impl ImageWindow {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            self.notice = Some(crate::fl!("image-cannot-save-format", name = name));
+            self.notice = Some(crate::fl!(
+                "image-cannot-save-format",
+                name = name,
+                keys = crate::shortcuts::keys("S", true)
+            ));
             return Task::none();
         };
         let keep_original = !editor.original_kept;

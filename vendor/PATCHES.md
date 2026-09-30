@@ -97,10 +97,16 @@ or drop the vendored copies if iced handles right to left text input.
 Copied from crates.io and wired in with `[patch.crates-io]` in the root
 `Cargo.toml`. License: Apache-2.0 (see `LICENSE`).
 
-**Why:** an empty text field starts on the side the user's input
-language writes from, which on Linux is the keyboard layout in use. X11
-and Wayland both tell every client which of the keymap's layouts is
-active, but winit, under iced, keeps that to itself.
+**Why:** two things winit, under iced, receives from the system but
+keeps to itself:
+
+- the keyboard layout in use on Linux, which sets the side an empty text
+  field starts on (X11 and Wayland tell every client which of the
+  keymap's layouts is active);
+- the files macOS asks the app to open. Finder, the Dock and `open`
+  hand a Mac app its files through the application delegate's
+  `application:openURLs:`, not as arguments, and winit owns the
+  delegate.
 
 **Changes:**
 
@@ -108,13 +114,17 @@ active, but winit, under iced, keeps that to itself.
   keymap it was made from, and whenever the active layout changes (and
   when the state is made) it looks up what that layout types on the
   three letter rows.
-- `src/platform/keyboard_layout.rs` (new) and `src/platform/mod.rs`:
-  `winit::platform::keyboard_layout::letters()` returns those letters.
-  prev tells the layout's direction from their script
+- `src/platform/keyboard_layout.rs` (new): `letters()` returns those
+  letters. prev tells the layout's direction from their script
   (`crates/prev/src/input.rs`), so it needs no list of layout names.
+- `src/platform_impl/macos/app_state.rs`: the application delegate
+  implements `application:openURLs:` and hands the file paths to
+  `src/platform/open_files.rs` (new), which keeps them until prev sets a
+  handler; `Cargo.toml` adds the `NSURL` feature it needs.
+- `src/platform/mod.rs`: the two new modules.
 
-The full diff is `winit-layout.patch` (`diff -ruN` of `src/` against the
-crates.io release).
+The full diff is `winit.patch` (`diff -ruN` of `src/` and `Cargo.toml`
+against the crates.io release).
 
 **Updating:** when iced moves to a newer winit, re-apply the patch to that
-version, or drop the copy if winit comes to expose the active layout.
+version, or drop the copy if winit comes to expose both.

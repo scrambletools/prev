@@ -1,6 +1,17 @@
+diff -ruN a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml	2026-09-29 18:25:33.797178193 -0700
++++ b/Cargo.toml	2026-09-29 18:25:33.806117217 -0700
+@@ -509,6 +509,7 @@
+     "NSRunLoop",
+     "NSString",
+     "NSThread",
++    "NSURL",
+     "NSValue",
+ ]
+ 
 diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 --- a/src/platform/keyboard_layout.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/keyboard_layout.rs	2026-09-29 16:28:00.237426297 -0700
++++ b/src/platform/keyboard_layout.rs	2026-09-29 18:25:33.799666417 -0700
 @@ -0,0 +1,20 @@
 +//! prev: the keyboard layout the user is typing with.
 +//!
@@ -23,20 +34,61 @@ diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 +    *LETTERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(letters);
 +}
 diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
---- a/src/platform/mod.rs	2026-09-29 16:28:00.215441336 -0700
-+++ b/src/platform/mod.rs	2026-09-29 16:28:00.236886640 -0700
-@@ -11,6 +11,8 @@
+--- a/src/platform/mod.rs	2026-09-29 18:25:33.779281890 -0700
++++ b/src/platform/mod.rs	2026-09-29 18:25:33.799428493 -0700
+@@ -11,6 +11,10 @@
  #[cfg(any(orbital_platform, docsrs))]
  pub mod orbital;
  #[cfg(any(x11_platform, wayland_platform, docsrs))]
 +pub mod keyboard_layout;
++#[cfg(any(macos_platform, docsrs))]
++pub mod open_files;
 +#[cfg(any(x11_platform, wayland_platform, docsrs))]
  pub mod startup_notify;
  #[cfg(any(wayland_platform, docsrs))]
  pub mod wayland;
+diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
+--- a/src/platform/open_files.rs	1969-12-31 16:00:00.000000000 -0800
++++ b/src/platform/open_files.rs	2026-09-29 18:25:33.799690793 -0700
+@@ -0,0 +1,35 @@
++//! prev: files macOS asks the application to open.
++//!
++//! Finder, the Dock and `open` hand a Mac application its files through
++//! the application delegate's `application:openURLs:`, not as arguments,
++//! both at launch and while it runs. winit owns the delegate, so it keeps
++//! them here until the application takes them.
++
++use std::path::PathBuf;
++use std::sync::Mutex;
++
++type Handler = Box<dyn Fn(Vec<PathBuf>) + Send>;
++
++static HANDLER: Mutex<Option<Handler>> = Mutex::new(None);
++/// Files that came before a handler was set, such as at launch.
++static PENDING: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
++
++/// Calls `handler` with each batch of files macOS asks to open, first
++/// with any that came before it was set.
++pub fn set_handler(handler: impl Fn(Vec<PathBuf>) + Send + 'static) {
++    let pending = std::mem::take(&mut *PENDING.lock().unwrap_or_else(|e| e.into_inner()));
++    if !pending.is_empty() {
++        handler(pending);
++    }
++    *HANDLER.lock().unwrap_or_else(|e| e.into_inner()) = Some(Box::new(handler));
++}
++
++pub(crate) fn deliver(paths: Vec<PathBuf>) {
++    if paths.is_empty() {
++        return;
++    }
++    match &*HANDLER.lock().unwrap_or_else(|e| e.into_inner()) {
++        Some(handler) => handler(paths),
++        None => PENDING.lock().unwrap_or_else(|e| e.into_inner()).extend(paths),
++    }
++}
 diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
---- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 16:28:00.219065009 -0700
-+++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 16:28:00.239009993 -0700
+--- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 18:25:33.782456886 -0700
++++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 18:25:33.800499612 -0700
 @@ -7,7 +7,8 @@
  #[cfg(x11_platform)]
  use x11_dl::xlib_xcb::xcb_connection_t;
@@ -125,3 +177,37 @@ diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linu
      }
  
      /// Reload the modifiers.
+diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
+--- a/src/platform_impl/macos/app_state.rs	2026-09-29 18:25:33.788720867 -0700
++++ b/src/platform_impl/macos/app_state.rs	2026-09-29 18:25:33.802718474 -0700
+@@ -8,7 +8,9 @@
+ use objc2_app_kit::{
+     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
+ };
+-use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol};
++use objc2_foundation::{
++    MainThreadMarker, NSArray, NSNotification, NSObject, NSObjectProtocol, NSURL,
++};
+ 
+ use super::event_handler::EventHandler;
+ use super::event_loop::{notify_windows_of_exit, stop_app_immediately, ActiveEventLoop, PanicInfo};
+@@ -70,6 +72,19 @@
+         fn app_will_terminate(&self, notification: &NSNotification) {
+             self.will_terminate(notification)
+         }
++
++        // prev: files Finder, the Dock or `open` hand the app, at launch
++        // and while it runs.
++        #[method(application:openURLs:)]
++        fn app_open_urls(&self, _application: &NSApplication, urls: &NSArray<NSURL>) {
++            let paths = urls
++                .iter()
++                .filter(|url| unsafe { url.isFileURL() })
++                .filter_map(|url| unsafe { url.path() })
++                .map(|path| std::path::PathBuf::from(path.to_string()))
++                .collect();
++            crate::platform::open_files::deliver(paths);
++        }
+     }
+ );
+ 

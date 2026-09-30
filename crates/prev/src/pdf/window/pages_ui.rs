@@ -267,7 +267,7 @@ impl PdfWindow {
             return Task::none();
         };
         let mut select_on_release = None;
-        if modifiers.control() {
+        if modifiers.command() {
             viewer.pick_page(page, Pick::Toggle);
         } else if modifiers.shift() {
             viewer.pick_page(page, Pick::Extend);
@@ -288,7 +288,7 @@ impl PdfWindow {
             dragging: false,
             select_on_release,
         });
-        if modifiers.shift() || modifiers.control() {
+        if modifiers.shift() || modifiers.command() {
             return Task::none();
         }
         self.viewer_update(PdfMessage::GoTo { page, point: None })

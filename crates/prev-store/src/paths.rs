@@ -1,5 +1,5 @@
-//! Where prev keeps its own files: the XDG base directories, or on
-//! Windows `%APPDATA%` and `%LOCALAPPDATA%`.
+//! Where prev keeps its own files: the XDG base directories, on Windows
+//! `%APPDATA%` and `%LOCALAPPDATA%`, and on macOS `~/Library`.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -12,7 +12,7 @@ pub const PRODUCTION: bool = option_env!("PREV_PRODUCTION").is_some();
 
 const APP_DIR: &str = if PRODUCTION { "prev" } else { "prev-dev" };
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 fn xdg_dir(variable: &str, fallback_under_home: &str) -> Option<PathBuf> {
     env::var_os(variable)
         .map(PathBuf::from)
@@ -36,7 +36,7 @@ pub fn home() -> Option<PathBuf> {
 
 /// `$XDG_CONFIG_HOME/prev`, where settings were kept before they moved
 /// to `config_file`.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn config_dir() -> Option<PathBuf> {
     xdg_dir("XDG_CONFIG_HOME", ".config").map(|dir| dir.join(APP_DIR))
 }
@@ -49,7 +49,7 @@ pub fn config_dir() -> Option<PathBuf> {
 
 /// `$XDG_CONFIG_HOME/prev.toml`, the settings file (`prev-dev.toml` for
 /// development builds).
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn config_file() -> Option<PathBuf> {
     xdg_dir("XDG_CONFIG_HOME", ".config").map(|dir| dir.join(format!("{APP_DIR}.toml")))
 }
@@ -118,20 +118,20 @@ pub fn abbreviate_home(path: &Path) -> PathBuf {
 }
 
 /// `$XDG_DATA_HOME/prev`, for version history and signatures.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn data_dir() -> Option<PathBuf> {
     xdg_dir("XDG_DATA_HOME", ".local/share").map(|dir| dir.join(APP_DIR))
 }
 
 /// `$XDG_STATE_HOME/prev`, for recent files and window state.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn state_dir() -> Option<PathBuf> {
     xdg_dir("XDG_STATE_HOME", ".local/state").map(|dir| dir.join(APP_DIR))
 }
 
 /// `$XDG_CACHE_HOME/prev`, for files made for other apps, such as pages
 /// dragged out as a PDF.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn cache_dir() -> Option<PathBuf> {
     xdg_dir("XDG_CACHE_HOME", ".cache").map(|dir| dir.join(APP_DIR))
 }
@@ -155,12 +155,58 @@ pub fn cache_dir() -> Option<PathBuf> {
     state_dir().map(|dir| dir.join("cache"))
 }
 
-/// `$XDG_RUNTIME_DIR/prev`, for the single instance socket.
+/// `$XDG_RUNTIME_DIR/prev`, for the single instance socket. macOS has
+/// no runtime folder; there it is under `$TMPDIR`, which macOS gives each
+/// user.
 pub fn runtime_dir() -> Option<PathBuf> {
     env::var_os("XDG_RUNTIME_DIR")
+        .or_else(|| {
+            cfg!(target_os = "macos")
+                .then(|| env::var_os("TMPDIR"))
+                .flatten()
+        })
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
         .map(|dir| dir.join(APP_DIR))
+}
+
+/// `~/Library/Application Support/prev`, which holds the settings file,
+/// data and state, as Mac apps keep theirs.
+#[cfg(target_os = "macos")]
+fn application_support() -> Option<PathBuf> {
+    home().map(|home| home.join("Library/Application Support").join(APP_DIR))
+}
+
+/// The folder the settings file sits in; on macOS it never moved.
+#[cfg(target_os = "macos")]
+pub fn config_dir() -> Option<PathBuf> {
+    application_support()
+}
+
+/// `~/Library/Application Support/prev/prev.toml`.
+#[cfg(target_os = "macos")]
+pub fn config_file() -> Option<PathBuf> {
+    application_support().map(|dir| dir.join(format!("{APP_DIR}.toml")))
+}
+
+/// `~/Library/Application Support/prev`, for version history and
+/// signatures.
+#[cfg(target_os = "macos")]
+pub fn data_dir() -> Option<PathBuf> {
+    application_support()
+}
+
+/// `~/Library/Application Support/prev`, for recent files and window
+/// state.
+#[cfg(target_os = "macos")]
+pub fn state_dir() -> Option<PathBuf> {
+    application_support()
+}
+
+/// `~/Library/Caches/prev`.
+#[cfg(target_os = "macos")]
+pub fn cache_dir() -> Option<PathBuf> {
+    home().map(|home| home.join("Library/Caches").join(APP_DIR))
 }
 
 /// `path` made absolute with links resolved, as `std::fs::canonicalize`

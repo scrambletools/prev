@@ -1,4 +1,5 @@
-//! Keyboard shortcuts. Preview's Command shortcuts map to Ctrl, Option to Alt.
+//! Keyboard shortcuts. Preview's Command shortcuts are ⌘ on macOS and
+//! Ctrl elsewhere; Option is Alt.
 
 use iced::keyboard::{Key, Modifiers, key::Named};
 
@@ -101,11 +102,18 @@ const TABLE: &[(u8, Chord, Action)] = &[
 ];
 
 fn modifier_bits(modifiers: Modifiers) -> Option<u8> {
-    if modifiers.logo() {
+    // The key that is not the command key (the logo key outside macOS,
+    // Control on it) belongs to the system.
+    let other = if cfg!(target_os = "macos") {
+        modifiers.control()
+    } else {
+        modifiers.logo()
+    };
+    if other {
         return None;
     }
     let mut bits = NONE;
-    if modifiers.control() {
+    if modifiers.command() {
         bits |= CTRL;
     }
     if modifiers.shift() {
@@ -165,6 +173,36 @@ pub fn label(action: Action) -> Option<&'static str> {
         .map(|(_, label)| *label)
 }
 
+/// The command key with `key`, as the platform writes it, for text that
+/// names a shortcut: "Ctrl+D", or "⌘D" on macOS.
+pub fn keys(key: &str, shift: bool) -> String {
+    let shift = if shift { "Shift+" } else { "" };
+    platform_label(&format!("Ctrl+{shift}{key}"))
+}
+
+/// A label from `LABELS` as the platform writes it: macOS puts its
+/// symbols in the order Control, Option, Shift, Command before the key,
+/// with no plus signs ("Ctrl+Shift+Z" is "⇧⌘Z").
+pub fn platform_label(label: &str) -> String {
+    if !cfg!(target_os = "macos") {
+        return label.to_owned();
+    }
+    let (mut modifiers, mut key) = (String::new(), label);
+    for (name, symbol) in [("Alt+", "⌥"), ("Shift+", "⇧")] {
+        if key.contains(name) {
+            modifiers.push_str(symbol);
+        }
+    }
+    let command = key.starts_with("Ctrl+");
+    for name in ["Ctrl+", "Alt+", "Shift+"] {
+        key = key.strip_prefix(name).unwrap_or(key);
+    }
+    if command {
+        modifiers.push('⌘');
+    }
+    format!("{modifiers}{key}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,26 +213,32 @@ mod tests {
 
     #[test]
     fn command_shortcuts() {
-        assert_eq!(lookup(&character("o"), Modifiers::CTRL), Some(Action::Open));
         assert_eq!(
-            lookup(&character("W"), Modifiers::CTRL),
+            lookup(&character("o"), Modifiers::COMMAND),
+            Some(Action::Open)
+        );
+        assert_eq!(
+            lookup(&character("W"), Modifiers::COMMAND),
             Some(Action::CloseWindow)
         );
         assert_eq!(
-            lookup(&character(","), Modifiers::CTRL),
+            lookup(&character(","), Modifiers::COMMAND),
             Some(Action::Settings)
         );
         assert_eq!(
-            lookup(&character("F"), Modifiers::CTRL | Modifiers::SHIFT),
+            lookup(&character("F"), Modifiers::COMMAND | Modifiers::SHIFT),
             Some(Action::Slideshow)
         );
-        assert_eq!(lookup(&character("f"), Modifiers::CTRL), Some(Action::Find));
         assert_eq!(
-            lookup(&character("G"), Modifiers::CTRL | Modifiers::SHIFT),
+            lookup(&character("f"), Modifiers::COMMAND),
+            Some(Action::Find)
+        );
+        assert_eq!(
+            lookup(&character("G"), Modifiers::COMMAND | Modifiers::SHIFT),
             Some(Action::FindPrevious)
         );
         assert_eq!(
-            lookup(&character("2"), Modifiers::CTRL | Modifiers::ALT),
+            lookup(&character("2"), Modifiers::COMMAND | Modifiers::ALT),
             Some(Action::Thumbnails)
         );
     }
@@ -202,15 +246,15 @@ mod tests {
     #[test]
     fn zoom_in_with_or_without_shift() {
         assert_eq!(
-            lookup(&character("="), Modifiers::CTRL),
+            lookup(&character("="), Modifiers::COMMAND),
             Some(Action::ZoomIn)
         );
         assert_eq!(
-            lookup(&character("+"), Modifiers::CTRL | Modifiers::SHIFT),
+            lookup(&character("+"), Modifiers::COMMAND | Modifiers::SHIFT),
             Some(Action::ZoomIn)
         );
         assert_eq!(
-            lookup(&character("-"), Modifiers::CTRL),
+            lookup(&character("-"), Modifiers::COMMAND),
             Some(Action::ZoomOut)
         );
     }
@@ -219,18 +263,22 @@ mod tests {
     fn modifiers_must_match_exactly() {
         assert_eq!(lookup(&character("o"), Modifiers::empty()), None);
         assert_eq!(
-            lookup(&character("o"), Modifiers::CTRL | Modifiers::ALT),
+            lookup(&character("o"), Modifiers::COMMAND | Modifiers::ALT),
             None
         );
+        // The system's other modifier key: the logo key, or Control on
+        // macOS, where the logo key is the command key.
+        let other = if cfg!(target_os = "macos") {
+            Modifiers::CTRL
+        } else {
+            Modifiers::LOGO
+        };
+        assert_eq!(lookup(&character("q"), Modifiers::COMMAND | other), None);
         assert_eq!(
-            lookup(&character("q"), Modifiers::CTRL | Modifiers::LOGO),
+            lookup(&character("o"), Modifiers::COMMAND | Modifiers::SHIFT),
             None
         );
-        assert_eq!(
-            lookup(&character("o"), Modifiers::CTRL | Modifiers::SHIFT),
-            None
-        );
-        assert_eq!(lookup(&Key::Named(Named::Escape), Modifiers::CTRL), None);
+        assert_eq!(lookup(&Key::Named(Named::Escape), Modifiers::COMMAND), None);
     }
 
     #[test]

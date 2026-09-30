@@ -87,6 +87,16 @@ fn main() -> iced::Result {
         Err(error) => eprintln!("prev: running without single instance: {error}"),
     }
 
+    // Files Finder and the Dock hand the app, which macOS sends to the
+    // running prev instead of starting another.
+    #[cfg(target_os = "macos")]
+    {
+        let sender = sender.clone();
+        winit::platform::open_files::set_handler(move |paths| {
+            send(&sender, External::OpenPaths(paths))
+        });
+    }
+
     let omarchy_dir = omarchy::current_theme_dir();
     if let Some(dir) = omarchy_dir.clone() {
         let sender = sender.clone();

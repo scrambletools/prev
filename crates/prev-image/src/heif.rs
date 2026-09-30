@@ -12,8 +12,17 @@ use libloading::Library;
 
 use crate::decode::{DecodeError, Decoded, Frame, Result};
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 const LIBRARY_NAMES: &[&str] = &["libheif.so.1", "libheif.so"];
+/// The copy in prev.app's Frameworks folder, else Homebrew's (Apple
+/// Silicon, then Intel).
+#[cfg(target_os = "macos")]
+const LIBRARY_NAMES: &[&str] = &[
+    "@executable_path/../Frameworks/libheif.1.dylib",
+    "/opt/homebrew/lib/libheif.1.dylib",
+    "/usr/local/lib/libheif.1.dylib",
+    "libheif.1.dylib",
+];
 /// Found beside prev.exe or on the PATH, when a build ships it.
 #[cfg(windows)]
 const LIBRARY_NAMES: &[&str] = &["libheif.dll", "heif.dll"];

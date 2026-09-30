@@ -71,7 +71,18 @@ fn replace(from: &Path, to: &Path) -> io::Result<()> {
 /// file, and its renames are written through by NTFS.
 #[cfg(unix)]
 fn sync_folder(folder: &Path) -> io::Result<()> {
-    fs::File::open(folder)?.sync_all()
+    match fs::File::open(folder) {
+        Ok(folder) => folder.sync_all(),
+        // macOS lets an app opened on a file in a protected folder, such
+        // as Documents, replace the file but not open the folder. The
+        // rename has happened by then, so the save stands.
+        Err(error)
+            if cfg!(target_os = "macos") && error.kind() == io::ErrorKind::PermissionDenied =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
 }
 
 #[cfg(not(unix))]

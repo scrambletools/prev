@@ -8,7 +8,9 @@ use objc2::{declare_class, msg_send_id, mutability, ClassType, DeclaredClass};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
 };
-use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol};
+use objc2_foundation::{
+    MainThreadMarker, NSArray, NSNotification, NSObject, NSObjectProtocol, NSURL,
+};
 
 use super::event_handler::EventHandler;
 use super::event_loop::{notify_windows_of_exit, stop_app_immediately, ActiveEventLoop, PanicInfo};
@@ -69,6 +71,19 @@ declare_class!(
         #[method(applicationWillTerminate:)]
         fn app_will_terminate(&self, notification: &NSNotification) {
             self.will_terminate(notification)
+        }
+
+        // prev: files Finder, the Dock or `open` hand the app, at launch
+        // and while it runs.
+        #[method(application:openURLs:)]
+        fn app_open_urls(&self, _application: &NSApplication, urls: &NSArray<NSURL>) {
+            let paths = urls
+                .iter()
+                .filter(|url| unsafe { url.isFileURL() })
+                .filter_map(|url| unsafe { url.path() })
+                .map(|path| std::path::PathBuf::from(path.to_string()))
+                .collect();
+            crate::platform::open_files::deliver(paths);
         }
     }
 );

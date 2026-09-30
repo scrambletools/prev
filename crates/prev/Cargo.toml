@@ -46,6 +46,15 @@ smithay-clipboard = "0.7"
 # vendor/PATCHES.md).
 winit = { version = "0.30", default-features = false, features = ["wayland", "x11"] }
 
+# The pasteboard, and later the app delegate and printing.
+[target.'cfg(target_os = "macos")'.dependencies]
+# iced's own winit, for the files Finder opens (patched, see
+# vendor/PATCHES.md).
+winit = { version = "0.30", default-features = false }
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSPasteboard"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSString"] }
+
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 rfd = { version = "0.15", default-features = false }
 
