@@ -488,10 +488,11 @@ pub fn dialog<'a, Message: Clone + 'a>(
                     ..Padding::ZERO
                 }),
         );
+    // As wide as the dialog frame: its text lines up on the reading
+    // side, so it fills the width rather than giving the card one.
     let card = container(body)
         .padding(24)
-        .max_width(560)
-        .width(Length::Shrink)
+        .width(Fill)
         .style(style::dialog);
     stack![
         base.into(),
