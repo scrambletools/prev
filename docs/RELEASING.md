@@ -53,7 +53,8 @@ Builds without it are development builds.
    drafts a release with them, `SHA256SUMS`, and a `PKGBUILD` with the
    source checksum filled in, beside its `prev.install`. Check the draft
    and publish it. Then update the version and links on the website
-   (`site/index.html`) and in the README's install table; pushing
+   (`site/index.html`), the version named on `site/specs.html`, and in
+   the README's install table; pushing
    `site/` redeploys prev.run.
 6. AUR: in a clone of `ssh://aur@aur.archlinux.org/prev.git`, replace
    `PKGBUILD` with the one from the release and copy

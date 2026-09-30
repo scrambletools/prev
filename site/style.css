@@ -142,6 +142,20 @@ td a { white-space: nowrap; }
 .policy li { margin-bottom: 8px; }
 .policy h3 { margin-top: 28px; }
 
+/* The specifications: label and value rows. */
+.spec { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 16px; }
+.spec th, .spec td { text-align: left; vertical-align: top; padding: 10px 0; border-bottom: 1px solid var(--outline-variant); }
+.spec th { width: 190px; padding-right: 20px; background: none; color: var(--on-surface-variant); font-weight: 600; }
+.spec tr:last-child th, .spec tr:last-child td { border-bottom: none; }
+.lede-left { color: var(--on-surface-variant); font-size: 18px; }
+@media (max-width: 640px) {
+  .spec, .spec tbody, .spec tr, .spec th, .spec td { display: block; width: auto; }
+  .spec tr { padding: 0; border-bottom: 1px solid var(--outline-variant); }
+  .spec tr:last-child { border-bottom: none; }
+  .spec th { padding: 10px 0 0; border: none; }
+  .spec td { padding: 2px 0 10px; border: none; }
+}
+
 /* The guide: one column of text, its screenshots a little wider. */
 .guide { max-width: 860px; padding-top: 32px; padding-bottom: 56px; }
 .guide h1 { font-size: clamp(40px, 7vw, 56px); margin-bottom: 24px; }

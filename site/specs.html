@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prev specifications</title>
+<meta name="description" content="prev's specifications: the systems and processors it runs on, the file formats it opens and exports, its languages and input, the software it is built on, and its performance.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./"><img src="icon.svg" alt="" width="32" height="32">prev</a>
+  <nav>
+    <a href="./#features">Features</a>
+    <a href="./#download">Download</a>
+    <a href="guide.html">Guide</a>
+    <a href="specs.html">Specs</a>
+    <a class="repo" href="https://github.com/scrambletools/prev">Source on GitHub</a>
+  </nav>
+</header>
+
+<main class="guide specs">
+  <h1>Specifications</h1>
+  <p class="lede-left">prev 1.4.0, a document and image viewer and editor. For what each feature does, see the <a href="guide.html">tour</a>.</p>
+  <nav class="contents" aria-label="Contents">
+<ul>
+<li><a href="#systems">Systems</a></li>
+<li><a href="#formats">File formats</a></li>
+<li><a href="#documents">PDF features</a></li>
+<li><a href="#languages">Languages</a></li>
+<li><a href="#input">Input</a></li>
+<li><a href="#technology">Technology</a></li>
+<li><a href="#performance">Performance</a></li>
+<li><a href="#files">Settings and data</a></li>
+<li><a href="#license">License and privacy</a></li>
+</ul>
+  </nav>
+
+<h2 id="systems">Systems and processors</h2>
+<div class="table"><table>
+<thead><tr><th>System</th><th>Versions</th><th>Processors</th><th>Packages</th></tr></thead>
+<tbody>
+<tr><td>Linux</td><td>Wayland (Hyprland and Omarchy first), X11; glibc 2.35 or newer for the .deb, .rpm and AppImage</td><td>x86_64, ARM64, RISC-V</td><td>.deb, .rpm, AppImage, Flatpak, tarball, PKGBUILD for Arch; mise. No AppImage or Flatpak on RISC-V</td></tr>
+<tr><td>Windows</td><td>Windows 10 and 11</td><td>x64, ARM64</td><td>Per-user installer (.msi), portable .zip</td></tr>
+<tr><td>macOS</td><td>macOS 11 or later</td><td>Apple Silicon</td><td>Disk image (.dmg), not yet notarized</td></tr>
+</tbody>
+</table></div>
+<table class="spec"><tbody>
+<tr><th>Graphics</th><td>The GPU through Vulkan on Linux, DirectX 12 or Vulkan on Windows, and Metal on macOS; the CPU when no GPU backend starts</td></tr>
+<tr><th>Instances</th><td>One running prev per user; opening more files adds windows to it</td></tr>
+<tr><th>Look</th><td>Material Design 3, light or dark from the system, the Omarchy theme's accent on Omarchy</td></tr>
+</tbody></table>
+
+<h2 id="formats">File formats</h2>
+<table class="spec"><tbody>
+<tr><th>Documents</th><td>PDF, including password-protected files</td></tr>
+<tr><th>Images</th><td>PNG, JPEG, GIF and animated GIF, WebP, AVIF, HEIC and HEIF, TIFF, BMP, ICO, TGA, PNM (PBM, PGM, PPM), QOI, JPEG 2000, OpenEXR, Radiance HDR</td></tr>
+<tr><th>Camera RAW</th><td>DNG and the RAW formats of the cameras rawler supports, among them Canon CR2, CR3 and CRW, Nikon NEF and NRW, Sony ARW, SR2 and SRF, Fujifilm RAF, Olympus ORF, Panasonic RW2, Pentax PEF, Samsung SRW, Sigma X3F and Hasselblad 3FR</td></tr>
+<tr><th>Drawings</th><td>SVG and compressed SVG (.svgz)</td></tr>
+<tr><th>Text</th><td>Markdown (.md, .markdown), with tables, task lists and syntax-highlighted code</td></tr>
+<tr><th>PDF export</th><td>PDF, optionally flattened, encrypted with AES-256 or with images reduced to 150 dpi; or each page as PNG, JPEG, WebP or OpenEXR, or all pages as one TIFF, at 72 to 600 dpi</td></tr>
+<tr><th>Image export</th><td>PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM, OpenEXR; SVG and Markdown export as pictures in the same formats</td></tr>
+<tr><th>Metadata</th><td>EXIF, ICC color profiles and XMP kept through edits in JPEG, PNG, WebP and TIFF; keywords and descriptions saved to JPEG, PNG and WebP; location removable</td></tr>
+<tr><th>Never written</th><td>HEIC, AVIF and camera RAW open only; edits to them are exported to another format</td></tr>
+</tbody></table>
+
+<h2 id="documents">PDF features</h2>
+<table class="spec"><tbody>
+<tr><th>Views</th><td>Continuous, single page, two pages side by side; fit page, fit width, actual size, zoom from 10% to 1,600%</td></tr>
+<tr><th>Navigation</th><td>Page thumbnails, table of contents, highlights and notes, bookmarks, search with every match highlighted, links, slideshow</td></tr>
+<tr><th>Markup</th><td>Highlight, underline, strikethrough; sketch, draw; rectangle, rounded rectangle, oval, line, arrow, star, polygon, speech bubble, loupe, mask; text boxes and notes. Saved as standard PDF annotations</td></tr>
+<tr><th>Forms</th><td>Text fields, checkboxes, radio buttons, drop-down menus</td></tr>
+<tr><th>Signatures</th><td>Drawn, typed in a handwriting font, or imported from a photo or scan; kept in a library and placed as images</td></tr>
+<tr><th>Pages</th><td>Reorder, rotate, delete, crop, insert blank pages or other PDFs, copy and paste between documents with their annotations and form fields</td></tr>
+<tr><th>Redaction</th><td>Removes the text, image pixels and drawings under each mark and rewrites the file, so no earlier revision keeps them</td></tr>
+<tr><th>Saving</th><td>Automatic, in place, with the original kept as a version; annotations saved incrementally</td></tr>
+<tr><th>Printing</th><td>The desktop's print dialog on Linux, Windows' print dialog, the macOS print panel</td></tr>
+</tbody></table>
+
+<h2 id="languages">Languages</h2>
+<table class="spec"><tbody>
+<tr><th>Interface</th><td>21 languages: Arabic, Chinese (Simplified and Traditional), Danish, Dutch, English (US and UK), French, German, Hebrew, Hindi, Italian, Japanese, Korean, Persian, Polish, Portuguese (Brazil), Russian, Spanish, Turkish, Ukrainian</td></tr>
+<tr><th>Right to left</th><td>Arabic, Hebrew and Persian lay out right to left inside panels, dialogs and menus</td></tr>
+<tr><th>Choosing</th><td>Follows the system's language, or the one chosen in Settings</td></tr>
+<tr><th>Translations</th><td>One Fluent file per language; the translations other than English are first drafts open to further review</td></tr>
+</tbody></table>
+
+<h2 id="input">Input</h2>
+<table class="spec"><tbody>
+<tr><th>Keyboard</th><td>Shortcuts for every main action, with ⌘ on macOS and Ctrl elsewhere; changeable in the settings file, for every system or for one</td></tr>
+<tr><th>Typing</th><td>Text fields follow the system's keyboard layout and input methods; an empty field starts on the side the input language reads from, taken from the keyboard layout on Linux, the input language on Windows and the input source on macOS</td></tr>
+<tr><th>Pointer</th><td>Mouse and touchpad: smooth scrolling, Ctrl+scroll (⌘+scroll on macOS) to zoom around the pointer, dragging to pan, select and draw</td></tr>
+<tr><th>Signing</th><td>Mouse, touchpad, pen or touch in the signature pad</td></tr>
+<tr><th>Drag and drop</th><td>Both ways on Linux (Wayland) and Windows: pictures, text, files and pages in; text, areas, pages and images out. On macOS, files dropped on a window</td></tr>
+<tr><th>Clipboard</th><td>Text, images, files copied in the file manager, and pages between prev windows; wl-clipboard on Linux</td></tr>
+<tr><th>Accessibility</th><td>Keyboard focus with Tab and Shift+Tab; follows the system's reduced motion setting</td></tr>
+</tbody></table>
+
+<h2 id="technology">Technology</h2>
+<table class="spec"><tbody>
+<tr><th>Language</th><td>Rust, edition 2024, Rust 1.89 or newer to build</td></tr>
+<tr><th>Interface</th><td>iced 0.14 with wgpu, and tiny-skia for drawing on the CPU</td></tr>
+<tr><th>PDF engine</th><td>MuPDF 1.27, through the mupdf crate</td></tr>
+<tr><th>Images</th><td>The image crate; rawler for camera RAW; libheif with libde265 and aom's AV1 decoder for HEIC and AVIF</td></tr>
+<tr><th>SVG and Markdown</th><td>resvg; pulldown-cmark with syntect for highlighting</td></tr>
+<tr><th>Translations</th><td>Project Fluent</td></tr>
+<tr><th>Fonts</th><td>Roboto Flex, Material Symbols Rounded and Dancing Script, bundled</td></tr>
+<tr><th>System integration</th><td>XDG desktop portals on Linux; Win32 and OLE on Windows; AppKit and Launch Services on macOS, with a menu bar through muda</td></tr>
+<tr><th>Dependencies</th><td>All open source, with licenses checked by cargo-deny in CI; GPL-2.0-only is refused</td></tr>
+</tbody></table>
+
+<h2 id="performance">Performance</h2>
+<p>Measured on Linux with a release build, an RTX 4080 SUPER and a 3840 × 1080 display at 120 Hz.</p>
+<div class="table"><table>
+<thead><tr><th>Measure</th><th>Target</th><th>Measured</th></tr></thead>
+<tbody>
+<tr><td>Start to window</td><td>under 150 ms</td><td>about 230 ms, 200 ms of it Vulkan setup</td></tr>
+<tr><td>Open a PDF to its first page drawn</td><td>under 100 ms</td><td>20 ms for 499 pages, 93 ms for 7,025 pages</td></tr>
+<tr><td>Scroll and zoom</td><td>60 fps without dropped frames</td><td>120 fps, no slow frames</td></tr>
+<tr><td>Memory with one 100-page PDF open</td><td>under 150 MB</td><td>61 MB heap, 179 MB resident with GPU drivers</td></tr>
+<tr><td>Program size</td><td>under 30 MB without RAW</td><td>29.9 MB, 36.1 MB with RAW</td></tr>
+</tbody>
+</table></div>
+<p>Pages render in tiles on background threads, with a 128 MB tile cache. On the CPU renderer prev scrolls at about 60 fps and zooms at about 30 fps.</p>
+
+<h2 id="files">Settings and data</h2>
+<div class="table"><table>
+<thead><tr><th>System</th><th>Settings</th><th>Signatures, versions and bookmarks</th></tr></thead>
+<tbody>
+<tr><td>Linux</td><td><code>~/.config/prev.toml</code></td><td><code>~/.local/share/prev</code></td></tr>
+<tr><td>Windows</td><td><code>%APPDATA%\prev\prev.toml</code></td><td><code>%APPDATA%\prev</code></td></tr>
+<tr><td>macOS</td><td><code>~/Library/Application Support/prev/prev.toml</code></td><td><code>~/Library/Application Support/prev</code></td></tr>
+</tbody>
+</table></div>
+<p>The Flatpak keeps its own under <code>~/.var/app/io.github.scrambletools.prev</code>.</p>
+
+<h2 id="license">License and privacy</h2>
+<table class="spec"><tbody>
+<tr><th>License</th><td>GNU AGPL-3.0 or later, as MuPDF requires; the bundled fonts keep their own licenses (SIL Open Font License 1.1, Apache 2.0)</td></tr>
+<tr><th>Source</th><td><a href="https://github.com/scrambletools/prev">github.com/scrambletools/prev</a></td></tr>
+<tr><th>Network</th><td>None of its own: prev goes online only to fetch a picture dropped onto it as a web address, and to open links you click. No accounts, no telemetry</td></tr>
+<tr><th>Code signing</th><td>Windows and macOS releases are not yet signed; see the <a href="./#code-signing">code signing policy</a></td></tr>
+</tbody></table>
+</main>
+
+<footer>
+  <p>prev is free software under the <a href="https://github.com/scrambletools/prev/blob/main/LICENSE">GNU AGPL-3.0</a>.
+    Made by <a href="https://github.com/scrambletools">Scramble Tools</a>.
+    <a href="./#code-signing">Code signing policy</a> · <a href="./#privacy">Privacy</a></p>
+</footer>
+
+</body>
+</html>
