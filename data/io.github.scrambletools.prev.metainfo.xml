@@ -37,23 +37,23 @@
   <screenshots>
     <screenshot type="default">
       <caption>A form filled in, marked up and signed</caption>
-      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.3.0/docs/screenshots/markup.png</image>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.4.0/docs/screenshots/markup.png</image>
     </screenshot>
     <screenshot>
       <caption>Search with every match highlighted</caption>
-      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.3.0/docs/screenshots/search.png</image>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.4.0/docs/screenshots/search.png</image>
     </screenshot>
     <screenshot>
       <caption>Reordering pages in the thumbnails</caption>
-      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.3.0/docs/screenshots/pages.png</image>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.4.0/docs/screenshots/pages.png</image>
     </screenshot>
     <screenshot>
       <caption>Adjusting the color of a photo</caption>
-      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.3.0/docs/screenshots/image-editing.png</image>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.4.0/docs/screenshots/image-editing.png</image>
     </screenshot>
     <screenshot>
       <caption>Drawing a signature</caption>
-      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.3.0/docs/screenshots/signature-draw.png</image>
+      <image>https://raw.githubusercontent.com/scrambletools/prev/v1.4.0/docs/screenshots/signature-draw.png</image>
     </screenshot>
   </screenshots>
 
@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="1.4.0" date="2026-09-30">
+      <description>
+        <p>Keyboard shortcuts can be changed in the settings file, a Settings button makes prev the default app for its file types, and a selected annotation shows a crisp box with square handles. HEIC and AVIF now open on every Mac, and Windows ships one smaller library for them.</p>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-09-29">
       <description>
         <p>prev now runs on macOS on Apple Silicon, and its interface comes in 21 languages, laid out right to left for Arabic, Hebrew and Persian. Also: an input language setting, prev's version in Settings, and fixes for the floating toolbar and two-page view.</p>

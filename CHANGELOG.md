@@ -3,7 +3,7 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [1.4.0] - 2026-09-30
 
 ### Added
 
@@ -21,6 +21,10 @@ All notable changes to prev. Versions follow
 - A selected annotation shows a thin blue box with square handles,
   the same in every theme.
 - On Windows, HEIC and AVIF come from one smaller `heif.dll`.
+- On macOS, HEIC and AVIF open without Homebrew: prev.app carries a
+  decode-only libheif.
+- The tour of prev shows each system's differences and has an
+  Inspector section, and page reordering is shown as an animation.
 
 ## [1.3.0] - 2026-09-29
 
