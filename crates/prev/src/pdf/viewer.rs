@@ -518,7 +518,9 @@ impl PdfViewer {
         let anchor = self.layout.hit_nearest(self.view.x, self.view.y);
         change(self);
         if let Some((page, point)) = anchor {
-            if self.mode == ViewMode::Continuous {
+            // Continuous and two-page views scroll through every page, so
+            // they keep the point; a single page shows from its top.
+            if self.mode != ViewMode::SinglePage {
                 if let Some((x, y)) = self.layout.to_document(page, point) {
                     self.scroll_to(x, y);
                 }
