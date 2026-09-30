@@ -118,11 +118,16 @@ pub fn window_bars<'a, Message: 'a>(
     content: Element<'a, Message>,
     shown: bool,
 ) -> Element<'a, Message> {
+    // One tree in both modes, the content always the third child of the
+    // first layer, so turning floating on or off, or hiding the bars,
+    // keeps the content's state, such as the scroll position.
+    let space = || -> Element<'a, Message> { iced::widget::space().into() };
     if !floating_bars_enabled() {
-        // The second bar keeps its place when hidden, so the content stays
-        // the third child and keeps its state, such as the scroll position.
-        let bottom = bottom.unwrap_or_else(|| iced::widget::space().into());
-        return column![top, bottom, content].into();
+        return stack![
+            column![top, bottom.unwrap_or_else(space), content],
+            column![space(), space(), space()]
+        ]
+        .into();
     }
     let slide = |bar: Element<'a, Message>, from: f32| -> Element<'a, Message> {
         super::enter::enter(
@@ -131,21 +136,16 @@ pub fn window_bars<'a, Message: 'a>(
         )
         .into()
     };
-    let (top, bottom): (Element<'a, Message>, Element<'a, Message>) = if shown {
+    let (top, bottom) = if shown {
         (
             slide(top, -1.0),
-            match bottom {
-                Some(bottom) => slide(bottom, 1.0),
-                None => iced::widget::space().into(),
-            },
+            bottom.map_or_else(space, |bottom| slide(bottom, 1.0)),
         )
     } else {
-        (iced::widget::space().into(), iced::widget::space().into())
+        (space(), space())
     };
-    // The content stays the first layer, so hiding the bars keeps its
-    // state, such as the scroll position.
     stack![
-        content,
+        column![space(), space(), content],
         column![top, iced::widget::space::vertical(), bottom]
             .width(Fill)
             .height(Fill)
