@@ -82,20 +82,24 @@ mod linux {
 mod other {
     use std::path::PathBuf;
 
-    /// Opens `uri` in the default app, through the URL handler every
-    /// Windows version has.
+    /// Opens `uri` in the default app: through the URL handler every
+    /// Windows version has, or `open` on macOS.
     pub async fn open_uri(uri: String) -> Result<(), String> {
-        std::process::Command::new("rundll32")
-            .args(["url.dll,FileProtocolHandler", &uri])
-            .spawn()
-            .map(|_| ())
-            .map_err(|error| {
-                crate::fl!(
-                    "app-link-open-failed",
-                    uri = uri.as_str(),
-                    error = error.to_string()
-                )
-            })
+        #[cfg(windows)]
+        let mut command = std::process::Command::new("rundll32");
+        #[cfg(windows)]
+        command.args(["url.dll,FileProtocolHandler", &uri]);
+        #[cfg(not(windows))]
+        let mut command = std::process::Command::new("open");
+        #[cfg(not(windows))]
+        command.arg(&uri);
+        command.spawn().map(|_| ()).map_err(|error| {
+            crate::fl!(
+                "app-link-open-failed",
+                uri = uri.as_str(),
+                error = error.to_string()
+            )
+        })
     }
 
     /// Whether Windows animates controls and elements, its "Animation
@@ -115,9 +119,16 @@ mod other {
         (read != 0).then_some(enabled != 0)
     }
 
+    /// Whether macOS animates, the opposite of its Reduce Motion setting.
+    #[cfg(target_os = "macos")]
+    pub async fn animations_enabled() -> Option<bool> {
+        let workspace = objc2_app_kit::NSWorkspace::sharedWorkspace();
+        Some(!workspace.accessibilityDisplayShouldReduceMotion())
+    }
+
     /// Not read from the system here; animations stay on unless the
     /// settings turn them off.
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     pub async fn animations_enabled() -> Option<bool> {
         None
     }
@@ -138,7 +149,20 @@ mod other {
             .unwrap_or_else(|_| Err(crate::fl!("print-stopped")))
     }
 
-    #[cfg(not(windows))]
+    /// Prints through AppKit's print panel, which must run on the main
+    /// thread; this waits for it there.
+    #[cfg(target_os = "macos")]
+    pub async fn print(path: PathBuf, title: String) -> Result<(), String> {
+        let (sender, receiver) = iced::futures::channel::oneshot::channel();
+        crate::print_macos::on_main(move |mtm| {
+            let _ = sender.send(crate::print_macos::print_on_main(mtm, &path, &title));
+        });
+        receiver
+            .await
+            .unwrap_or_else(|_| Err(crate::fl!("print-unavailable")))
+    }
+
+    #[cfg(not(any(windows, target_os = "macos")))]
     pub async fn print(_path: PathBuf, _title: String) -> Result<(), String> {
         Err(crate::fl!("print-unavailable"))
     }

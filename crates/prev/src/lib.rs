@@ -20,6 +20,8 @@ pub mod omarchy;
 pub mod paste;
 pub mod pdf;
 pub mod portal;
+#[cfg(target_os = "macos")]
+mod print_macos;
 #[cfg(windows)]
 mod print_windows;
 pub mod shortcuts;

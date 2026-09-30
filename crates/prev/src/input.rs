@@ -1,7 +1,7 @@
 //! The language the user types in, which sets the side an empty text
 //! field starts on: the keyboard layout in use on Linux, the input
-//! language on Windows. Once a field has text it follows the text's own
-//! direction instead.
+//! language on Windows, the keyboard input source on macOS. Once a field
+//! has text it follows the text's own direction instead.
 
 use std::time::Duration;
 
@@ -61,7 +61,82 @@ pub fn keyboard_right_to_left() -> Option<bool> {
     (written != 0).then_some(reading == 1)
 }
 
-#[cfg(not(any(target_os = "linux", windows)))]
+/// The first language of the keyboard input source in use, from the
+/// Text Input Sources API, which must be asked on the main thread.
+#[cfg(target_os = "macos")]
+#[allow(unsafe_code)]
+pub fn keyboard_right_to_left() -> Option<bool> {
+    use std::ffi::{c_char, c_void};
+
+    #[link(name = "Carbon", kind = "framework")]
+    unsafe extern "C" {
+        fn TISCopyCurrentKeyboardInputSource() -> *const c_void;
+        fn TISGetInputSourceProperty(source: *const c_void, key: *const c_void) -> *const c_void;
+        static kTISPropertyInputSourceLanguages: *const c_void;
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    unsafe extern "C" {
+        fn CFArrayGetCount(array: *const c_void) -> isize;
+        fn CFArrayGetValueAtIndex(array: *const c_void, index: isize) -> *const c_void;
+        fn CFStringGetCString(
+            string: *const c_void,
+            buffer: *mut c_char,
+            size: isize,
+            encoding: u32,
+        ) -> u8;
+        fn CFRelease(object: *const c_void);
+    }
+    unsafe extern "C" {
+        static _dispatch_main_q: c_void;
+        fn dispatch_sync_f(
+            queue: *const c_void,
+            context: *mut c_void,
+            work: extern "C" fn(*mut c_void),
+        );
+    }
+    const UTF8: u32 = 0x0800_0100;
+
+    extern "C" fn first_language(context: *mut c_void) {
+        // SAFETY: `context` is the `Option<String>` below, alive while
+        // `dispatch_sync_f` waits; the source is released after use, and
+        // the property and its strings belong to it.
+        unsafe {
+            let result = &mut *context.cast::<Option<String>>();
+            let source = TISCopyCurrentKeyboardInputSource();
+            if source.is_null() {
+                return;
+            }
+            let languages = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages);
+            if !languages.is_null() && CFArrayGetCount(languages) > 0 {
+                let language = CFArrayGetValueAtIndex(languages, 0);
+                let mut buffer = [0 as c_char; 64];
+                if CFStringGetCString(language, buffer.as_mut_ptr(), buffer.len() as isize, UTF8)
+                    != 0
+                {
+                    *result = Some(
+                        std::ffi::CStr::from_ptr(buffer.as_ptr())
+                            .to_string_lossy()
+                            .into_owned(),
+                    );
+                }
+            }
+            CFRelease(source);
+        }
+    }
+
+    let mut language: Option<String> = None;
+    // SAFETY: the main queue outlives the call, which waits for the work.
+    unsafe {
+        dispatch_sync_f(
+            (&raw const _dispatch_main_q).cast(),
+            (&raw mut language).cast(),
+            first_language,
+        );
+    }
+    language.map(|tag| crate::i18n::is_right_to_left(&tag))
+}
+
+#[cfg(not(any(target_os = "linux", windows, target_os = "macos")))]
 pub fn keyboard_right_to_left() -> Option<bool> {
     None
 }
