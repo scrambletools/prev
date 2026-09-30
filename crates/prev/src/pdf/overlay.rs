@@ -6,7 +6,7 @@ use iced::{Color, Size};
 use prev_pdf::annotation::{Annotation, Kind, LineEnd, Rgb, TextMarkup};
 use prev_pdf::geometry::{Point, Rect};
 
-use super::markup::{self, handle_point, handle_positions};
+use super::markup::{self, handle_positions};
 
 /// Maps page points to frame coordinates.
 pub struct Mapping {
@@ -235,33 +235,67 @@ pub fn area(frame: &mut Frame, area: Rect, mapping: &Mapping, accent: Color) {
     );
 }
 
-/// The selection outline and handles of `annotation`.
-pub fn selection(frame: &mut Frame, annotation: &Annotation, mapping: &Mapping, accent: Color) {
-    let outline = Stroke::default().with_color(accent).with_width(1.5);
-    let handle = |frame: &mut Frame, point: Point| {
-        let center = mapping.point(point);
-        let half = markup::HANDLE_PIXELS / 2.0;
-        let path = Path::circle(center, half);
-        frame.fill(&path, Color::WHITE);
-        frame.stroke(&path, outline);
+/// The selection of `annotation`, the same in every theme: a 1 pixel box
+/// in half-transparent blue and square handles, 7 pixels across, white
+/// with a black border, centred on the box's line.
+/// Everything sits on whole screen pixels, so nothing is blurred by
+/// anti-aliasing. A line annotation has only its two end handles, and one
+/// that cannot be resized only the box. `device_scale` is the window's
+/// pixels per logical pixel.
+pub fn selection(frame: &mut Frame, annotation: &Annotation, mapping: &Mapping, device_scale: f32) {
+    let scale = device_scale.max(0.01);
+    // One logical pixel, as a whole number of screen pixels.
+    let one = scale.round().max(1.0) / scale;
+    let snap = |value: f32| (value * scale).floor() / scale;
+    let handle = |frame: &mut Frame, x: f32, y: f32| {
+        let corner = iced::Point::new(x - 3.0 * one, y - 3.0 * one);
+        frame.fill_rectangle(corner, Size::new(7.0 * one, 7.0 * one), Color::BLACK);
+        frame.fill_rectangle(
+            iced::Point::new(corner.x + one, corner.y + one),
+            Size::new(5.0 * one, 5.0 * one),
+            Color::WHITE,
+        );
     };
     if let Kind::Line { start, end, .. } = annotation.kind {
-        handle(frame, start);
-        handle(frame, end);
+        for point in [start, end] {
+            let point = mapping.point(point);
+            handle(frame, snap(point.x), snap(point.y));
+        }
         return;
     }
-    let pad = 2.0 / mapping.scale.max(0.01);
-    let rect = Rect::new(
-        annotation.rect.x0 - pad,
-        annotation.rect.y0 - pad,
-        annotation.rect.x1 + pad,
-        annotation.rect.y1 + pad,
-    );
-    let (origin, size) = mapping.rect(rect);
-    frame.stroke(&Path::rectangle(origin, size), outline);
+    let (origin, size) = mapping.rect(annotation.rect);
+    let (left, top) = (snap(origin.x), snap(origin.y));
+    let (right, bottom) = (snap(origin.x + size.width), snap(origin.y + size.height));
+    // Top and bottom run the full width; the sides fill in between, so no
+    // pixel of the half-transparent line is painted twice.
+    let width = right - left + one;
+    let side = (bottom - top - one).max(0.0);
+    for (x, y, w, h) in [
+        (left, top, width, one),
+        (left, bottom, width, one),
+        (left, top + one, one, side),
+        (right, top + one, one, side),
+    ] {
+        frame.fill_rectangle(iced::Point::new(x, y), Size::new(w, h), SELECTION_LINE);
+    }
     if markup::resizable(annotation) {
+        let middle_x = snap((left + right) / 2.0);
+        let middle_y = snap((top + bottom) / 2.0);
         for (x, y) in handle_positions() {
-            handle(frame, handle_point(annotation.rect, x, y));
+            let pick = |side: i8, low: f32, middle: f32, high: f32| match side {
+                -1 => low,
+                1 => high,
+                _ => middle,
+            };
+            handle(
+                frame,
+                pick(x, left, middle_x, right),
+                pick(y, top, middle_y, bottom),
+            );
         }
     }
 }
+
+/// The selection line: a blue at half opacity, #9eb3fd over white and
+/// #1f337e over black.
+const SELECTION_LINE: Color = Color::from_rgba(61.0 / 255.0, 103.0 / 255.0, 251.0 / 255.0, 0.5);

@@ -507,7 +507,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 _ => annotation,
             };
             if viewer.edit.text.is_none() {
-                overlay::selection(&mut frame, shown, &mapping, accent);
+                overlay::selection(&mut frame, shown, &mapping, viewer.device_scale);
             }
         }
         if let Some((page, area)) = viewer.edit.area
