@@ -334,8 +334,8 @@ first drafts open to further review; corrections are welcome.
 
 | | | |
 |:-:|:-:|:-:|
-| ![prev in English](docs/screenshots/languages/en.png) English | ![prev in Hebrew, laid out right to left](docs/screenshots/languages/he.png) Hebrew | ![prev in Arabic, laid out right to left](docs/screenshots/languages/ar.png) Arabic |
-| ![prev in Japanese](docs/screenshots/languages/ja.png) Japanese | ![prev in Simplified Chinese](docs/screenshots/languages/zh-CN.png) Chinese | ![prev in Russian](docs/screenshots/languages/ru.png) Russian |
+| ![prev in English](docs/screenshots/languages/en.png) English | ![prev in Simplified Chinese](docs/screenshots/languages/zh-CN.png) Chinese | ![prev in Japanese](docs/screenshots/languages/ja.png) Japanese |
+| ![prev in Arabic, laid out right to left](docs/screenshots/languages/ar.png) Arabic | ![prev in Hebrew, laid out right to left](docs/screenshots/languages/he.png) Hebrew | ![prev in Russian](docs/screenshots/languages/ru.png) Russian |
 
 All of prev's text is in `i18n/<language>/prev.ftl`, one file per
 language; see [docs/TRANSLATING.md](docs/TRANSLATING.md) to add one.
