@@ -28,6 +28,8 @@ settings-appearance = Görünüm
 settings-colors = Renkler
 settings-windows = Pencereler
 settings-storage = Depolama
+settings-version = prev { $version }
+settings-version-development = prev { $version } (geliştirme sürümü)
 
 ## Markup toolbar
 

@@ -28,6 +28,8 @@ settings-appearance = Оформление
 settings-colors = Цвета
 settings-windows = Окна
 settings-storage = Хранение
+settings-version = prev { $version }
+settings-version-development = prev { $version } (сборка для разработки)
 
 ## Markup toolbar
 

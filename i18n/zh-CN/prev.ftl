@@ -28,6 +28,8 @@ settings-appearance = 外观
 settings-colors = 颜色
 settings-windows = 窗口
 settings-storage = 存储位置
+settings-version = prev { $version }
+settings-version-development = prev { $version }（开发版）
 
 ## Markup toolbar
 

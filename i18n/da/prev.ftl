@@ -28,6 +28,8 @@ settings-appearance = Udseende
 settings-colors = Farver
 settings-windows = Vinduer
 settings-storage = Lagring
+settings-version = prev { $version }
+settings-version-development = prev { $version } (udviklingsversion)
 
 ## Markup toolbar
 

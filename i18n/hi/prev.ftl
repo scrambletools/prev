@@ -36,6 +36,8 @@ settings-appearance = दिखावट
 settings-colors = रंग
 settings-windows = विंडो
 settings-storage = स्टोरेज
+settings-version = prev { $version }
+settings-version-development = prev { $version } (डेवलपमेंट बिल्ड)
 
 ## Markup toolbar
 

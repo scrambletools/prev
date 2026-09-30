@@ -37,6 +37,8 @@ settings-appearance = 화면 모드
 settings-colors = 색상
 settings-windows = 창
 settings-storage = 저장 위치
+settings-version = prev { $version }
+settings-version-development = prev { $version } (개발 빌드)
 
 ## Markup toolbar
 

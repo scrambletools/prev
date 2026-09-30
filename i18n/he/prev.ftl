@@ -25,6 +25,8 @@ settings-appearance = מראה
 settings-colors = צבעים
 settings-windows = חלונות
 settings-storage = אחסון
+settings-version = prev { $version }
+settings-version-development = prev { $version } (גרסת פיתוח)
 
 ## Markup toolbar
 

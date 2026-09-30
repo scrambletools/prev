@@ -1634,6 +1634,17 @@ impl Prev {
                 ui::styled(error, Type::BodyMedium).style(style::error_text),
             ));
         }
+        let version = env!("CARGO_PKG_VERSION");
+        let build = if prev_store::paths::PRODUCTION {
+            prev::fl!("settings-version", version = version)
+        } else {
+            prev::fl!("settings-version-development", version = version)
+        };
+        content = content.push(
+            container(ui::styled(build, Type::BodySmall).style(style::on_surface_variant))
+                .padding(iced::Padding::ZERO.top(12))
+                .center_x(Fill),
+        );
         // Scrolls when the window is too short for all of it.
         let card = container(component::scroll(container(content).padding(24)))
             .width(Length::Fixed(520.0))

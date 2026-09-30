@@ -28,6 +28,9 @@ settings-appearance = Appearance
 settings-colors = Colors
 settings-windows = Windows
 settings-storage = Storage
+# The version at the foot of Settings.
+settings-version = prev { $version }
+settings-version-development = prev { $version } (development build)
 
 ## Markup toolbar
 

@@ -28,6 +28,8 @@ settings-appearance = 外観
 settings-colors = カラー
 settings-windows = ウインドウ
 settings-storage = 保存場所
+settings-version = prev { $version }
+settings-version-development = prev { $version }（開発版）
 
 ## Markup toolbar
 

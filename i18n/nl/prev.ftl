@@ -28,6 +28,8 @@ settings-appearance = Weergave
 settings-colors = Kleuren
 settings-windows = Vensters
 settings-storage = Opslag
+settings-version = prev { $version }
+settings-version-development = prev { $version } (ontwikkelversie)
 
 ## Markup toolbar
 
