@@ -19,7 +19,9 @@ per language, in [Project Fluent](https://projectfluent.org)'s format.
    matches the English one.
 
 A language can be translated a part at a time: messages it does not have
-show in English.
+show in English. A regional variant needs only the messages that differ:
+`i18n/en-GB` holds British spellings (colour, dialogue) and takes the rest
+from the US English source.
 
 ## The format
 

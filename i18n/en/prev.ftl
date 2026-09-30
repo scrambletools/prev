@@ -13,7 +13,7 @@
 
 # This language's name in itself, as the Settings language list shows it,
 # such as English, Deutsch or עברית.
-language-name = English
+language-name = English (US)
 
 ## Common
 
@@ -454,7 +454,7 @@ usage-help =
 settings-language = Language
 # The first entry of the language list; $language is the language that
 # following the system gives, named in itself, such as English.
-settings-language-system = System default ({ $language })
+settings-language-system = System default: { $language }
 # The language typed into text fields, which can differ from the
 # interface's.
 settings-input-language = Input language

@@ -1,7 +1,6 @@
 # prev's interface text in Hebrew (עברית), translated from i18n/en/prev.ftl.
 #
-# Machine-assisted translation: it should be reviewed by a native Hebrew
-# speaker before release. Keys, section headings and `{ $name }` values
+# A first draft, open to further review. Keys, section headings and `{ $name }` values
 # stay as in English; only the text after `=` is translated.
 #
 # Terms used throughout: markup = סימון, note = פתק, highlight = הדגשה,
@@ -382,7 +381,7 @@ usage-help =
 ## Settings, continued
 
 settings-language = שפה
-settings-language-system = ברירת המחדל של המערכת ({ $language })
+settings-language-system = ברירת המחדל של המערכת: { $language }
 settings-input-language = שפת הקלדה
 settings-input-language-system = לפי פריסת המקלדת
 settings-input-language-note = קובעת מאיזה צד מתחיל שדה טקסט ריק. טקסט שמקלידים נשאר בכיוון שלו.

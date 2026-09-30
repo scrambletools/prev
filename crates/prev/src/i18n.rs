@@ -337,6 +337,37 @@ mod tests {
         }
     }
 
+    /// Count messages render for every language, and pick the forms their
+    /// plural rules give: in Russian, 1 and 21 differ (a count shown only
+    /// from 2 up) and so do 2 and 5.
+    #[test]
+    fn counts_pick_their_plural_forms() {
+        let render = |language: &str, key: &str, count: i64| {
+            let loader = fluent_language_loader!();
+            let id: LanguageIdentifier = language.parse().unwrap();
+            loader.load_languages(&Localizations, &[id]).unwrap();
+            loader.set_use_isolating(false);
+            let mut args = std::collections::HashMap::new();
+            args.insert("count", count);
+            loader.get_args(key, args)
+        };
+        for language in languages() {
+            for key in ["pages-copy", "pages-copied", "pages-delete", "pdf-page-of"] {
+                for count in [0, 1, 2, 5, 21] {
+                    let text = render(&language, key, count);
+                    assert!(
+                        !text.trim().is_empty() && !text.contains("No localization"),
+                        "{language}: `{key}` with {count} gave {text:?}"
+                    );
+                }
+            }
+        }
+        let russian = |count| render("ru", "pages-copied", count);
+        assert_ne!(russian(1), russian(21));
+        assert_ne!(russian(2), russian(5));
+        assert_eq!(russian(2).replace('2', "3"), russian(3));
+    }
+
     /// Translations may lack keys, which then show in English, but may not
     /// have keys English lacks (renamed or removed ones) or values English
     /// does not provide.
