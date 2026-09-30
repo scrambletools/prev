@@ -253,6 +253,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: macos
+      - uses: actions/cache@v4
+        with:
+          path: target/libheif
+          key: libheif-macos-${{ hashFiles('packaging/macos/build-libheif.sh') }}
+      - name: libheif, decode only
+        run: |
+          command -v ninja >/dev/null || brew install ninja
+          packaging/macos/build-libheif.sh
       - name: App and disk image
         run: packaging/macos/bundle.sh --dmg --out dist
         env:
@@ -262,6 +270,7 @@ jobs:
           version=$(dist/prev.app/Contents/MacOS/prev --version)
           echo "$version"
           [[ $version == prev\ [0-9]* ]]
+          otool -L dist/prev.app/Contents/Frameworks/libheif.1.dylib
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64

@@ -17,9 +17,9 @@ OUTPUT = ROOT / "docs" / "THIRD-PARTY.md"
 # with a license of its own.
 BUNDLED = [
     ("MuPDF", "AGPL-3.0-or-later", "PDF engine, built from source through the mupdf crate", "https://mupdf.com"),
-    ("libheif", "LGPL-3.0-or-later", "HEIC and AVIF decoding; bundled on Windows and in the Flatpak, the system's elsewhere", "https://github.com/strukturag/libheif"),
-    ("libde265", "LGPL-3.0-or-later", "HEVC decoder for libheif; bundled on Windows and in the Flatpak", "https://github.com/strukturag/libde265"),
-    ("libaom", "BSD-2-Clause", "AV1 decoder for libheif; bundled on Windows", "https://aomedia.googlesource.com/aom"),
+    ("libheif", "LGPL-3.0-or-later", "HEIC and AVIF decoding; bundled on Windows, macOS and in the Flatpak, the system's elsewhere", "https://github.com/strukturag/libheif"),
+    ("libde265", "LGPL-3.0-or-later", "HEVC decoder for libheif; bundled on Windows, macOS and in the Flatpak", "https://github.com/strukturag/libde265"),
+    ("libaom", "BSD-2-Clause", "AV1 decoder for libheif; bundled on Windows and macOS", "https://aomedia.googlesource.com/aom"),
     ("wl-clipboard", "GPL-3.0-or-later", "clipboard images on Wayland, run as a separate program; bundled in the Flatpak", "https://github.com/bugaevc/wl-clipboard"),
     ("Roboto Flex", "OFL-1.1", "interface font", "https://github.com/googlefonts/roboto-flex"),
     ("Dancing Script", "OFL-1.1", "font for typed signatures", "https://github.com/googlefonts/DancingScript"),

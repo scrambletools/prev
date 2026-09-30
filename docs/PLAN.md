@@ -27,7 +27,7 @@ Material Design 3.
 | GUI | iced 0.14: wgpu (Vulkan on Linux, DirectX 12 or Vulkan on Windows, Metal on macOS), tiny-skia on the CPU when no GPU backend starts |
 | PDF engine | MuPDF through the `mupdf` crate, behind an engine trait |
 | Images | The `image` crate and format decoders; rawler for camera RAW (LGPL-2.1, pure Rust) |
-| HEIC and AVIF | Open only, through libheif loaded at run time: the system's on Linux, bundled in the Flatpak and on Windows, Homebrew's on macOS (bundled in prev.app when the build machine has it). Never encoded |
+| HEIC and AVIF | Open only, through libheif loaded at run time: the system's on Linux, bundled in the Flatpak, on Windows and on macOS (a decode-only build with libde265 and aom's decoder, built for macOS 11). Never encoded |
 | SVG | resvg |
 | Markdown | iced's Markdown widget (pulldown-cmark), syntect highlighting; view and export as a picture, no editing |
 | Windows | One window per document; images opened together share one window with a thumbnail sidebar; one running instance |

@@ -108,7 +108,7 @@ For a walkthrough of every feature with more screenshots, see
     drop more image files on the window to add them.
   - Zoom, fit, actual size, Ctrl+scroll zoom and drag to pan.
   - HEIC and AVIF open through libheif: the system's on Linux, built in
-    on Windows and in the Flatpak.
+    on Windows, macOS and in the Flatpak.
 - **Image editing:** rotate, flip, crop, resize and Adjust Color (exposure,
   contrast, saturation, temperature, tint, sepia, sharpness and levels),
   with undo.
@@ -248,8 +248,8 @@ Every package has every feature. Some depend on where prev runs:
     in the menu bar.
   - Dropping files on a window opens them; dragging images, text and
     pages in from other apps or out of prev is not there yet.
-  - HEIC and AVIF open when Homebrew's libheif is installed
-    (`brew install libheif`).
+  - HEIC and AVIF work out of the box, as a decode-only libheif comes
+    with prev.
   - Printing uses the system print panel, with pages drawn as prev shows
     them.
 - **Holding Shift** during a drop from another app is seen only under
@@ -295,8 +295,10 @@ makes the MSI and zip with WiX.
 
 On macOS, install the Xcode Command Line Tools (`xcode-select
 --install`), then run the same `cargo build`. `packaging/macos/bundle.sh`
-makes `prev.app` (and with `--dmg` the disk image), copying in
-Homebrew's libheif when it is installed.
+makes `prev.app` (and with `--dmg` the disk image). For HEIC and AVIF,
+`packaging/macos/build-libheif.sh` first builds a decode-only libheif for
+it to include (it needs cmake and ninja); without one, `bundle.sh` copies
+Homebrew's libheif for use on that Mac.
 
 On Linux, prev runs without these, but uses them when they are
 installed:

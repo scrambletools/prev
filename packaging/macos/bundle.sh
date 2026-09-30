@@ -126,22 +126,32 @@ cat > "$app/Contents/Info.plist" <<EOF
 EOF
 plutil -lint "$app/Contents/Info.plist" >/dev/null
 
-# HEIC and AVIF: a libheif copied from Homebrew, when there is one, with
-# the libraries it needs, pointed at the bundle's Frameworks folder.
-for prefix in /opt/homebrew /usr/local; do
-    heif="$prefix/lib/libheif.1.dylib"
-    [ -e "$heif" ] || continue
-    cp -L "$heif" "$app/Contents/Frameworks/"
-    for dependency in $(otool -L "$heif" | awk 'NR > 1 {print $1}' | grep "^$prefix/"); do
-        base=$(basename "$dependency")
-        cp -L "$dependency" "$app/Contents/Frameworks/$base"
-        install_name_tool -change "$dependency" "@loader_path/$base" \
-            "$app/Contents/Frameworks/libheif.1.dylib"
+# HEIC and AVIF: the decode-only libheif build-libheif.sh makes, when it
+# has been built (the release does); else, for a build on this Mac only,
+# Homebrew's, with the libraries it needs.
+licenses="$app/Contents/Resources/licenses"
+if [ -e "$root/target/libheif/lib/libheif.1.dylib" ]; then
+    cp "$root/target/libheif/lib/libheif.1.dylib" "$app/Contents/Frameworks/"
+    mkdir -p "$licenses"
+    cp "$root"/target/libheif/{COPYING-*,LICENSE-*,PATENTS-*} "$licenses/"
+else
+    for prefix in /opt/homebrew /usr/local; do
+        heif="$prefix/lib/libheif.1.dylib"
+        [ -e "$heif" ] || continue
+        cp -L "$heif" "$app/Contents/Frameworks/"
+        for dependency in $(otool -L "$heif" | awk 'NR > 1 {print $1}' | grep "^$prefix/"); do
+            base=$(basename "$dependency")
+            cp -L "$dependency" "$app/Contents/Frameworks/$base"
+            install_name_tool -change "$dependency" "@loader_path/$base" \
+                "$app/Contents/Frameworks/libheif.1.dylib"
+        done
+        break
     done
+fi
+if [ -e "$app/Contents/Frameworks/libheif.1.dylib" ]; then
     install_name_tool -id @executable_path/../Frameworks/libheif.1.dylib \
         "$app/Contents/Frameworks/libheif.1.dylib"
-    break
-done
+fi
 
 codesign --force --deep --sign - "$app"
 echo "$app"
