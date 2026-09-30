@@ -262,6 +262,7 @@ pdf-no-outline-detail = Questo documento non ha un indice.
 pdf-no-bookmarks = Nessun segnalibro
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Premi { $keys } per aggiungere un segnalibro a una pagina.
+pdf-no-bookmarks-detail-unbound = Le pagine con segnalibro compaiono qui.
 pdf-remove-bookmark = Rimuovi segnalibro
 
 ## Page editing
@@ -554,6 +555,7 @@ image-crop-needs-selection = Prima trascina una selezione (strumento Seleziona),
 image-size-needed = Inserisci larghezza e altezza in pixel.
 # $name is a file name.
 image-cannot-save-format = Le modifiche a “{ $name }” non si possono salvare nel suo formato. Usa Esporta ({ $keys }).
+image-cannot-save-format-unbound = Le modifiche a “{ $name }” non si possono salvare nel suo formato. Usa Esporta.
 image-cannot-export-animation = Le animazioni non si possono ancora esportare.
 image-drop-pages = Le pagine si possono rilasciare su un documento.
 image-drag-failed = Impossibile iniziare il trascinamento.

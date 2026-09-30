@@ -48,6 +48,12 @@ pub struct Settings {
     /// File of page bookmarks.
     #[serde(with = "home_path")]
     pub bookmarks: PathBuf,
+    /// Keyboard shortcuts replacing the defaults: an action's name, such
+    /// as `export`, set to a shortcut such as "Ctrl+E", a list of them, or
+    /// an empty list for none; and the same in `linux`, `windows` and
+    /// `macos` tables, which apply only on that system. prev reads it; the
+    /// Settings dialog does not show it.
+    pub keys: toml::Table,
 }
 
 impl Default for Settings {
@@ -69,6 +75,7 @@ impl Default for Settings {
             signatures: locations.signatures,
             versions: locations.versions,
             bookmarks: locations.bookmarks,
+            keys: toml::Table::new(),
         }
     }
 }
@@ -231,6 +238,24 @@ mod tests {
         assert!(text.contains("versions = "), "{text}");
         assert!(text.contains("bookmarks = "), "{text}");
         assert_eq!(Settings::load_from(&path).unwrap(), settings);
+    }
+
+    #[test]
+    fn keys_are_kept_when_saving() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("prev.toml");
+        std::fs::write(
+            &path,
+            "animations = false\n\n[keys]\nexport = \"Ctrl+E\"\nfind-next = [\"Ctrl+G\", \"F3\"]\n\n[keys.macos]\nexport = \"Cmd+Shift+E\"\n",
+        )
+        .unwrap();
+        let settings = Settings::load_or_create(&path, None).unwrap();
+        assert_eq!(settings.keys["export"].as_str(), Some("Ctrl+E"));
+        assert!(!settings.animations);
+        settings.save_to(&path).unwrap();
+        let again = Settings::load_from(&path).unwrap();
+        assert_eq!(again.keys, settings.keys);
+        assert_eq!(again.keys["macos"]["export"].as_str(), Some("Cmd+Shift+E"));
     }
 
     #[test]

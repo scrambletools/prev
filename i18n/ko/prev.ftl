@@ -268,6 +268,7 @@ pdf-no-outline-detail = 이 문서에는 개요가 없습니다.
 pdf-no-bookmarks = 책갈피 없음
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = 페이지에 책갈피를 추가하려면 { $keys }을(를) 누르세요.
+pdf-no-bookmarks-detail-unbound = 책갈피를 추가한 페이지가 여기에 표시됩니다.
 pdf-remove-bookmark = 책갈피 제거
 
 ## Page editing
@@ -549,6 +550,7 @@ image-crop-needs-selection = 먼저 선택 도구로 영역을 드래그한 다�
 image-size-needed = 너비와 높이를 픽셀 단위로 입력하세요.
 # $name is a file name.
 image-cannot-save-format = “{ $name }”의 변경 사항을 해당 포맷으로 저장할 수 없습니다. 내보내기({ $keys })를 사용하세요.
+image-cannot-save-format-unbound = “{ $name }”의 변경 사항을 해당 포맷으로 저장할 수 없습니다. 내보내기를 사용하세요.
 image-cannot-export-animation = 애니메이션은 아직 내보낼 수 없습니다.
 image-drop-pages = 페이지는 문서에만 놓을 수 있습니다.
 image-drag-failed = 드래그를 시작할 수 없습니다.

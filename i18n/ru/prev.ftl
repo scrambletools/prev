@@ -264,6 +264,7 @@ pdf-no-outline-detail = В этом документе нет оглавлени
 pdf-no-bookmarks = Нет закладок
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Нажмите { $keys }, чтобы добавить закладку.
+pdf-no-bookmarks-detail-unbound = Здесь появятся страницы с закладками.
 pdf-remove-bookmark = Удалить закладку
 
 ## Page editing
@@ -580,6 +581,7 @@ image-crop-needs-selection = Сначала выделите область (и�
 image-size-needed = Введите ширину и высоту в пикселях.
 # $name is a file name.
 image-cannot-save-format = Изменения в файле «{ $name }» нельзя сохранить в его формате. Используйте экспорт ({ $keys }).
+image-cannot-save-format-unbound = Изменения в файле «{ $name }» нельзя сохранить в его формате. Используйте экспорт.
 image-cannot-export-animation = Анимации пока нельзя экспортировать.
 image-drop-pages = Страницы можно перетащить в документ.
 image-drag-failed = Не удалось начать перетаскивание.

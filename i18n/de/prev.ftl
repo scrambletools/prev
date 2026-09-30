@@ -262,6 +262,7 @@ pdf-no-outline-detail = Dieses Dokument hat keine Gliederung.
 pdf-no-bookmarks = Keine Lesezeichen
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Drücken Sie { $keys }, um ein Lesezeichen für eine Seite zu setzen.
+pdf-no-bookmarks-detail-unbound = Seiten mit Lesezeichen erscheinen hier.
 pdf-remove-bookmark = Lesezeichen entfernen
 
 ## Page editing
@@ -554,6 +555,7 @@ image-crop-needs-selection = Ziehen Sie zuerst eine Auswahl auf (Werkzeug „Aus
 image-size-needed = Geben Sie Breite und Höhe in Pixeln ein.
 # $name is a file name.
 image-cannot-save-format = Änderungen an „{ $name }“ können in diesem Format nicht gespeichert werden. Verwenden Sie „Exportieren“ ({ $keys }).
+image-cannot-save-format-unbound = Änderungen an „{ $name }“ können in diesem Format nicht gespeichert werden. Verwenden Sie „Exportieren“.
 image-cannot-export-animation = Animationen können noch nicht exportiert werden.
 image-drop-pages = Seiten können auf einem Dokument abgelegt werden.
 image-drag-failed = Das Ziehen konnte nicht gestartet werden.

@@ -270,6 +270,7 @@ pdf-no-outline-detail = इस दस्तावेज़ में कोई �
 pdf-no-bookmarks = कोई बुकमार्क नहीं
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = किसी पृष्ठ को बुकमार्क करने के लिए { $keys } दबाएँ।
+pdf-no-bookmarks-detail-unbound = बुकमार्क किए गए पृष्ठ यहाँ दिखते हैं।
 pdf-remove-bookmark = बुकमार्क निकालें
 
 ## Page editing
@@ -562,6 +563,7 @@ image-crop-needs-selection = पहले एक चयन ड्रैग क�
 image-size-needed = पिक्सेल में चौड़ाई और ऊँचाई दर्ज करें।
 # $name is a file name.
 image-cannot-save-format = “{ $name }” में किए गए बदलाव उसके फ़ॉर्मेट में सहेजे नहीं जा सकते। एक्सपोर्ट ({ $keys }) का उपयोग करें।
+image-cannot-save-format-unbound = “{ $name }” में किए गए बदलाव उसके फ़ॉर्मेट में सहेजे नहीं जा सकते। एक्सपोर्ट का उपयोग करें।
 image-cannot-export-animation = एनिमेशन अभी एक्सपोर्ट नहीं किए जा सकते।
 image-drop-pages = पृष्ठ केवल किसी दस्तावेज़ पर छोड़े जा सकते हैं।
 image-drag-failed = ड्रैग करना शुरू नहीं किया जा सका।

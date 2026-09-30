@@ -6,15 +6,17 @@
 //! sees it. Cut, Copy, Paste and Select All are therefore the system's
 //! own items, which only take their keys when something answers
 //! `copy:` and the like; prev's window does not, so the keys reach its
-//! text fields, pages and images as before.
+//! text fields, pages and images as before. Items show the shortcuts in
+//! effect, the settings' `[keys]` included.
 
 use std::cell::RefCell;
 use std::sync::Mutex;
 
+use iced::keyboard::key::Named;
 use muda::accelerator::{Accelerator, Code, Modifiers};
-use muda::{AboutMetadata, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
+use muda::{AboutMetadata, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 
-use crate::shortcuts::Action;
+use crate::shortcuts::{self, Action};
 
 thread_local! {
     /// The menu bar in use; AppKit only borrows it.
@@ -30,8 +32,8 @@ pub fn set_handler(handler: impl Fn(Action) + Send + 'static) {
     MenuEvent::set_event_handler(Some(|event: MenuEvent| {
         let Some(action) = ACTIONS
             .iter()
-            .find(|(id, ..)| *id == event.id.as_ref())
-            .map(|(_, action, ..)| *action)
+            .find(|(id, _)| *id == event.id.as_ref())
+            .map(|(_, action)| *action)
         else {
             return;
         };
@@ -41,120 +43,194 @@ pub fn set_handler(handler: impl Fn(Action) + Send + 'static) {
     }));
 }
 
-const CMD: Modifiers = Modifiers::META;
-
-/// Menu item id, action, key.
-const ACTIONS: &[(&str, Action, Modifiers, Code)] = &[
-    ("settings", Action::Settings, CMD, Code::Comma),
-    ("quit", Action::Quit, CMD, Code::KeyQ),
-    ("open", Action::Open, CMD, Code::KeyO),
-    ("close", Action::CloseWindow, CMD, Code::KeyW),
-    (
-        "export",
-        Action::Export,
-        CMD.union(Modifiers::SHIFT),
-        Code::KeyS,
-    ),
-    ("print", Action::Print, CMD, Code::KeyP),
-    ("undo", Action::Undo, CMD, Code::KeyZ),
-    (
-        "redo",
-        Action::Redo,
-        CMD.union(Modifiers::SHIFT),
-        Code::KeyZ,
-    ),
-    ("find", Action::Find, CMD, Code::KeyF),
-    ("find-next", Action::FindNext, CMD, Code::KeyG),
-    (
-        "find-previous",
-        Action::FindPrevious,
-        CMD.union(Modifiers::SHIFT),
-        Code::KeyG,
-    ),
-    (
-        "hide-sidebar",
-        Action::HideSidebar,
-        CMD.union(Modifiers::ALT),
-        Code::Digit1,
-    ),
-    (
-        "thumbnails",
-        Action::Thumbnails,
-        CMD.union(Modifiers::ALT),
-        Code::Digit2,
-    ),
-    (
-        "contents",
-        Action::Contents,
-        CMD.union(Modifiers::ALT),
-        Code::Digit3,
-    ),
-    (
-        "notes",
-        Action::NotesSidebar,
-        CMD.union(Modifiers::ALT),
-        Code::Digit4,
-    ),
-    (
-        "bookmarks",
-        Action::BookmarksSidebar,
-        CMD.union(Modifiers::ALT),
-        Code::Digit5,
-    ),
-    ("zoom-in", Action::ZoomIn, CMD, Code::Equal),
-    ("zoom-out", Action::ZoomOut, CMD, Code::Minus),
-    ("actual-size", Action::ActualSize, CMD, Code::Digit0),
-    ("zoom-to-fit", Action::ZoomToFit, CMD, Code::Digit9),
-    ("inspector", Action::Inspector, CMD, Code::KeyI),
-    (
-        "slideshow",
-        Action::Slideshow,
-        CMD.union(Modifiers::SHIFT),
-        Code::KeyF,
-    ),
-    (
-        "next-page",
-        Action::NextPage,
-        Modifiers::ALT,
-        Code::ArrowDown,
-    ),
-    (
-        "previous-page",
-        Action::PreviousPage,
-        Modifiers::ALT,
-        Code::ArrowUp,
-    ),
-    (
-        "go-to-page",
-        Action::GoToPage,
-        CMD.union(Modifiers::ALT),
-        Code::KeyG,
-    ),
-    ("bookmark", Action::ToggleBookmark, CMD, Code::KeyD),
-    (
-        "markup",
-        Action::ShowMarkup,
-        CMD.union(Modifiers::SHIFT),
-        Code::KeyA,
-    ),
-    ("rotate-left", Action::RotateLeft, CMD, Code::KeyL),
-    ("rotate-right", Action::RotateRight, CMD, Code::KeyR),
-    ("crop", Action::Crop, CMD, Code::KeyK),
-    (
-        "adjust-color",
-        Action::AdjustColor,
-        CMD.union(Modifiers::SHIFT),
-        Code::KeyC,
-    ),
+/// Menu item id and action. Each item shows the action's shortcut in
+/// effect, from the settings' `[keys]` or the defaults.
+const ACTIONS: &[(&str, Action)] = &[
+    ("settings", Action::Settings),
+    ("quit", Action::Quit),
+    ("open", Action::Open),
+    ("close", Action::CloseWindow),
+    ("export", Action::Export),
+    ("print", Action::Print),
+    ("undo", Action::Undo),
+    ("redo", Action::Redo),
+    ("copy", Action::Copy),
+    ("paste", Action::Paste),
+    ("select-all", Action::SelectAll),
+    ("find", Action::Find),
+    ("find-next", Action::FindNext),
+    ("find-previous", Action::FindPrevious),
+    ("hide-sidebar", Action::HideSidebar),
+    ("thumbnails", Action::Thumbnails),
+    ("contents", Action::Contents),
+    ("notes", Action::NotesSidebar),
+    ("bookmarks", Action::BookmarksSidebar),
+    ("zoom-in", Action::ZoomIn),
+    ("zoom-out", Action::ZoomOut),
+    ("actual-size", Action::ActualSize),
+    ("zoom-to-fit", Action::ZoomToFit),
+    ("inspector", Action::Inspector),
+    ("slideshow", Action::Slideshow),
+    ("next-page", Action::NextPage),
+    ("previous-page", Action::PreviousPage),
+    ("go-to-page", Action::GoToPage),
+    ("bookmark", Action::ToggleBookmark),
+    ("markup", Action::ShowMarkup),
+    ("rotate-left", Action::RotateLeft),
+    ("rotate-right", Action::RotateRight),
+    ("crop", Action::Crop),
+    ("adjust-color", Action::AdjustColor),
 ];
 
-/// The item for action `id`, with its label and key.
+/// The key equivalent for `action`'s shortcut, when it has one a menu can
+/// show.
+fn accelerator(action: Action) -> Option<Accelerator> {
+    let binding = shortcuts::binding(action)?;
+    let mut modifiers = Modifiers::empty();
+    if binding.command() {
+        modifiers |= Modifiers::META;
+    }
+    if binding.shift() {
+        modifiers |= Modifiers::SHIFT;
+    }
+    if binding.alt() {
+        modifiers |= Modifiers::ALT;
+    }
+    let code = match (binding.character(), binding.named()) {
+        (Some(character), _) => character_code(character)?,
+        (None, Some(named)) => named_code(named)?,
+        (None, None) => return None,
+    };
+    Some(Accelerator::new(modifiers, code))
+}
+
+fn character_code(character: &str) -> Option<Code> {
+    let mut chars = character.chars();
+    let (Some(character), None) = (chars.next(), chars.next()) else {
+        return None;
+    };
+    const LETTERS: [Code; 26] = [
+        Code::KeyA,
+        Code::KeyB,
+        Code::KeyC,
+        Code::KeyD,
+        Code::KeyE,
+        Code::KeyF,
+        Code::KeyG,
+        Code::KeyH,
+        Code::KeyI,
+        Code::KeyJ,
+        Code::KeyK,
+        Code::KeyL,
+        Code::KeyM,
+        Code::KeyN,
+        Code::KeyO,
+        Code::KeyP,
+        Code::KeyQ,
+        Code::KeyR,
+        Code::KeyS,
+        Code::KeyT,
+        Code::KeyU,
+        Code::KeyV,
+        Code::KeyW,
+        Code::KeyX,
+        Code::KeyY,
+        Code::KeyZ,
+    ];
+    const DIGITS: [Code; 10] = [
+        Code::Digit0,
+        Code::Digit1,
+        Code::Digit2,
+        Code::Digit3,
+        Code::Digit4,
+        Code::Digit5,
+        Code::Digit6,
+        Code::Digit7,
+        Code::Digit8,
+        Code::Digit9,
+    ];
+    Some(match character {
+        'a'..='z' => LETTERS[(character as u8 - b'a') as usize],
+        '0'..='9' => DIGITS[(character as u8 - b'0') as usize],
+        ',' => Code::Comma,
+        '.' => Code::Period,
+        '-' => Code::Minus,
+        '=' => Code::Equal,
+        '/' => Code::Slash,
+        ';' => Code::Semicolon,
+        '\'' => Code::Quote,
+        '[' => Code::BracketLeft,
+        ']' => Code::BracketRight,
+        '\\' => Code::Backslash,
+        '`' => Code::Backquote,
+        ' ' => Code::Space,
+        _ => return None,
+    })
+}
+
+fn named_code(named: Named) -> Option<Code> {
+    Some(match named {
+        Named::ArrowUp => Code::ArrowUp,
+        Named::ArrowDown => Code::ArrowDown,
+        Named::ArrowLeft => Code::ArrowLeft,
+        Named::ArrowRight => Code::ArrowRight,
+        Named::Home => Code::Home,
+        Named::End => Code::End,
+        Named::PageUp => Code::PageUp,
+        Named::PageDown => Code::PageDown,
+        Named::Enter => Code::Enter,
+        Named::Tab => Code::Tab,
+        Named::Space => Code::Space,
+        Named::Escape => Code::Escape,
+        Named::Backspace => Code::Backspace,
+        Named::Delete => Code::Delete,
+        Named::Insert => Code::Insert,
+        Named::F1 => Code::F1,
+        Named::F2 => Code::F2,
+        Named::F3 => Code::F3,
+        Named::F4 => Code::F4,
+        Named::F5 => Code::F5,
+        Named::F6 => Code::F6,
+        Named::F7 => Code::F7,
+        Named::F8 => Code::F8,
+        Named::F9 => Code::F9,
+        Named::F10 => Code::F10,
+        Named::F11 => Code::F11,
+        Named::F12 => Code::F12,
+        _ => return None,
+    })
+}
+
+/// The item for action `id`, with its label and shortcut.
 fn item(id: &str, label: String) -> MenuItem {
     let key = ACTIONS
         .iter()
-        .find(|(candidate, ..)| *candidate == id)
-        .map(|(_, _, modifiers, code)| Accelerator::new(*modifiers, *code));
+        .find(|(candidate, _)| *candidate == id)
+        .and_then(|(_, action)| accelerator(*action));
     MenuItem::with_id(id, label, true, key)
+}
+
+/// Copy, Paste and Select All: the system's own items while they keep
+/// their standard shortcuts, so text fields still get those keys; prev's,
+/// with the shortcut the settings give, when that changed.
+fn standard(
+    id: &str,
+    label: String,
+    system: fn(Option<&str>) -> PredefinedMenuItem,
+    standard: Code,
+) -> Box<dyn IsMenuItem> {
+    let action = ACTIONS
+        .iter()
+        .find(|(candidate, _)| *candidate == id)
+        .map(|(_, action)| *action);
+    let unchanged = action
+        .and_then(accelerator)
+        .is_some_and(|key| key == Accelerator::new(Modifiers::META, standard));
+    if unchanged {
+        Box::new(system(Some(&label)))
+    } else {
+        Box::new(item(id, label))
+    }
 }
 
 /// Builds the menu bar in the interface's language and puts it up.
@@ -208,6 +284,24 @@ fn build() -> muda::Result<Menu> {
             &item("print", fl!("menu-print")),
         ],
     )?;
+    let copy = standard(
+        "copy",
+        fl!("menu-copy"),
+        PredefinedMenuItem::copy,
+        Code::KeyC,
+    );
+    let paste = standard(
+        "paste",
+        fl!("menu-paste"),
+        PredefinedMenuItem::paste,
+        Code::KeyV,
+    );
+    let select_all = standard(
+        "select-all",
+        fl!("menu-select-all"),
+        PredefinedMenuItem::select_all,
+        Code::KeyA,
+    );
     let edit = Submenu::with_items(
         fl!("menu-edit"),
         true,
@@ -216,9 +310,9 @@ fn build() -> muda::Result<Menu> {
             &item("redo", fl!("menu-redo")),
             &separator(),
             &PredefinedMenuItem::cut(Some(&fl!("menu-cut"))),
-            &PredefinedMenuItem::copy(Some(&fl!("menu-copy"))),
-            &PredefinedMenuItem::paste(Some(&fl!("menu-paste"))),
-            &PredefinedMenuItem::select_all(Some(&fl!("menu-select-all"))),
+            copy.as_ref(),
+            paste.as_ref(),
+            select_all.as_ref(),
             &separator(),
             &item("find", fl!("menu-find")),
             &item("find-next", fl!("menu-find-next")),

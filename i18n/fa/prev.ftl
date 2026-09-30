@@ -262,6 +262,7 @@ pdf-no-outline-detail = این سند طرح کلی ندارد.
 pdf-no-bookmarks = نشانکی وجود ندارد
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = برای نشانک‌گذاری یک صفحه، { $keys } را فشار دهید.
+pdf-no-bookmarks-detail-unbound = صفحه‌های نشانک‌شده اینجا نشان داده می‌شوند.
 pdf-remove-bookmark = حذف نشانک
 
 ## Page editing
@@ -554,6 +555,7 @@ image-crop-needs-selection = ابتدا با کشیدن، ناحیه‌ای را
 image-size-needed = عرض و ارتفاع را به پیکسل وارد کنید.
 # $name is a file name.
 image-cannot-save-format = تغییرات «{ $name }» را نمی‌توان در قالب خودش ذخیره کرد. از صادر کردن ({ $keys }) استفاده کنید.
+image-cannot-save-format-unbound = تغییرات «{ $name }» را نمی‌توان در قالب خودش ذخیره کرد. از صادر کردن استفاده کنید.
 image-cannot-export-animation = پویانمایی‌ها هنوز صادر نمی‌شوند.
 image-drop-pages = صفحه‌ها را می‌توان روی یک سند رها کرد.
 image-drag-failed = شروع کشیدن ممکن نشد.

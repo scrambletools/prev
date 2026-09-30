@@ -262,6 +262,7 @@ pdf-no-outline-detail = Dette dokument har ingen disposition.
 pdf-no-bookmarks = Ingen bogmærker
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Tryk på { $keys } for at sætte et bogmærke på en side.
+pdf-no-bookmarks-detail-unbound = Sider med bogmærker vises her.
 pdf-remove-bookmark = Fjern bogmærke
 
 ## Page editing
@@ -554,6 +555,7 @@ image-crop-needs-selection = Træk først en markering (værktøjet Vælg), og b
 image-size-needed = Angiv en bredde og højde i pixels.
 # $name is a file name.
 image-cannot-save-format = Ændringer i “{ $name }” kan ikke gemmes i filens format. Brug Eksporter ({ $keys }).
+image-cannot-save-format-unbound = Ændringer i “{ $name }” kan ikke gemmes i filens format. Brug Eksporter.
 image-cannot-export-animation = Animationer kan endnu ikke eksporteres.
 image-drop-pages = Sider kan slippes på et dokument.
 image-drag-failed = Trækningen kunne ikke startes.

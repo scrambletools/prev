@@ -262,6 +262,7 @@ pdf-no-outline-detail = Ce document n’a pas de table des matières.
 pdf-no-bookmarks = Aucun signet
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Appuyez sur { $keys } pour ajouter un signet à une page.
+pdf-no-bookmarks-detail-unbound = Les pages avec un signet s’affichent ici.
 pdf-remove-bookmark = Supprimer le signet
 
 ## Page editing
@@ -557,6 +558,7 @@ image-crop-needs-selection = Faites d’abord glisser une sélection (outil Sél
 image-size-needed = Saisissez une largeur et une hauteur en pixels.
 # $name is a file name.
 image-cannot-save-format = Les modifications de « { $name } » ne peuvent pas être enregistrées dans ce format. Utilisez Exporter ({ $keys }).
+image-cannot-save-format-unbound = Les modifications de « { $name } » ne peuvent pas être enregistrées dans ce format. Utilisez Exporter.
 image-cannot-export-animation = Les animations ne peuvent pas encore être exportées.
 image-drop-pages = Les pages peuvent être déposées sur un document.
 image-drag-failed = Impossible de commencer le glisser-déposer.

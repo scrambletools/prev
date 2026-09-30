@@ -263,6 +263,8 @@ pdf-no-outline-detail = This document has no outline.
 pdf-no-bookmarks = No bookmarks
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Press { $keys } to bookmark a page.
+# When no shortcut is set for bookmarking.
+pdf-no-bookmarks-detail-unbound = Bookmarked pages show here.
 pdf-remove-bookmark = Remove bookmark
 
 ## Page editing
@@ -555,6 +557,8 @@ image-crop-needs-selection = Drag a selection first (Select tool), then crop.
 image-size-needed = Enter a width and height in pixels.
 # $name is a file name.
 image-cannot-save-format = Changes to “{ $name }” can't be saved in its format. Use Export ({ $keys }).
+# When no shortcut is set for Export.
+image-cannot-save-format-unbound = Changes to “{ $name }” can't be saved in its format. Use Export.
 image-cannot-export-animation = Animations can't be exported yet.
 image-drop-pages = Pages can be dropped on a document.
 image-drag-failed = Could not start dragging.

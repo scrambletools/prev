@@ -259,6 +259,7 @@ pdf-no-outline-detail = 此文件沒有大綱。
 pdf-no-bookmarks = 沒有書籤
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = 按下 { $keys } 即可將頁面加入書籤。
+pdf-no-bookmarks-detail-unbound = 加入書籤的頁面會顯示在這裡。
 pdf-remove-bookmark = 移除書籤
 
 ## Page editing
@@ -530,6 +531,7 @@ image-crop-needs-selection = 請先拖出一個選取範圍（選取工具），
 image-size-needed = 請輸入以像素為單位的寬度和高度。
 # $name is a file name.
 image-cannot-save-format = 對「{ $name }」的更改無法以其格式儲存。請使用輸出（{ $keys }）。
+image-cannot-save-format-unbound = 對「{ $name }」的更改無法以其格式儲存。請使用輸出。
 image-cannot-export-animation = 目前尚無法輸出動畫。
 image-drop-pages = 頁面可以拖放到文件上。
 image-drag-failed = 無法開始拖移。

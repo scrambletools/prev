@@ -262,6 +262,7 @@ pdf-no-outline-detail = Este documento no tiene índice.
 pdf-no-bookmarks = Sin marcadores
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Pulsa { $keys } para añadir un marcador a una página.
+pdf-no-bookmarks-detail-unbound = Las páginas con marcador aparecen aquí.
 pdf-remove-bookmark = Eliminar marcador
 
 ## Page editing
@@ -554,6 +555,7 @@ image-crop-needs-selection = Primero arrastra una selección (herramienta Selecc
 image-size-needed = Introduce un ancho y un alto en píxeles.
 # $name is a file name.
 image-cannot-save-format = Los cambios en “{ $name }” no se pueden guardar en su formato. Usa Exportar ({ $keys }).
+image-cannot-save-format-unbound = Los cambios en “{ $name }” no se pueden guardar en su formato. Usa Exportar.
 image-cannot-export-animation = Las animaciones aún no se pueden exportar.
 image-drop-pages = Las páginas se pueden soltar en un documento.
 image-drag-failed = No se ha podido empezar a arrastrar.

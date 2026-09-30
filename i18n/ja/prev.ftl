@@ -259,6 +259,7 @@ pdf-no-outline-detail = この書類にはアウトラインがありません�
 pdf-no-bookmarks = ブックマークはありません
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = { $keys }を押すとページをブックマークできます。
+pdf-no-bookmarks-detail-unbound = ブックマークしたページはここに表示されます。
 pdf-remove-bookmark = ブックマークを削除
 
 ## Page editing
@@ -530,6 +531,7 @@ image-crop-needs-selection = 先に（選択ツールで）選択範囲をドラ
 image-size-needed = 幅と高さをピクセルで入力してください。
 # $name is a file name.
 image-cannot-save-format = 「{ $name }」への変更はこのフォーマットでは保存できません。書き出し（{ $keys }）を使用してください。
+image-cannot-save-format-unbound = 「{ $name }」への変更はこのフォーマットでは保存できません。書き出しを使用してください。
 image-cannot-export-animation = アニメーションはまだ書き出せません。
 image-drop-pages = ページは書類にドロップできます。
 image-drag-failed = ドラッグを開始できませんでした。

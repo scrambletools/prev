@@ -262,6 +262,7 @@ pdf-no-outline-detail = Bu belgenin içindekiler tablosu yok.
 pdf-no-bookmarks = Yer işareti yok
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Bir sayfaya yer işareti eklemek için { $keys } tuşlarına basın.
+pdf-no-bookmarks-detail-unbound = Yer işareti eklenen sayfalar burada görünür.
 pdf-remove-bookmark = Yer işaretini kaldır
 
 ## Page editing
@@ -554,6 +555,7 @@ image-crop-needs-selection = Önce bir seçim sürükleyin (Seç aracı), sonra 
 image-size-needed = Piksel cinsinden bir genişlik ve yükseklik girin.
 # $name is a file name.
 image-cannot-save-format = “{ $name }” dosyasındaki değişiklikler kendi biçiminde kaydedilemez. Dışa Aktar'ı kullanın ({ $keys }).
+image-cannot-save-format-unbound = “{ $name }” dosyasındaki değişiklikler kendi biçiminde kaydedilemez. Dışa Aktar'ı kullanın.
 image-cannot-export-animation = Animasyonlar henüz dışa aktarılamıyor.
 image-drop-pages = Sayfalar bir belgenin üzerine bırakılabilir.
 image-drag-failed = Sürükleme başlatılamadı.

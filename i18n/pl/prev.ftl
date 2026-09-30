@@ -264,6 +264,7 @@ pdf-no-outline-detail = Ten dokument nie ma spisu treści.
 pdf-no-bookmarks = Brak zakładek
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Naciśnij { $keys }, aby dodać zakładkę do strony.
+pdf-no-bookmarks-detail-unbound = Tutaj pojawiają się strony z zakładkami.
 pdf-remove-bookmark = Usuń zakładkę
 
 ## Page editing
@@ -575,6 +576,7 @@ image-crop-needs-selection = Najpierw przeciągnij zaznaczenie (narzędzie Zazna
 image-size-needed = Wprowadź szerokość i wysokość w pikselach.
 # $name is a file name.
 image-cannot-save-format = Zmian w pliku „{ $name }” nie można zapisać w jego formacie. Użyj eksportu ({ $keys }).
+image-cannot-save-format-unbound = Zmian w pliku „{ $name }” nie można zapisać w jego formacie. Użyj eksportu.
 image-cannot-export-animation = Animacji nie można jeszcze eksportować.
 image-drop-pages = Strony można upuścić na dokument.
 image-drag-failed = Nie można rozpocząć przeciągania.

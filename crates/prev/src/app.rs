@@ -271,6 +271,13 @@ impl Prev {
             ),
             None => (Settings::default(), None),
         };
+        // Shortcuts the settings change, before the menu bar shows them.
+        let key_problems = shortcuts::configure(&settings.keys);
+        for problem in &key_problems {
+            eprintln!("prev: {problem}");
+        }
+        let settings_error =
+            settings_error.or_else(|| (!key_problems.is_empty()).then(|| key_problems.join("\n")));
         // Signatures, versions and bookmarks live where the settings say.
         prev_store::paths::set_locations(settings.locations());
         prev::i18n::set_language(settings.chosen_language());
@@ -1731,13 +1738,13 @@ fn theme_choice(
 }
 
 fn start_view(id: window::Id) -> Element<'static, Message> {
-    let hints = shortcuts::LABELS
-        .iter()
-        .filter(|(action, _)| matches!(action, Action::Open | Action::Settings))
+    let hints = [Action::Open, Action::Settings]
+        .into_iter()
+        .filter_map(|action| Some((action, shortcuts::label(action)?)))
         .map(|(action, label)| {
             row![
-                ui::styled(action_name(*action), Type::BodyMedium).style(style::on_surface_variant),
-                ui::styled(shortcuts::platform_label(label), Type::LabelLarge),
+                ui::styled(action_name(action), Type::BodyMedium).style(style::on_surface_variant),
+                ui::styled(label, Type::LabelLarge),
             ]
             .spacing(8)
             .into()

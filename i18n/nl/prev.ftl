@@ -262,6 +262,7 @@ pdf-no-outline-detail = Dit document heeft geen inhoudsopgave.
 pdf-no-bookmarks = Geen bladwijzers
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = Druk op { $keys } om een bladwijzer voor een pagina te maken.
+pdf-no-bookmarks-detail-unbound = Pagina’s met een bladwijzer verschijnen hier.
 pdf-remove-bookmark = Bladwijzer verwijderen
 
 ## Page editing
@@ -557,6 +558,7 @@ image-crop-needs-selection = Sleep eerst een selectie (gereedschap Selecteren) e
 image-size-needed = Voer een breedte en hoogte in pixels in.
 # $name is a file name.
 image-cannot-save-format = Wijzigingen in ‘{ $name }’ kunnen niet in de eigen indeling worden opgeslagen. Gebruik Exporteren ({ $keys }).
+image-cannot-save-format-unbound = Wijzigingen in ‘{ $name }’ kunnen niet in de eigen indeling worden opgeslagen. Gebruik Exporteren.
 image-cannot-export-animation = Animaties kunnen nog niet worden geëxporteerd.
 image-drop-pages = Pagina's kunnen op een document worden neergezet.
 image-drag-failed = Kan niet beginnen met slepen.

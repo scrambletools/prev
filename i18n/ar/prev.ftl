@@ -266,6 +266,7 @@ pdf-no-outline-detail = لا يحتوي هذا المستند على مخطط ت
 pdf-no-bookmarks = لا توجد إشارات مرجعية
 # $keys is the shortcut as the platform writes it, such as Ctrl+D.
 pdf-no-bookmarks-detail = اضغط على { $keys } لإضافة إشارة مرجعية إلى صفحة.
+pdf-no-bookmarks-detail-unbound = تظهر هنا الصفحات التي تضيف إليها إشارة مرجعية.
 pdf-remove-bookmark = إزالة الإشارة المرجعية
 
 ## Page editing
@@ -586,6 +587,7 @@ image-crop-needs-selection = اسحب لتحديد منطقة أولًا (أدا
 image-size-needed = أدخل عرضًا وارتفاعًا بالبكسل.
 # $name is a file name.
 image-cannot-save-format = لا يمكن حفظ التغييرات على “{ $name }” بتنسيقه. استخدم التصدير ({ $keys }).
+image-cannot-save-format-unbound = لا يمكن حفظ التغييرات على “{ $name }” بتنسيقه. استخدم التصدير.
 image-cannot-export-animation = لا يمكن تصدير الصور المتحركة بعد.
 image-drop-pages = يمكن إفلات الصفحات على مستند.
 image-drag-failed = تعذّر بدء السحب.

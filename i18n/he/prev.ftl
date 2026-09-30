@@ -212,6 +212,7 @@ pdf-no-outline = אין תוכן עניינים
 pdf-no-outline-detail = למסמך הזה אין תוכן עניינים.
 pdf-no-bookmarks = אין סימניות
 pdf-no-bookmarks-detail = אפשר להקיש { $keys } כדי לסמן עמוד בסימנייה.
+pdf-no-bookmarks-detail-unbound = עמודים שסומנו בסימנייה יופיעו כאן.
 pdf-remove-bookmark = הסרת הסימנייה
 
 ## Page editing
@@ -461,6 +462,7 @@ image-mark-up-wait = יש להמתין לסיום העריכה, ואז לסמן.
 image-crop-needs-selection = קודם צריך לגרור כדי לבחור אזור (בכלי הבחירה), ואז לחתוך.
 image-size-needed = יש להזין רוחב וגובה בפיקסלים.
 image-cannot-save-format = אי אפשר לשמור את השינויים ב-"{ $name }" בפורמט שלו. אפשר להשתמש בייצוא ({ $keys }).
+image-cannot-save-format-unbound = אי אפשר לשמור את השינויים ב-"{ $name }" בפורמט שלו. אפשר להשתמש בייצוא.
 image-cannot-export-animation = עדיין אי אפשר לייצא אנימציות.
 image-drop-pages = אפשר לשחרר עמודים רק על מסמך.
 image-drag-failed = לא ניתן להתחיל בגרירה.
