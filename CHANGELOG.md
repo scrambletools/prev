@@ -3,6 +3,16 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- The interface in 17 more languages, 38 in all: Bengali, Catalan,
+  Czech, Finnish, Greek, Hungarian, Indonesian, Malay, Norwegian
+  (Bokmål), Portuguese (Portugal), Romanian, Swahili, Swedish, Tamil,
+  Thai, Urdu and Vietnamese, laid out right to left for Urdu. They are
+  first drafts, like the other translations.
+
 ## [1.4.0] - 2026-09-30
 
 ### Added

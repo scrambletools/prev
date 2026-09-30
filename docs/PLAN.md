@@ -35,7 +35,7 @@ Material Design 3.
 | Design | Material Design 3 Expressive, drawn with prev's own iced styles and widgets |
 | Colors | M3 dynamic color from a seed: the Omarchy accent when an Omarchy theme is active, prev's blue otherwise; light or dark follows the system |
 | Fonts | Roboto Flex (OFL-1.1) and Material Symbols Rounded (Apache-2.0), bundled |
-| Interface languages | Fluent files in `i18n/`, one per language, 21 languages; the layout mirrors inside panels, dialogs and menus for right to left languages ([TRANSLATING.md](TRANSLATING.md)) |
+| Interface languages | Fluent files in `i18n/`, one per language, 38 languages; the layout mirrors inside panels, dialogs and menus for right to left languages ([TRANSLATING.md](TRANSLATING.md)) |
 | Distribution | GitHub releases: .deb, .rpm, AppImage, tarball, Flatpak bundle, PKGBUILD, Windows MSI and zip, macOS disk image; AUR once published; not on Flathub |
 
 ## Not in scope

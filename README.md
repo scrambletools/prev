@@ -11,7 +11,7 @@ Website and downloads: **[prev.run](https://prev.run)**
 
 > **Status:** [1.4.0](https://github.com/scrambletools/prev/releases/tag/v1.4.0)
 > is out, for Linux and Windows on x86_64 and ARM64, Linux on RISC-V, and
-> macOS on Apple Silicon, with the interface in 21 languages. PDF, image, SVG and Markdown viewing, image editing, PDF
+> macOS on Apple Silicon, with the interface in 38 languages. PDF, image, SVG and Markdown viewing, image editing, PDF
 > markup, form filling, signatures, page editing and redaction all work.
 > See the [development plan](docs/PLAN.md) for what comes next.
 
@@ -398,13 +398,16 @@ still apply. Escape always closes and cancels.
 
 ## Translations
 
-prev's interface is in Arabic, Chinese (Simplified and Traditional),
-Danish, Dutch, English (US and UK), French, German, Hebrew, Hindi,
-Italian, Japanese, Korean, Persian, Polish, Portuguese (Brazil), Russian,
-Spanish, Turkish and Ukrainian, laid out right to left for Arabic,
-Hebrew and Persian. It follows the system's language, or the one chosen
-under Language in Settings. The translations other than English are
-first drafts open to further review; corrections are welcome.
+prev's interface is in 38 languages: Arabic, Bengali, Catalan, Chinese
+(Simplified and Traditional), Czech, Danish, Dutch, English (US and UK),
+Finnish, French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian,
+Italian, Japanese, Korean, Malay, Norwegian (Bokmål), Persian, Polish,
+Portuguese (Brazil and Portugal), Romanian, Russian, Spanish, Swahili,
+Swedish, Tamil, Thai, Turkish, Ukrainian, Urdu and Vietnamese, laid out
+right to left for Arabic, Hebrew, Persian and Urdu. It follows the
+system's language, or the one chosen under Language in Settings. The
+translations other than English are first drafts open to further review;
+corrections are welcome.
 
 | | | |
 |:-:|:-:|:-:|
