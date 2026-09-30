@@ -1,5 +1,6 @@
 //! Shared pieces of the prev application.
 
+pub mod default_app;
 pub mod dialog;
 pub mod dnd;
 #[cfg(windows)]

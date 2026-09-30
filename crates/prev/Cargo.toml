@@ -54,7 +54,7 @@ winit = { version = "0.30", default-features = false }
 muda = { version = "0.20", default-features = false }
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAccessibility", "NSBitmapImageRep", "NSGraphics", "NSImageRep", "NSPasteboard", "NSPrintInfo", "NSPrintOperation", "NSPrintPanel", "NSResponder", "NSView", "NSWorkspace", "objc2-core-foundation"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSGeometry", "NSObjCRuntime", "NSRange", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSBundle", "NSData", "NSDictionary", "NSGeometry", "NSObjCRuntime", "NSRange", "NSString"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 rfd = { version = "0.15", default-features = false }

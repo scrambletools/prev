@@ -84,6 +84,16 @@ pub fn supported_mime_types() -> impl Iterator<Item = &'static str> {
 
 pub const MARKDOWN_EXTENSIONS: &[&str] = &["md", "markdown", "mdown", "mkd", "mkdn"];
 
+/// Every file extension prev opens, as the Windows installer registers
+/// them and macOS maps them to content types.
+pub const EXTENSIONS: &[&str] = &[
+    "pdf", "png", "jpg", "jpeg", "jpe", "jfif", "gif", "webp", "avif", "heic", "heif", "bmp",
+    "ico", "tif", "tiff", "tga", "pnm", "pbm", "pgm", "ppm", "qoi", "hdr", "exr", "jp2", "svg",
+    "svgz", "md", "markdown", "3fr", "arw", "cr2", "cr3", "crw", "dcr", "dng", "erf", "iiq", "kdc",
+    "mef", "mos", "mrw", "nef", "nrw", "orf", "pef", "raf", "rw2", "rwl", "sr2", "srf", "srw",
+    "x3f",
+];
+
 pub fn detect_path(path: &Path) -> io::Result<Option<FileKind>> {
     let mut header = Vec::with_capacity(SNIFF_LEN);
     File::open(path)?
@@ -303,6 +313,18 @@ mod tests {
         let listed: Vec<&str> = listed.split(';').filter(|mime| !mime.is_empty()).collect();
         let supported: Vec<&str> = supported_mime_types().collect();
         assert_eq!(listed, supported);
+    }
+
+    #[test]
+    fn windows_installer_lists_every_extension() {
+        let wxs = include_str!("../../../packaging/windows/prev.wxs");
+        let listed = wxs
+            .lines()
+            .find_map(|line| line.trim().strip_prefix("<?define Extensions = "))
+            .and_then(|rest| rest.strip_suffix(" ?>"))
+            .expect("Extensions line");
+        let listed: Vec<&str> = listed.split(';').collect();
+        assert_eq!(listed, EXTENSIONS);
     }
 
     #[test]

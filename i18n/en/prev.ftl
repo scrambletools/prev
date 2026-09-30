@@ -27,6 +27,20 @@ settings-title = Settings
 settings-appearance = Appearance
 settings-colors = Colors
 settings-windows = Windows
+# The button that makes prev the system's default app. It changes the
+# system's setting, not prev's.
+settings-default-app = Default app
+settings-default-app-label = Open files with prev
+settings-default-app-note = Make prev the app that opens PDFs, images, SVG drawings and Markdown files.
+settings-default-app-note-windows = Windows lets you choose default apps only in its own Settings. This opens prev's page there.
+settings-default-app-note-macos = macOS asks you to confirm each type: PDF, PNG, JPEG, HEIC, GIF, TIFF, WebP and AVIF.
+# $set of the $total file types the button covers open with prev.
+settings-default-app-status = { $set } of { $total } file types open with prev.
+settings-default-app-button = Make Default
+settings-default-app-button-windows = Open Settings
+settings-default-app-no-entry = prev's desktop entry is not installed, so the system cannot open files with it. Install prev from a package or with scripts/install.sh.
+settings-default-app-no-bundle = Open prev from prev.app to make it the default.
+settings-default-app-failed = Could not make prev the default: { $error }
 settings-storage = Storage
 # The version at the foot of Settings.
 settings-version = prev { $version }

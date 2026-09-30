@@ -8,6 +8,7 @@ use iced::keyboard::{self, Key, Modifiers};
 use iced::widget::{container, mouse_area, opaque, pick_list, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
 use iced::{Center, Color, Element, Event, Fill, Length, Size, Subscription, Task, Theme, event};
+use prev::default_app;
 use prev::dnd::DragEvent;
 use prev::filetype::{self, FileKind};
 use prev::image::window::{self as image_window, ImageWindow, Source};
@@ -58,6 +59,11 @@ pub struct Prev {
     storage_drafts: [String; 3],
     /// Why a typed or chosen path was refused, per storage row.
     storage_errors: [Option<String>; 3],
+    /// How the last attempt to make prev the system's default app went.
+    /// Not a setting: only the system's own setting changes.
+    default_app: Option<Result<default_app::Outcome, default_app::Failure>>,
+    /// How many of the file types prev opens now, as last read.
+    default_app_status: Option<default_app::Status>,
 }
 
 /// The files and folders prev keeps, whose places the settings choose.
@@ -233,6 +239,9 @@ pub enum Message {
     SliderReleased,
     StorageDraft(Storage, String),
     StorageApply(Storage),
+    MakeDefaultApp,
+    DefaultAppDone(Result<default_app::Outcome, default_app::Failure>),
+    DefaultAppStatus(Option<default_app::Status>),
     StorageChoose(Storage),
     StorageChosen(Storage, Result<Option<PathBuf>, String>),
     AutoHideToolbarToggled(bool),
@@ -295,6 +304,8 @@ impl Prev {
             pending_saves: 0,
             storage_drafts: Default::default(),
             storage_errors: Default::default(),
+            default_app: None,
+            default_app_status: None,
             system_animations: true,
             keyboard_rtl: None,
             focused: None,
@@ -564,7 +575,17 @@ impl Prev {
             }
             Message::WindowFocused(id) => {
                 self.focused = Some(id);
-                Task::none()
+                // Back from the system's own dialogs or settings, where the
+                // default app may have changed.
+                if self
+                    .windows
+                    .get(&id)
+                    .is_some_and(|window| window.settings_open)
+                {
+                    refresh_default_app_status()
+                } else {
+                    Task::none()
+                }
             }
             #[cfg(target_os = "macos")]
             Message::OpenChosen(result) => match result {
@@ -752,6 +773,18 @@ impl Prev {
             Message::StorageDraft(storage, text) => {
                 self.storage_drafts[storage.index()] = text;
                 self.storage_errors[storage.index()] = None;
+                Task::none()
+            }
+            Message::MakeDefaultApp => {
+                self.default_app = None;
+                Task::perform(default_app::make_default(), Message::DefaultAppDone)
+            }
+            Message::DefaultAppDone(result) => {
+                self.default_app = Some(result);
+                refresh_default_app_status()
+            }
+            Message::DefaultAppStatus(status) => {
+                self.default_app_status = status;
                 Task::none()
             }
             Message::StorageApply(storage) => {
@@ -1126,7 +1159,7 @@ impl Prev {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.settings_open = true;
                 }
-                Task::none()
+                refresh_default_app_status()
             }
             Action::ToggleFullscreen => self.set_fullscreen(id, None),
             Action::Escape => self.set_fullscreen(id, Some(false)),
@@ -1459,6 +1492,78 @@ impl Prev {
         ui::dir::set_input_right_to_left(right_to_left);
     }
 
+    /// The button that makes prev the system's default app, and how the
+    /// last try went. Windows lets only the user choose, in its Settings.
+    fn default_app_view(&self) -> Element<'_, Message> {
+        let (note, button) = if cfg!(windows) {
+            (
+                prev::fl!("settings-default-app-note-windows"),
+                prev::fl!("settings-default-app-button-windows"),
+            )
+        } else if cfg!(target_os = "macos") {
+            (
+                prev::fl!("settings-default-app-note-macos"),
+                prev::fl!("settings-default-app-button"),
+            )
+        } else {
+            (
+                prev::fl!("settings-default-app-note"),
+                prev::fl!("settings-default-app-button"),
+            )
+        };
+        let summary = self.default_app_status.map(|status| {
+            prev::fl!(
+                "settings-default-app-status",
+                set = status.set,
+                total = status.total
+            )
+        });
+        let mut action = row![].spacing(12).align_y(Center);
+        if let (Some(status), Some(summary)) = (self.default_app_status, &summary) {
+            action = action.push(component::tip(status_dot(status), summary.clone()));
+        }
+        action = action.push(ui::button(Kind::Tonal, button).on_press(Message::MakeDefaultApp));
+        let mut rows = column![
+            row![
+                column![
+                    ui::styled(prev::fl!("settings-default-app-label"), Type::BodyLarge),
+                    ui::aligned(
+                        ui::styled(note, Type::BodyMedium).style(style::on_surface_variant)
+                    ),
+                ]
+                .spacing(2)
+                .width(Fill),
+                action,
+            ]
+            .spacing(16)
+            .align_y(Center)
+        ]
+        .spacing(8);
+        let problem = match &self.default_app {
+            Some(Err(default_app::Failure::NoDesktopEntry)) => {
+                Some(prev::fl!("settings-default-app-no-entry"))
+            }
+            Some(Err(default_app::Failure::NoBundle)) => {
+                Some(prev::fl!("settings-default-app-no-bundle"))
+            }
+            Some(Err(default_app::Failure::Other(error))) => Some(prev::fl!(
+                "settings-default-app-failed",
+                error = error.as_str()
+            )),
+            _ => None,
+        };
+        if let Some(problem) = problem {
+            rows = rows.push(ui::aligned(
+                ui::styled(problem, Type::BodySmall).style(style::error_text),
+            ));
+        } else if let Some(summary) = summary {
+            rows = rows.push(ui::aligned(
+                ui::styled(summary, Type::BodySmall).style(style::on_surface_variant),
+            ));
+        }
+        rows.into()
+    }
+
     fn settings_dialog(&self, id: window::Id) -> Element<'_, Message> {
         let appearance = self.settings.appearance;
         let choice = |glyph: Icon, label: String, value: Appearance| {
@@ -1632,6 +1737,8 @@ impl Prev {
             ]
             .spacing(16)
             .align_y(Center),
+            component::section(prev::fl!("settings-default-app")),
+            self.default_app_view(),
             component::section(prev::fl!("settings-storage")),
             self.storage_view(),
         ]
@@ -1666,6 +1773,30 @@ impl Prev {
         .on_press(Message::CloseSettings(id))
         .into()
     }
+}
+
+/// Reads again how many file types prev opens.
+fn refresh_default_app_status() -> Task<Message> {
+    Task::perform(default_app::status(), Message::DefaultAppStatus)
+}
+
+/// A dot for how many file types prev opens: red for none, amber for
+/// some, green for all. The same in every theme, as traffic lights are.
+fn status_dot(status: default_app::Status) -> Element<'static, Message> {
+    let color = if status.set == 0 {
+        Color::from_rgb8(0xd9, 0x30, 0x25)
+    } else if status.set < status.total {
+        Color::from_rgb8(0xf2, 0xa9, 0x00)
+    } else {
+        Color::from_rgb8(0x1e, 0x8e, 0x3e)
+    };
+    container(iced::widget::space().width(12).height(12))
+        .style(move |_: &Theme| container::Style {
+            background: Some(color.into()),
+            border: iced::border::rounded(6),
+            ..container::Style::default()
+        })
+        .into()
 }
 
 /// Languages for the input language setting, named in themselves. The
