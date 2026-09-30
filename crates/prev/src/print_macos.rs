@@ -163,7 +163,12 @@ fn image_rep(width: u32, height: u32, rgba: &[u8]) -> Option<Retained<NSBitmapIm
     let length = (width * height * 4) as usize;
     // SAFETY: AppKit allocated `length` bytes for the planes above.
     let target = unsafe { std::slice::from_raw_parts_mut(pixels, length) };
-    for (out, pixel) in target.chunks_exact_mut(4).zip(rgba.chunks_exact(4)) {
+    for (out, pixel) in target
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .zip(rgba.as_chunks::<4>().0)
+    {
         let alpha = u16::from(pixel[3]);
         for channel in 0..3 {
             out[channel] = ((u16::from(pixel[channel]) * alpha + 255 * (255 - alpha)) / 255) as u8;
