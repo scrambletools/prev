@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A tour of prev</title>
+<meta name="description" content="A walkthrough of everything prev does: reading and marking up PDFs, forms and signatures, page editing, redaction, images, drag and drop and settings.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./"><img src="icon.svg" alt="" width="32" height="32">prev</a>
+  <nav>
+    <a href="./#features">Features</a>
+    <a href="./#download">Download</a>
+    <a href="guide.html">Guide</a>
+    <a class="repo" href="https://github.com/scrambletools/prev">Source on GitHub</a>
+  </nav>
+</header>
+
+<main class="guide">
+  <h1>A tour of prev</h1>
+  <nav class="contents" aria-label="Contents">
+
+<ul>
+<li><a href="#opening-files">Opening files</a></li>
+<li><a href="#reading-pdfs">Reading PDFs</a></li>
+<li><a href="#marking-up">Marking up</a></li>
+<li><a href="#editing-pages">Editing pages</a></li>
+<li><a href="#redacting">Redacting</a></li>
+<li><a href="#exporting">Exporting</a></li>
+<li><a href="#images">Images</a></li>
+<li><a href="#svg-and-markdown">SVG and Markdown</a></li>
+<li><a href="#drag-and-drop">Drag and drop</a></li>
+<li><a href="#saving-and-versions">Saving and versions</a></li>
+<li><a href="#settings">Settings</a></li>
+<li><a href="#looks">Looks</a></li>
+</ul>
+
+  </nav>
+<p>This guide walks through what prev does, in the order you are likely to
+meet it. Keyboard shortcuts are listed in the <a href="https://github.com/scrambletools/prev#keyboard-shortcuts">README</a>.</p>
+<p class="small">Documents shown: a sample form, a sample annual report, a sample
+account statement, a newsletter and a landscape image, all fictional and
+made for prev.</p>
+<h2 id="opening-files">Opening files</h2>
+<p>Open files with Ctrl+O, from the file manager's "Open With", from the
+command line (<code>prev report.pdf photo.jpg</code>), or by dropping them on a prev
+window (see <a href="#drag-and-drop">Drag and drop</a> for drops that do more than
+open files). Each document gets its own window; images opened together
+share one window with a thumbnail strip. prev keeps a single running instance,
+so opening another file from the launcher adds a window instead of
+starting over.</p>
+<h2 id="reading-pdfs">Reading PDFs</h2>
+<figure><img class="shot" src="screenshots/table-of-contents.png" alt="A PDF with its table of contents in the sidebar" width="1360" height="796" loading="lazy"></figure>
+<p>The toolbar holds the page number, zoom, fit to page or width, actual
+size, and the view mode: continuous scroll, single page or two pages side
+by side. Image windows share its layout: what is shown and the view on
+the left, editing, the panels and Export on the right.
+Ctrl+scroll zooms around the pointer, and pages stay sharp at any zoom
+because they render in tiles on background threads.</p>
+<p>The sidebar (the button at the far left, or Ctrl+Alt+2 to 5) has four
+tabs: page thumbnails, the table of contents, highlights and notes, and
+bookmarks (Ctrl+D bookmarks the current page). Drag the sidebar's edge to
+make it wider; the thumbnails grow with it.</p>
+<figure><img class="shot" src="screenshots/two-pages.png" alt="Two pages side by side" width="1360" height="796" loading="lazy"></figure>
+<p>In two-page mode pages sit in pairs, 1 and 2, 3 and 4, and the arrow keys
+move a pair at a time.</p>
+<figure><img class="shot" src="screenshots/search.png" alt="Searching a PDF, with matches highlighted and page thumbnails in the sidebar" width="1360" height="796" loading="lazy"></figure>
+<p>Search (Ctrl+F) highlights every match and counts them as it goes;
+Ctrl+G and Ctrl+Shift+G step through them. Text can be selected and
+copied across pages; double-click selects a word and triple-click a line.
+Links inside the document and to the web work, and Ctrl+Shift+F starts a
+full-screen slideshow. The inspector (the info button, or Ctrl+I) shows
+the file, the document's title, author, dates, producer, PDF version and
+encryption, and the page size.</p>
+<h2 id="marking-up">Marking up</h2>
+<figure><img class="shot" src="screenshots/markup.png" alt="A form filled in, marked up with a highlight, shapes, a text box and a note, and signed" width="1360" height="796" loading="lazy"></figure>
+<p>The markup toolbar (the pen button on the right, or Ctrl+Shift+A) follows
+Preview's:</p>
+<ul>
+<li><strong>Select</strong> moves, resizes and restyles annotations; Delete removes the
+  selected one.</li>
+<li><strong>Rectangular selection</strong> chooses an area to copy as an image, or to
+  crop the page to (Ctrl+K).</li>
+<li><strong>Sketch</strong> turns strokes that look like a rectangle, oval or line into
+  that shape; <strong>Draw</strong> keeps them as drawn.</li>
+<li><strong>Shapes</strong>: rectangle, rounded rectangle, oval, line, arrow, star,
+  polygon, speech bubble, a loupe that magnifies the page under it, and a
+  mask that dims everything but a hole.</li>
+<li><strong>Text box</strong> and <strong>Note</strong>, with fonts, sizes, colors and alignment.</li>
+<li><strong>Highlight</strong>, underline and strikethrough over selected text, in five
+  colors.</li>
+<li><strong>Sign</strong> and <strong>Redact</strong>, described below.</li>
+<li>Border color, fill color, line width and dashes for shapes.</li>
+</ul>
+<p>Paste (Ctrl+V) puts an image or text from the clipboard on the current
+page, whatever tool is chosen: an image at its own size (smaller if it
+doesn't fit), text as a text box. An image file copied in the file
+manager pastes as the image. Pages copied in prev paste as pages instead,
+after the selected one, when they are the latest thing copied.</p>
+<p>Everything is saved as standard PDF annotations that other viewers show
+and edit. Undo and redo (Ctrl+Z, Ctrl+Shift+Z) cover every change,
+markup and page edits alike. Their buttons are on the toolbar, and move
+to the markup bar while it is open.</p>
+<h3 id="forms">Forms</h3>
+<p>Click into text fields and type; checkboxes, radio buttons and drop-down
+menus work as they do in other viewers. Values are saved into the form so
+other apps read them.</p>
+<h3 id="signatures">Signatures</h3>
+<figure><img class="shot" src="screenshots/signatures.png" alt="The Sign menu open over a garden plot application, listing a drawn and a typed signature" width="1360" height="796" loading="lazy"></figure>
+<p>The Sign menu keeps as many signatures as you like. Click one to place it
+on the current page, then drag and resize it like any annotation.</p>
+<figure><img class="shot" src="screenshots/signature-draw.gif" alt="Signing &quot;Jordan Example&quot; in blue ink in the Create Signature dialog, then typing the description" width="1360" height="796" loading="lazy"></figure>
+<p>Create Signature offers three ways in:</p>
+<ul>
+<li><strong>Draw</strong> with the mouse, a pen or the touchpad. Choose the ink color
+  and the pen's thickness under the pad; changing them redraws what you
+  signed.</li>
+<li><strong>Type</strong> your name, shown in a handwriting font in the ink you choose.</li>
+<li><strong>Image</strong> takes a photo or scan of a signature on paper and makes the
+  paper transparent.</li>
+</ul>
+<h2 id="editing-pages">Editing pages</h2>
+<figure><img class="shot" src="screenshots/pages.png" alt="Page 3 of an annual report being dragged below page 4 in the page thumbnails, with a line where it will go" width="1360" height="796" loading="lazy"></figure>
+<p>In the page thumbnails, click a page to select it, Ctrl+click to add
+pages and Shift+click to select a range. Then:</p>
+<ul>
+<li>Drag the selection to reorder; a line shows where it will go.</li>
+<li>Rotate with the toolbar buttons (Ctrl+L, Ctrl+R).</li>
+<li>Delete with the Delete key.</li>
+<li>Copy with Ctrl+C and paste with Ctrl+V after the selected page, in the
+  same window or another document's. Pasted pages keep their annotations
+  and form fields.</li>
+<li>Drop PDF files on the thumbnails to insert their pages where you let
+  go.</li>
+<li>Drag thumbnails out of the window to copy the pages into another prev
+  window, where they go where you drop them, or into the file manager as
+  a PDF. Hold Shift while dropping to move them instead. See
+  <a href="#drag-and-drop">Drag and drop</a>.</li>
+</ul>
+<p>The Pages menu (the stacked-pages button, beside the rotate buttons) has
+Insert Blank Page, Insert from File, Copy and Paste, Crop to Selection,
+Select All Pages and Delete. Every page edit can be undone.</p>
+<h2 id="redacting">Redacting</h2>
+<figure><img class="shot" src="screenshots/redaction.png" alt="A statement with the name and address, account and routing numbers and tax ID marked for redaction, and Apply in the markup bar" width="1360" height="796" loading="lazy"></figure>
+<p>The Redact tool marks what should go: drag a box over it, or select text
+first and then pick the tool. Marks are ordinary annotations until you
+press <strong>Apply</strong> and confirm. Applying removes the text, image pixels and
+drawings under each mark from the file and draws black boxes in their
+place. The next save rewrites the whole file, so no earlier revision
+keeps the content, and prev deletes the earlier versions of the file it
+kept. This cannot be undone.</p>
+<figure><img class="shot" src="screenshots/redaction-applied.png" alt="The same statement after applying: black boxes where the marked details were" width="1360" height="796" loading="lazy"></figure>
+<h2 id="exporting">Exporting</h2>
+<figure><img class="shot" src="screenshots/export.png" alt="The export dialog with reduce file size and flatten chosen" width="1360" height="796" loading="lazy"></figure>
+<p>Export (the export button, a page with an arrow near the right of the
+toolbar, or Ctrl+Shift+S) writes a new file:</p>
+<ul>
+<li><strong>PDF</strong>, optionally:</li>
+<li><strong>Reduce file size</strong>: images are downsampled to 150 dpi and saved as
+    JPEG.</li>
+<li><strong>Flatten annotations and form fields</strong>: markup and filled-in fields
+    are drawn into the pages and can no longer be edited. Redaction
+    marks not yet applied are left out.</li>
+<li><strong>Encrypt with a password</strong> (AES-256): the password is needed to open
+    the file.</li>
+<li><strong>PNG, JPEG, TIFF, WebP or OpenEXR</strong> at 72 to 600 dpi, with a quality
+  choice for JPEG. TIFF puts every page in one file; the others save a
+  file per page, numbered after the name you choose.</li>
+</ul>
+<p>Tick "Only the selected pages" to export just the pages chosen in the
+sidebar.</p>
+<h2 id="images">Images</h2>
+<figure><img class="shot" src="screenshots/image-editing.png" alt="A photo open with the Adjust Color panel" width="1360" height="796" loading="lazy"></figure>
+<p>prev opens PNG, JPEG, GIF (animated too), WebP, AVIF, HEIC, TIFF, BMP,
+ICO, TGA, PNM, QOI, JPEG 2000, OpenEXR, Radiance HDR and camera RAW.
+RAW photos open looking like the JPEG the camera would have made: prev
+compares the RAW with the small JPEG preview the camera stores in the
+file and gives it the same brightness, contrast and color balance. The
+toolbar rotates, flips, crops and resizes (Adjust Size). Adjust Color
+(Ctrl+Shift+C) has exposure, contrast, saturation, temperature, tint,
+sepia, sharpness and levels. Undo and redo are on the toolbar. The
+inspector (Ctrl+I) shows the file and camera details and can remove
+location info and edit keywords and a description. Export asks for the
+format (PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR) and, for
+JPEG, the quality, then where to save; the choices are kept for the next
+export from the window. Drop more image files
+on the window to add them to its thumbnail sidebar.</p>
+<figure><img class="shot" src="screenshots/image-markup.png" alt="A landscape photo marked up with an oval around the moon, an arrow and the word Moonrise" width="1360" height="796" loading="lazy"></figure>
+<p>Images take markup too: the Markup button (Ctrl+Shift+A) brings up the
+same markup bar as PDFs, with Sketch, Draw, shapes, text boxes, notes and
+signatures. Markup stays while the window is open and can be moved,
+restyled and undone; rotating, cropping and color changes wait until it
+is gone. Paste works on images too, and starts the markup if there is
+none yet. Export draws it into the pixels of the copy you save, at the
+image's full resolution. Closing the window, or quitting, with markup
+you haven't exported asks first, with a button to export.</p>
+<h2 id="svg-and-markdown">SVG and Markdown</h2>
+<p>SVG drawings open sharp at any zoom, in the image window. They can't be
+edited, so the tools that change pixels are greyed out, but Export saves
+the drawing as a picture in any of the image formats, at its actual size
+or two or four times larger (Size in the Export dialog, which shows the
+picture's size in pixels).</p>
+<p>Markdown files show with tables, task lists, syntax highlighted code and
+images, and reload when the file changes on disk. The toolbar makes the
+text larger or smaller (Ctrl+= and Ctrl+-, Ctrl+0 for the normal size),
+searches the document (Ctrl+F, then Enter or the arrows for the next and
+previous match) and opens the Inspector with the file's details and word
+count. Code is colored to suit the light or dark look, and pictures show
+at their own size, shrunk only to fit the page. Export saves the whole
+document as one picture, in any of the image formats, at its actual size
+or twice as sharp; very long documents are scaled down to fit the
+16,383 pixel height some formats allow.</p>
+<h2 id="drag-and-drop">Drag and drop</h2>
+<figure><img class="shot" src="screenshots/drag-from-browser.gif" alt="Dragging a photo of Saturn from a Wikimedia Commons page in a browser into the empty photo space of a newsletter PDF open in prev, where it lands as a picture, selected, above its caption" width="1360" height="620" loading="lazy"></figure>
+<p class="small">Saturn: NASA/JPL/Space Science Institute, public domain, shown on
+Wikimedia Commons. The newsletter is a sample made for prev.</p>
+<p>Drag and drop works both ways: things dragged into prev land where you
+let go, and pages, text, areas and images drag out of prev to other prev
+windows, the file manager and other apps. While a drag that prev can
+take is over a window, the window is highlighted; over the page
+thumbnails, a line shows where the pages would go.</p>
+<h3 id="dropping-into-a-document">Dropping into a document</h3>
+<div class="table"><table>
+<thead>
+<tr>
+<th>What you drop</th>
+<th>Where</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>An image (from a web page, a screenshot tool, or an area dragged from prev)</td>
+<td>A page</td>
+<td>It goes on the page as an image, centered where you let go, at its own size (96 pixels to the inch), made smaller if it is larger than 80% of the page</td>
+</tr>
+<tr>
+<td>An image</td>
+<td>Outside the pages (the sidebar, around the pages)</td>
+<td>As above, in the middle of what is visible of the current page</td>
+</tr>
+<tr>
+<td>Text (from another app, or selected text dragged from prev)</td>
+<td>Anywhere</td>
+<td>A text box with that text, sized to fit it, where you let go, or in the middle of the view when outside the pages</td>
+</tr>
+<tr>
+<td>Pages dragged from another prev window, or a PDF dragged from a web page</td>
+<td>The page thumbnails</td>
+<td>Inserted at the line</td>
+</tr>
+<tr>
+<td>The same</td>
+<td>A page</td>
+<td>Inserted after the selected page</td>
+</tr>
+<tr>
+<td>PDF files from the file manager</td>
+<td>The page thumbnails</td>
+<td>Their pages are inserted at the line</td>
+</tr>
+<tr>
+<td>One image file, with the markup bar open</td>
+<td>A page</td>
+<td>It goes on the page, like a dropped image</td>
+</tr>
+<tr>
+<td>Any other files</td>
+<td>Anywhere</td>
+<td>Each opens in its own window, images dropped together sharing one</td>
+</tr>
+</tbody>
+</table></div>
+<p>Whatever tool is chosen, dropped images and text become annotations the
+select tool can move, and Undo takes them back.</p>
+<h3 id="dropping-into-an-image-window">Dropping into an image window</h3>
+<div class="table"><table>
+<thead>
+<tr>
+<th>What you drop</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Image files</td>
+<td>They join the window, after its images, in the thumbnail sidebar, which opens; the first of them is shown. Images the window has already are skipped</td>
+</tr>
+<tr>
+<td>One image file, with the markup bar open, over the picture</td>
+<td>It goes on the markup</td>
+</tr>
+<tr>
+<td>An image or text</td>
+<td>It goes on the markup where you let go. If the image had no markup yet, the markup opens and it goes in the middle. Remember to export: markup lasts only while the window is open</td>
+</tr>
+<tr>
+<td>Other files, such as PDFs</td>
+<td>Each opens in its own window</td>
+</tr>
+<tr>
+<td>Pages, or a PDF dragged from a web page</td>
+<td>Nothing: prev says to drop them on a document</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="dragging-out-of-prev">Dragging out of prev</h3>
+<div class="table"><table>
+<thead>
+<tr>
+<th>What</th>
+<th>How to drag it</th>
+<th>What it carries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Selected text</td>
+<td>With the Select tool, press on the selected text and drag</td>
+<td>The text, for any app that takes text</td>
+</tr>
+<tr>
+<td>An area</td>
+<td>With the rectangular selection tool, choose an area, then press inside it and drag</td>
+<td>A PNG image of the area at twice the screen's resolution</td>
+</tr>
+<tr>
+<td>Pages</td>
+<td>Drag thumbnails out of the window (inside the window, dragging reorders them)</td>
+<td>The pages: another prev window inserts them; the file manager saves them as a PDF named after the document and pages, such as <code>Report (pages 2–4).pdf</code></td>
+</tr>
+<tr>
+<td>An image in an image window</td>
+<td>Drag it out of the thumbnail sidebar</td>
+<td>The file itself, which the file manager copies and other apps open</td>
+</tr>
+</tbody>
+</table></div>
+<p>On Linux, a small picture of the pages, area or image follows the
+pointer while it is dragged; Windows shows its own drag cursor. Dragged images and text are copied; pages are copied
+unless you hold Shift. A page dragged out and dropped back on the same
+window moves there with Shift, or is copied there without it. An image dragged out of the sidebar and
+dropped back on its own window is left alone.</p>
+<p>For pages going to the file manager, prev writes the PDF to a <code>drag</code>
+folder in its cache (<code>~/.cache/prev</code>, or <code>%LOCALAPPDATA%\prev\cache</code> on
+Windows); it is removed when the next drag starts and when prev quits.</p>
+<h3 id="holding-shift">Holding Shift</h3>
+<p>Shift changes what a drop does:</p>
+<ul>
+<li><strong>Pages</strong> dragged between documents move instead of being copied:
+  they are removed from the document they came from once they are
+  dropped.</li>
+<li><strong>Images</strong> are taken as files: dropped on an image window they join
+  its images, and dropped on a document they open in their own window
+  instead of going on the page. A picture that comes without a file,
+  such as one dragged from a web page, is saved to your Downloads folder
+  first (the one your desktop's user folders name, or <code>~/Downloads</code>),
+  under its own name, numbered if a file has that name already.</li>
+<li><strong>A PDF dragged from a web page</strong> is saved to Downloads the same way,
+  then drops as a PDF file from the file manager would: inserted among
+  the page thumbnails, opened in its own window anywhere else.</li>
+<li><strong>Text</strong>, and files other than images (such as PDFs from the file
+  manager), drop as they would without it.</li>
+</ul>
+<h3 id="browsers-and-other-apps">Browsers and other apps</h3>
+<ul>
+<li>Chromium hands over the picture itself, so it arrives at full size.
+  Browsers that give only the picture's web address have it downloaded
+  (with curl, within 20 seconds and 64 MB); on Linux without curl
+  installed, the address arrives as text instead. Windows includes curl.</li>
+<li>Links to anything other than a picture or a PDF arrive as their
+  address, as text; prev does not fetch them.</li>
+<li>On Linux, drag and drop does not need wl-clipboard; copying and
+  pasting images does.</li>
+<li>On Windows, Shift works for drags from any app.</li>
+<li>Wayland tells the window under a drag nothing about the keys held. prev
+  sees Shift during drags from other apps because Hyprland moves the
+  keyboard focus with the pointer; under compositors that do not, Shift
+  works only for drags that start in prev. Hyprland also never reports
+  whether a drop copied or moved, so prev goes by Shift at both ends.</li>
+</ul>
+<h3 id="not-yet">Not yet</h3>
+<ul>
+<li>Annotations cannot be dragged out of a document, nor from one
+  document to another; copy an area instead.</li>
+<li>An image window showing a single image has no sidebar to drag it from;
+  drag it from the file manager instead.</li>
+<li>The page thumbnails do not scroll by themselves while dragging near
+  their top or bottom; the scroll wheel scrolls them during a drag.</li>
+</ul>
+<h2 id="saving-and-versions">Saving and versions</h2>
+<p>There is no Save command: edits to PDFs and images are written in place
+a moment after you stop, and when a window closes. Before the first
+write, prev keeps the original as a version in the version history
+folder (<code>~/.local/share/prev/versions</code>, or <code>%APPDATA%\prev\versions</code> on
+Windows, unless the settings say otherwise). For images, the inspector's Revert To
+list puts an earlier version back; Revert To for PDFs is still to come.</p>
+<h2 id="settings">Settings</h2>
+<figure><img class="shot" src="screenshots/settings.png" alt="The Settings dialog" width="1360" height="796" loading="lazy"></figure>
+<p>Settings opens over the current window, from the gear button at the end
+of the toolbar or Ctrl+,. Close it with its close button, Escape or a
+click outside it. Changes apply to every window at once:</p>
+<ul>
+<li><strong>Appearance</strong>: follow the system's light or dark setting, or choose
+  one.</li>
+<li><strong>Language</strong>: follow the system's language (the default), or choose one
+  of the languages prev has been translated into, each listed by its own
+  name.</li>
+</ul>
+<div class="gallery">
+<figure><img class="shot" src="screenshots/languages/he.png" alt="prev in Hebrew, laid out right to left" width="1360" height="796" loading="lazy"><figcaption>Hebrew</figcaption></figure>
+<figure><img class="shot" src="screenshots/languages/ja.png" alt="prev in Japanese" width="1360" height="796" loading="lazy"><figcaption>Japanese</figcaption></figure>
+</div>
+<ul>
+<li><strong>Input language</strong>: the language you type in, which sets the side an
+  empty text field starts on: the right for Arabic, Hebrew, Persian, Urdu
+  and the other right to left languages. By default it follows the
+  keyboard layout in use (on Windows, the input language), so switching
+  layouts moves the cursor of an empty field. Text you type keeps its own
+  direction whichever you choose.</li>
+<li><strong>Use Omarchy accent color</strong>: on Omarchy, colors come from the active
+  theme's accent; off, prev uses its own blue.</li>
+<li><strong>Hide the toolbar when the pointer leaves</strong>: see below.</li>
+<li><strong>Animations</strong>: off, bars, panels and dialogs appear at once. prev also
+  stops moving things when the system asks for reduced motion.</li>
+<li><strong>Overlay transparency</strong>: lets the page show through the floating
+  toolbar, 0 to 90%; its buttons stay solid.</li>
+<li><strong>Corner radius</strong>: rounds dialogs and the floating toolbar, from
+  square corners at 0 to a full pill at 32; the default, 28, is
+  Material 3's.</li>
+<li><strong>Storage</strong>: where prev keeps signatures, version history and
+  bookmarks.</li>
+</ul>
+<h3 id="the-floating-toolbar">The floating toolbar</h3>
+<figure><img class="shot" src="screenshots/floating-toolbar.png" alt="The toolbar and markup bar floating over the document" width="1360" height="796" loading="lazy"></figure>
+<p>With "Hide the toolbar when the pointer leaves" on (or the top-panel
+button at the end of the toolbar), the toolbar floats over the document
+as a rounded bar, and the markup bar floats along the bottom. They slide
+in while the pointer is over the window and go away when it leaves, so
+the whole window shows the page. Sidebars and panels stay clear of them.</p>
+<h3 id="where-files-go">Where files go</h3>
+<p>Settings are kept in <code>~/.config/prev.toml</code> (on Windows,
+<code>%APPDATA%\prev\prev.toml</code>), which lists every setting, including where
+prev keeps your files:</p>
+<p>On Linux these are:</p>
+<p><code>toml
+signatures = "~/.local/share/prev/signatures"
+versions = "~/.local/share/prev/versions"
+bookmarks = "~/.local/share/prev/bookmarks.toml"</code></p>
+<p>On Windows they are under <code>%APPDATA%\prev</code>.</p>
+<p>Change them in the Storage section: type a path (<code>~</code> works) and press
+Enter or Apply, or pick a folder with Choose. prev checks that the folder
+exists and can be written, uses the new place at once and saves it to
+the file. Files already at the old place stay there; move them over to
+keep using them. The paths are filled in when the file is first made and
+then stay as they are.</p>
+<h2 id="looks">Looks</h2>
+<p>prev follows the system's light or dark setting and reduced motion
+setting, and on Omarchy the active theme's accent. It looks the same on
+Windows and macOS, in each system's own window; on the Mac its menus are
+in the menu bar, and its shortcuts use ⌘ instead of Ctrl. In narrow windows,
+toolbar groups that don't fit move into a More menu, which closes as
+soon as you choose something from it (a button that opens its own menu,
+such as Pages, keeps it open under that menu). The search field grows
+into whatever room the toolbar has left.</p>
+<figure><img class="shot plain" src="screenshots/platforms/windows-markup.png" alt="prev on Windows 11 with the garden plot application filled in and signed" width="1346" height="843" loading="lazy"></figure>
+<figure><img class="shot plain" src="screenshots/platforms/macos-image-markup.png" alt="prev on macOS, below its menu bar, with a landscape photo marked up" width="1212" height="997" loading="lazy"></figure>
+</main>
+
+<footer>
+  <p>prev is free software under the <a href="https://github.com/scrambletools/prev/blob/main/LICENSE">GNU AGPL-3.0</a>.
+    Made by <a href="https://github.com/scrambletools">Scramble Tools</a>.
+    <a href="./#code-signing">Code signing policy</a> · <a href="./#privacy">Privacy</a></p>
+</footer>
+
+</body>
+</html>

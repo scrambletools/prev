@@ -32,4 +32,3 @@ for font_license in OFL.txt OFL-DancingScript.txt LICENSE-MaterialSymbols.txt; d
         "$share/licenses/prev/fonts/$font_license"
 done
 install -Dm644 "$root/README.md" "$share/doc/prev/README.md"
-install -Dm644 "$root/docs/GUIDE.md" "$share/doc/prev/GUIDE.md"

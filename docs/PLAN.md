@@ -4,7 +4,7 @@ prev is a fast, open source document and image viewer for Linux and
 Windows, similar to macOS Preview. It views and edits PDFs (markup, forms,
 signatures, page editing, redaction, export), views and edits images, and
 views SVG and Markdown. The [README](../README.md) lists what it does
-today and the [guide](GUIDE.md) shows how; this document covers how it is
+today and the [guide](https://prev.run/guide.html) shows how; this document covers how it is
 built, what it will not do, and what comes next.
 
 ## Guiding priorities
