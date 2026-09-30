@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>prev: a fast PDF and image viewer for Linux and Windows</title>
+<title>prev: a fast PDF and image viewer for Linux, Windows and macOS</title>
 <meta name="description" content="prev is a free, open source viewer and editor for PDFs, images, SVG drawings and Markdown, similar to macOS Preview.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
@@ -30,7 +30,7 @@
       <a class="button filled" href="#download">Download prev 1.2.1</a>
       <a class="button tonal" href="https://github.com/scrambletools/prev">Source on GitHub</a>
     </p>
-    <p class="small">Free and open source under the AGPL-3.0. For Linux, on Wayland desktops such as Hyprland and Omarchy, and for Windows 10 and 11. In 21 languages.</p>
+    <p class="small">Free and open source under the AGPL-3.0. For Linux, on Wayland desktops such as Hyprland and Omarchy, for Windows 10 and 11, and, from the next release, for macOS on Apple Silicon. In 21 languages.</p>
     <img class="shot hero-shot" src="screenshots/markup.png" alt="A form filled in, marked up with a highlight, shapes, a text box and a note, and signed" width="1360" height="796">
   </section>
 
@@ -102,13 +102,14 @@
 
   <section id="download" class="download">
     <h2>Download</h2>
-    <p>prev 1.2.1 for Linux and Windows on x86_64 and ARM64, and Linux on RISC-V. Every file is on the <a href="https://github.com/scrambletools/prev/releases/latest">release page</a>, with checksums.</p>
+    <p>prev 1.2.1 for Linux and Windows on x86_64 and ARM64, and Linux on RISC-V; macOS comes with the next release. Every file is on the <a href="https://github.com/scrambletools/prev/releases/latest">release page</a>, with checksums.</p>
     <div class="table">
       <table>
         <thead><tr><th>System</th><th>Download</th><th>Install</th></tr></thead>
         <tbody>
           <tr><td>Windows 10 and 11</td><td>Installer (.msi): <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-x64.msi">x64</a> · <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-arm64.msi">ARM64</a></td><td>Open it: it installs for you alone, with no administrator prompt</td></tr>
           <tr><td>Windows, portable</td><td>.zip: <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-x64-windows.zip">x64</a> · <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-arm64-windows.zip">ARM64</a></td><td>Unpack it anywhere and run <code>prev.exe</code></td></tr>
+          <tr><td>macOS 11 and later, Apple Silicon</td><td>Disk image (.dmg): with the next release</td><td>Open it and drag prev to Applications. Until the app is notarized, choose Open Anyway in System Settings, Privacy &amp; Security the first time</td></tr>
           <tr><td>Debian, Ubuntu</td><td>.deb: <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev_1.2.1-1_amd64.deb">x86_64</a> · <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev_1.2.1-1_arm64.deb">ARM64</a> · <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev_1.2.1-1_riscv64.deb">RISC-V</a></td><td><code>sudo apt install ./prev_1.2.1-1_*.deb</code></td></tr>
           <tr><td>Fedora</td><td>.rpm: <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-1.x86_64.rpm">x86_64</a> · <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-1.aarch64.rpm">ARM64</a> · <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev-1.2.1-1.riscv64.rpm">RISC-V</a></td><td><code>sudo dnf install ./prev-1.2.1-1.*.rpm</code></td></tr>
           <tr><td>Arch, Omarchy</td><td><a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/PKGBUILD">PKGBUILD</a> and <a href="https://github.com/scrambletools/prev/releases/download/v1.2.1/prev.install">prev.install</a></td><td><code>makepkg -si</code> in a folder with both</td></tr>

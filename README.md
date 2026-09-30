@@ -2,18 +2,19 @@
 
 # prev
 
-A fast, open source document and image viewer for Linux and Windows,
-similar to macOS Preview. Built in Rust with [iced](https://iced.rs) and
+A fast, open source document and image viewer for Linux, Windows and
+macOS, similar to macOS Preview. Built in Rust with [iced](https://iced.rs) and
 [MuPDF](https://mupdf.com), at home on Wayland desktops such as Hyprland
 and [Omarchy](https://omarchy.org).
 
 Website and downloads: **[prev.run](https://prev.run)**
 
 > **Status:** [1.2.1](https://github.com/scrambletools/prev/releases/tag/v1.2.1)
-> is out, for Linux and Windows on x86_64 and ARM64, and Linux on RISC-V. PDF, image, SVG and Markdown
-> viewing, image editing, PDF markup, form filling, signatures, page
-> editing and redaction all work. See the
-> [development plan](docs/PLAN.md) for what comes next.
+> is out, for Linux and Windows on x86_64 and ARM64, and Linux on RISC-V.
+> The next release adds macOS on Apple Silicon and the interface in 21
+> languages. PDF, image, SVG and Markdown viewing, image editing, PDF
+> markup, form filling, signatures, page editing and redaction all work.
+> See the [development plan](docs/PLAN.md) for what comes next.
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
 
@@ -139,13 +140,17 @@ For a walkthrough of every feature with more screenshots, see
     pointer is outside the window.
 - **Settings** (the gear button or Ctrl+,): appearance, Omarchy colors,
   the floating toolbar and its transparency, animations, corner radius,
-  and where signatures,
-  version history and bookmarks are kept. They are saved in
-  `~/.config/prev.toml` (`%APPDATA%\prev\prev.toml` on Windows).
+  the interface and input languages, and where signatures, version
+  history and bookmarks are kept. They are saved in `~/.config/prev.toml`
+  (`%APPDATA%\prev\prev.toml` on Windows,
+  `~/Library/Application Support/prev/prev.toml` on macOS).
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
-  - Drag and drop with other apps both ways, on Wayland and Windows.
+  - Drag and drop with other apps both ways, on Wayland and Windows; on
+    macOS, files dropped on a window open.
+  - On macOS, a menu bar laid out like Preview's, ⌘ shortcuts, and files
+    opened from Finder and the Dock go to the running prev.
   - Follows the system light or dark setting and reduced motion setting.
 
 ### Planned
@@ -153,14 +158,18 @@ For a walkthrough of every feature with more screenshots, see
 - Revert To for PDFs, as images have it.
 - Dragging annotations between documents.
 - Signed Windows releases, and prev on winget and the AUR.
+- Signed and notarized macOS releases, and drag and drop with other apps
+  on macOS.
 
 The [development plan](docs/PLAN.md#not-built-yet) lists more.
 
 ## Install
 
 prev runs on Linux under Wayland (X11 works too) and on Windows 10 and 11,
-on 64-bit x86 and ARM, and on Linux also RISC-V. It draws with the GPU through Vulkan or, on Windows, DirectX 12,
-and falls back to drawing on the CPU when neither is available.
+on 64-bit x86 and ARM, on Linux also RISC-V, and on macOS 11 or later on
+Apple Silicon. It draws with the GPU through Vulkan, DirectX 12 on
+Windows or Metal on macOS, and falls back to drawing on the CPU when
+none is available.
 Each [release](https://github.com/scrambletools/prev/releases) has these
 packages:
 
@@ -175,6 +184,7 @@ packages:
 | Any distribution, with [mise](https://mise.jdx.dev) | `mise use -g github:scrambletools/prev` |
 | Windows 10 and 11 | the `.msi` installer: open it; it installs for you alone, with no administrator prompt |
 | Windows, portable | the `-windows.zip`: unpack it anywhere and run `prev.exe` |
+| macOS 11 or later, Apple Silicon | from the next release, `prev-<version>-arm64.dmg`: open it and drag prev to Applications |
 
 Each file is named for the machine it runs on: `x86_64` (`amd64` in
 Debian's names, `x64` on Windows), `aarch64` (`arm64` in Debian's and
@@ -229,6 +239,20 @@ Every package has every feature. Some depend on where prev runs:
     history and bookmarks beside it.
   - HEIC and AVIF work out of the box, as libheif comes with prev.
   - No Omarchy colors or Hyprland rule.
+- **macOS:**
+  - The app is not yet signed with an Apple Developer ID or notarized,
+    so macOS blocks it the first time: open it once, then choose Open
+    Anyway in System Settings, Privacy & Security.
+  - Settings are in `~/Library/Application Support/prev/prev.toml`, with
+    signatures, version history and bookmarks beside it.
+  - Shortcuts use ⌘ where Linux and Windows use Ctrl, and the menus are
+    in the menu bar.
+  - Dropping files on a window opens them; dragging images, text and
+    pages in from other apps or out of prev is not there yet.
+  - HEIC and AVIF open when Homebrew's libheif is installed
+    (`brew install libheif`).
+  - Printing uses the system print panel, with pages drawn as prev shows
+    them.
 - **Holding Shift** during a drop from another app is seen only under
   compositors that move keyboard focus with the pointer, such as
   Hyprland.
@@ -270,6 +294,11 @@ For HEIC and AVIF, put libheif's DLLs beside `prev.exe`: `vcpkg install
 "libheif[core,aom]:x64-windows"` builds them. `packaging/windows/build.ps1`
 makes the MSI and zip with WiX.
 
+On macOS, install the Xcode Command Line Tools (`xcode-select
+--install`), then run the same `cargo build`. `packaging/macos/bundle.sh`
+makes `prev.app` (and with `--dmg` the disk image), copying in
+Homebrew's libheif when it is installed.
+
 On Linux, prev runs without these, but uses them when they are
 installed:
 
@@ -298,6 +327,9 @@ to it. Packages are built with `PREV_PRODUCTION=1`; see
 [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Keyboard shortcuts
+
+On macOS, use ⌘ in place of Ctrl, and ⌥ in place of Alt; the menu bar
+lists each shortcut too.
 
 | Action | Shortcut |
 |---|---|

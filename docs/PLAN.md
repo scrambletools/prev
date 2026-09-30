@@ -1,7 +1,7 @@
 # prev: design and plan
 
-prev is a fast, open source document and image viewer for Linux and
-Windows, similar to macOS Preview. It views and edits PDFs (markup, forms,
+prev is a fast, open source document and image viewer for Linux, Windows
+and macOS, similar to macOS Preview. It views and edits PDFs (markup, forms,
 signatures, page editing, redaction, export), views and edits images, and
 views SVG and Markdown. The [README](../README.md) lists what it does
 today and the [guide](https://prev.run/guide.html) shows how; this document covers how it is
@@ -14,19 +14,20 @@ built, what it will not do, and what comes next.
 3. Small footprint: few dependencies, a lean binary and memory use.
 
 Preview is the reference for features and behaviour, unless something is
-not possible on Linux or Windows; the look follows Material Design 3.
+not possible on one of the systems prev runs on; the look follows
+Material Design 3.
 
 ## Decisions
 
 | Area | Decision |
 |---|---|
 | License | AGPL-3.0-or-later, as MuPDF requires ([ADR 0001](decisions/0001-pdf-engine.md)) |
-| Platforms | Linux, Wayland first (Hyprland and Omarchy), X11 supported; Windows 10 and 11. x86_64 and ARM64, and RISC-V on Linux |
+| Platforms | Linux, Wayland first (Hyprland and Omarchy), X11 supported; Windows 10 and 11; macOS 11 and later. x86_64 and ARM64 on Linux and Windows, RISC-V on Linux, Apple Silicon on macOS |
 | Language | Rust, stable toolchain, edition 2024, minimum Rust 1.89 |
-| GUI | iced 0.14: wgpu (Vulkan on Linux, DirectX 12 or Vulkan on Windows), tiny-skia on the CPU when no GPU backend starts |
+| GUI | iced 0.14: wgpu (Vulkan on Linux, DirectX 12 or Vulkan on Windows, Metal on macOS), tiny-skia on the CPU when no GPU backend starts |
 | PDF engine | MuPDF through the `mupdf` crate, behind an engine trait |
 | Images | The `image` crate and format decoders; rawler for camera RAW (LGPL-2.1, pure Rust) |
-| HEIC and AVIF | Open only, through libheif loaded at run time: the system's on Linux, bundled in the Flatpak and on Windows. Never encoded |
+| HEIC and AVIF | Open only, through libheif loaded at run time: the system's on Linux, bundled in the Flatpak and on Windows, Homebrew's on macOS (bundled in prev.app when the build machine has it). Never encoded |
 | SVG | resvg |
 | Markdown | iced's Markdown widget (pulldown-cmark), syntect highlighting; view and export as a picture, no editing |
 | Windows | One window per document; images opened together share one window with a thumbnail sidebar; one running instance |
@@ -34,12 +35,13 @@ not possible on Linux or Windows; the look follows Material Design 3.
 | Design | Material Design 3 Expressive, drawn with prev's own iced styles and widgets |
 | Colors | M3 dynamic color from a seed: the Omarchy accent when an Omarchy theme is active, prev's blue otherwise; light or dark follows the system |
 | Fonts | Roboto Flex (OFL-1.1) and Material Symbols Rounded (Apache-2.0), bundled |
-| Distribution | GitHub releases: .deb, .rpm, AppImage, tarball, Flatpak bundle, PKGBUILD, Windows MSI and zip; AUR once published; not on Flathub |
+| Interface languages | Fluent files in `i18n/`, one per language, 21 languages; the layout mirrors inside panels, dialogs and menus for right to left languages ([TRANSLATING.md](TRANSLATING.md)) |
+| Distribution | GitHub releases: .deb, .rpm, AppImage, tarball, Flatpak bundle, PKGBUILD, Windows MSI and zip, macOS disk image; AUR once published; not on Flathub |
 
 ## Not in scope
 
 Audio and video, editing Markdown, math, Mermaid and raw HTML in
-Markdown, SVG scripting and animation, and macOS.
+Markdown, SVG scripting and animation, and Intel Macs.
 
 ## Not built yet
 
@@ -58,6 +60,9 @@ Planned or considered, but not in prev today:
 - JPEG 2000 export (the `image` crate cannot encode it).
 - On Windows, a picture of what is dragged under the pointer (Windows
   shows its own drag cursor).
+- On macOS, drag and drop with other apps (only files dropped on a window
+  open today) and copying files in Finder to paste them into prev.
+- Further review of the translations other than English.
 
 ## Next
 
@@ -65,6 +70,9 @@ Planned or considered, but not in prev today:
   winget listing. See [RELEASING.md](RELEASING.md#windows-code-signing).
 - **The AUR packages** (`prev`, `prev-git`), once an AUR account can be
   made.
+- **The first macOS release**, then a Developer ID signature and
+  notarization so Gatekeeper opens it without a warning, and a Homebrew
+  cask. See [RELEASING.md](RELEASING.md#macos-signing).
 - The items above, roughly in the order listed.
 
 ## Architecture
@@ -141,21 +149,24 @@ JPEG, PNG, WebP and TIFF.
 
 ### Platform layer
 
-Everything tied to one system sits behind a small module with a Linux and
-a Windows side; the rest of the app is shared.
+Everything tied to one system sits behind a small module with a Linux,
+a Windows and a macOS side; the rest of the app is shared.
 
-| Area | Linux | Windows |
-|---|---|---|
-| Settings and data | XDG folders (`~/.config/prev.toml`, `~/.local/share/prev`) | `%APPDATA%\prev`, `%LOCALAPPDATA%\prev` |
-| Single instance | Unix socket | named pipe |
-| File dialogs | XDG desktop portal (ashpd) | rfd, the system dialogs |
-| Printing, links, reduced motion | XDG desktop portal | print dialog and GDI, URL handler, system setting |
-| Clipboard images and prev's page marker | `wl-copy`, `wl-paste` | clipboard-win |
-| Drag and drop | vendored smithay-clipboard with a drag and drop patch ([PATCHES.md](../vendor/PATCHES.md)) | OLE drop target, data object and drop source (`dnd_windows.rs`) |
-| Theme | Omarchy accent, system light or dark | system light or dark |
-| Pictures dropped as web addresses | curl | curl, which Windows includes |
+| Area | Linux | Windows | macOS |
+|---|---|---|---|
+| Settings and data | XDG folders (`~/.config/prev.toml`, `~/.local/share/prev`) | `%APPDATA%\prev`, `%LOCALAPPDATA%\prev` | `~/Library/Application Support/prev` |
+| Single instance | Unix socket | named pipe | Unix socket, and the files Finder and the Dock send the running app |
+| File dialogs | XDG desktop portal (ashpd) | rfd, the system dialogs | rfd, the system panels |
+| Printing | XDG desktop portal | print dialog and GDI | AppKit's print panel, with pages MuPDF renders |
+| Links, reduced motion | XDG desktop portal | URL handler, system setting | NSWorkspace |
+| Menus | in the window | in the window | the menu bar (muda), built in the interface language |
+| Keyboard layout, for the input language | XKB layout from winit | the input locale | the input source (TIS) |
+| Clipboard images and prev's page marker | `wl-copy`, `wl-paste` | clipboard-win | the general pasteboard |
+| Drag and drop | vendored smithay-clipboard with a drag and drop patch ([PATCHES.md](../vendor/PATCHES.md)) | OLE drop target, data object and drop source (`dnd_windows.rs`) | files dropped on a window only |
+| Theme | Omarchy accent, system light or dark | system light or dark | system light or dark |
+| Pictures dropped as web addresses | curl | curl, which Windows includes | not yet |
 
-Drag and drop on both systems feeds the same drag events, in the types
+Drag and drop on Linux and Windows feeds the same drag events, in the types
 Paste reads, so dropping works the same everywhere. Hyprland never says
 whether a drop copied or moved, so on Linux Shift decides at both ends.
 
@@ -179,8 +190,7 @@ notches into short eased glides.
 - A new crate is added only after checking its license and maintenance,
   and whether an existing dependency already does the job.
 - RAW support is a cargo feature, so a smaller build is possible.
-- MuPDF bundles only the base 14 fonts; other fonts come from the system
-  (fontconfig on Linux, DirectWrite on Windows).
+- MuPDF bundles only the base 14 fonts; other fonts come from the system.
 - `docs/THIRD-PARTY.md` lists every bundled component; the Flatpak's crate
   list is checked against `Cargo.lock` in CI.
 
@@ -218,16 +228,20 @@ driver mappings.
   from the saved bytes.
 - Every push and pull request: `cargo fmt`, clippy with warnings as
   errors, the tests and the render regression on Linux, the same build,
-  lint and tests on Windows (which also builds the MSI and zip),
+  lint and tests on Windows (which also builds the MSI and zip) and on
+  macOS (which also builds prev.app),
   `cargo deny`, the minimum Rust version, AppStream and desktop entry
   validation, and the Flatpak crate list check.
 - Tags build every package and draft the release ([RELEASING.md](RELEASING.md)):
   x86_64 and ARM64 on GitHub's runners for each, RISC-V cross-compiled
-  from x86_64 and started once under QEMU. Every build runs
+  from x86_64 and started once under QEMU, and the macOS disk image on
+  Apple Silicon. Every build runs
   `prev --version` before it is packaged; the ARM64 and RISC-V builds
   are otherwise untested by hand.
-- The interface is tested by hand, on Hyprland and in a Windows 11
-  virtual machine.
+- The interface is tested by hand, on Hyprland, in a Windows 11 virtual
+  machine and on a Mac mini.
+- A test renders every counted string in every language, and one checks
+  that no translation uses a key or variable English lacks.
 
 ## Risks
 
@@ -242,3 +256,5 @@ driver mappings.
 | Redaction leaking content | Dedicated tests; whole-file rewrite only |
 | Memory under heavy use, mostly MuPDF's store | Add a store size limit to the `mupdf` crate upstream if it becomes a problem, and remeasure |
 | Unsigned Windows downloads trigger SmartScreen warnings | Code signing through the SignPath Foundation |
+| Gatekeeper blocks the macOS app until it is notarized | A Developer ID signature and notarization in the release workflow |
+| Draft translations read awkwardly | Marked as first drafts in the README; corrections welcome |

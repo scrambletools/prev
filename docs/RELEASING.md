@@ -15,16 +15,19 @@ Everything a release ships is built from this repository:
 | `packaging/appimage/build.sh` | The AppImage |
 | `packaging/flatpak/` | Flatpak manifest and the crate sources it builds from |
 | `packaging/windows/` | Windows MSI (WiX 5) and zip, made by `build.ps1`; the ARM64 patch for mupdf-sys; `msvc-toolset.ps1`, which builds MuPDF with the installed Visual Studio's toolset |
+| `packaging/macos/bundle.sh` | prev.app and its disk image, with an Info.plist for the file types it opens |
 | `scripts/cross-setup.sh` | Prepares Ubuntu to cross-compile for RISC-V |
 | `.github/workflows/release.yml` | Builds all of them for a tag and drafts the GitHub release |
 
 Each package is built for x86_64 and ARM64 on GitHub's runners of that
 architecture; the Linux .deb, .rpm and tarball are also cross-compiled
-for RISC-V, which has no runners.
+for RISC-V, which has no runners. The macOS disk image is built for
+Apple Silicon only.
 
 Packages are built with `PREV_PRODUCTION=1`, which makes the installed
 copy: settings in `prev.toml` (`~/.config` on Linux, `%APPDATA%\prev` on
-Windows), data under `prev`, app id `io.github.scrambletools.prev`.
+Windows, `~/Library/Application Support/prev` on macOS), data under
+`prev`, app id `io.github.scrambletools.prev`.
 Builds without it are development builds.
 
 ## Steps
@@ -47,8 +50,9 @@ Builds without it are development builds.
    checks that the tag matches `Cargo.toml`, builds the packages and
    drafts a release with them, `SHA256SUMS`, and a `PKGBUILD` with the
    source checksum filled in, beside its `prev.install`. Check the draft
-   and publish it. Then update the version on the website
-   (`site/index.html`); pushing `site/` redeploys prev.run.
+   and publish it. Then update the version and links on the website
+   (`site/index.html`) and in the README's install table; pushing
+   `site/` redeploys prev.run.
 6. AUR: in a clone of `ssh://aur@aur.archlinux.org/prev.git`, replace
    `PKGBUILD` with the one from the release and copy
    `packaging/arch/prev/prev.install`, run `makepkg --printsrcinfo >.SRCINFO`,
@@ -76,6 +80,20 @@ releases built by CI it can check:
    "SignPath Foundation".
 3. With signed releases, list prev on winget: a manifest pointing at the
    release's MSI, submitted as a pull request to `microsoft/winget-pkgs`.
+
+## macOS signing
+
+The app is signed ad hoc, which Apple Silicon needs to run it at all, so
+Gatekeeper blocks a downloaded copy until the user chooses Open Anyway in
+System Settings, Privacy & Security. To open without a warning:
+
+1. Join the Apple Developer Program and make a Developer ID Application
+   certificate.
+2. Store it and an App Store Connect API key as repository secrets, sign
+   `prev.app` with it and the hardened runtime in `bundle.sh`, then
+   submit the disk image with `xcrun notarytool submit --wait` and
+   staple the ticket with `xcrun stapler staple`.
+3. With notarized releases, offer a Homebrew cask.
 
 ## The Hyprland rule
 

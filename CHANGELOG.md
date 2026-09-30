@@ -3,6 +3,36 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- macOS 11 and later on Apple Silicon, as a disk image: a menu bar laid
+  out like Preview's, ⌘ shortcuts, files opened from Finder and the
+  Dock, the pasteboard, and printing through the system print panel
+  with pages drawn as prev shows them. Not yet notarized.
+- The interface in 21 languages, following the system's language or the
+  one chosen in Settings, laid out right to left for Arabic, Hebrew and
+  Persian. The translations other than English are first drafts.
+- An input language setting, following the keyboard layout by default,
+  which sets the side an empty text field starts on.
+- prev's version at the foot of Settings.
+
+### Changed
+
+- Field labels rise as soon as a field is focused.
+- The tour of prev moved to the website, prev.run/guide.html.
+
+### Fixed
+
+- Turning the floating toolbar on or off no longer goes back to the
+  first page.
+- Two pages side by side fit the width without a sideways scrollbar.
+- Switching to two pages keeps the page in view.
+- Confirmation dialogs no longer shrink to a narrow bar.
+- On Wayland, prev no longer quits when a window closes while another
+  app offers it a clipboard or drag.
+
 ## [1.2.1] - 2026-09-28
 
 ### Fixed
