@@ -59,7 +59,23 @@ fn requested_languages() -> Vec<LanguageIdentifier> {
         .chain(chosen)
         .collect();
     languages.extend(DesktopLanguageRequester::requested_languages());
-    languages
+    with_aliases(languages)
+}
+
+/// `languages` with, after each macrolanguage tag, the language prev has
+/// for it: systems name Norwegian `no`, which prev's `nb` answers.
+fn with_aliases(languages: Vec<LanguageIdentifier>) -> Vec<LanguageIdentifier> {
+    let mut out = Vec::with_capacity(languages.len());
+    for language in languages {
+        let alias = (language.language.as_str() == "no").then(|| {
+            let mut bokmal = language.clone();
+            bokmal.language = "nb".parse().expect("a language subtag");
+            bokmal
+        });
+        out.push(language);
+        out.extend(alias);
+    }
+    out
 }
 
 /// Shows the interface in the language tagged `tag` (such as `he`), or in
@@ -324,6 +340,13 @@ mod tests {
         for tag in ["en", "ru", "zh", "ja", "pt-BR", "", "not a tag"] {
             assert!(!is_right_to_left(tag), "{tag}");
         }
+    }
+
+    #[test]
+    fn norwegian_asks_for_bokmal() {
+        let asked: Vec<LanguageIdentifier> = vec!["no-NO".parse().unwrap(), "en".parse().unwrap()];
+        let tags: Vec<String> = with_aliases(asked).iter().map(|l| l.to_string()).collect();
+        assert_eq!(tags, ["no-NO", "nb-NO", "en"]);
     }
 
     #[test]
