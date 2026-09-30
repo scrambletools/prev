@@ -613,11 +613,15 @@ pub fn search_bar<'a, Message: Clone + 'a>(
     trailing: Vec<Element<'a, Message>>,
     width: f32,
 ) -> Element<'a, Message> {
+    // A text input reads in the interface's direction even inside a bar:
+    // the icon at its start, the placeholder on the interface's side.
+    let _reading = super::dir::reading();
     let input = input
         .style(style::bare_field)
         .padding([0, 4])
         .size(Type::BodyLarge.size())
-        .font(Type::BodyLarge.font(false));
+        .font(Type::BodyLarge.font(false))
+        .placeholder_align(super::dir::horizontal_start());
     let mut content = crate::line![
         icon::icon(Icon::Search, 20).style(style::on_surface_variant),
         input

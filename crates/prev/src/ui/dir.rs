@@ -34,8 +34,9 @@ pub fn rtl() -> bool {
 }
 
 /// Whether layout made now is mirrored: in right to left languages,
-/// except inside [`fixed`].
-fn mirrored() -> bool {
+/// except inside [`fixed`]. For widgets that lay themselves out, such as
+/// pick lists.
+pub fn mirrored() -> bool {
     rtl() && !FIXED.get()
 }
 

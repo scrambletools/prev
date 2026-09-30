@@ -113,6 +113,8 @@ pub struct TextInput<
     size: Option<Pixels>,
     line_height: text::LineHeight,
     alignment: alignment::Horizontal,
+    // prev: where the placeholder sits, when it differs from the text.
+    placeholder_alignment: Option<alignment::Horizontal>,
     on_input: Option<Box<dyn Fn(String) -> Message + 'a>>,
     on_paste: Option<Box<dyn Fn(String) -> Message + 'a>>,
     on_submit: Option<Message>,
@@ -144,6 +146,7 @@ where
             size: None,
             line_height: text::LineHeight::default(),
             alignment: alignment::Horizontal::Left,
+            placeholder_alignment: None,
             on_input: None,
             on_paste: None,
             on_submit: None,
@@ -270,6 +273,17 @@ where
         alignment: impl Into<alignment::Horizontal>,
     ) -> Self {
         self.alignment = alignment.into();
+        self
+    }
+
+    /// prev: sets where the placeholder sits, apart from the text: in a
+    /// right to left interface on the right, while the cursor of an empty
+    /// field follows the language typed in.
+    pub fn placeholder_align(
+        mut self,
+        alignment: impl Into<alignment::Horizontal>,
+    ) -> Self {
+        self.placeholder_alignment = Some(alignment.into());
         self
     }
 
@@ -607,10 +621,16 @@ where
                 self.alignment,
             );
 
+            let showing_placeholder =
+                std::ptr::eq(paragraph, state.placeholder.raw());
             let alignment_offset = alignment_offset(
                 text_bounds.width,
                 paragraph.min_width(),
-                self.alignment,
+                if showing_placeholder {
+                    self.placeholder_alignment.unwrap_or(self.alignment)
+                } else {
+                    self.alignment
+                },
             );
 
             if let Some((cursor, color)) = cursor {

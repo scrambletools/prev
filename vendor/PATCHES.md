@@ -56,11 +56,12 @@ equivalent drag API.
 Copied from crates.io and wired in with `[patch.crates-io]` in the root
 `Cargo.toml`. License: MIT (see each crate's `LICENSE`).
 
-**Why:** iced's text input assumes left to right text. In Hebrew or
-Arabic the cursor was drawn at the wrong character, a selection was not
-drawn at all, the arrow keys moved the cursor against the way they
-point, and a click or drag started left of the text began at its start
-instead of its end.
+**Why:** iced's text input and pick list assume left to right text. In
+right to left text the cursor was drawn at the wrong character, a
+selection was not drawn at all, the arrow keys moved the cursor against
+the way they point, and a click or drag started left of the text began
+at its start instead of its end. Pick lists kept their text on the left
+in right to left interfaces.
 
 **Changes:**
 
@@ -75,6 +76,14 @@ instead of its end.
   such text puts the cursor at its end, which is on the left; and the
   cursor of an empty field goes by the value, not the placeholder, so in
   a right aligned field it sits at the right edge.
+- `iced_widget/src/text_input.rs` also takes a `placeholder_align`, so
+  a search box's placeholder can sit on the interface's side while an
+  empty field's cursor follows the language typed in.
+- `iced_widget/src/pick_list.rs` and `src/overlay/menu.rs`: a
+  `right_to_left` option puts a pick list's text and its menu's options
+  on the right and the handle on the left. The text is measured and
+  drawn from its left edge, since right aligned text laid out wider than
+  itself is misplaced.
 
 The full diffs are `iced_graphics-rtl.patch` and `iced_widget-rtl.patch`
 (`diff -ruN` of `src/` against the crates.io releases). A test in

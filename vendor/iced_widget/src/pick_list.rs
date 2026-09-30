@@ -174,6 +174,8 @@ pub struct PickList<
     menu_class: <Theme as menu::Catalog>::Class<'a>,
     last_status: Option<Status>,
     menu_height: Length,
+    // prev: the text on the right and the handle on the left.
+    right_to_left: bool,
 }
 
 impl<'a, T, L, V, Message, Theme, Renderer>
@@ -211,7 +213,15 @@ where
             menu_class: <Theme as Catalog>::default_menu(),
             last_status: None,
             menu_height: Length::Shrink,
+            right_to_left: false,
         }
+    }
+
+    /// prev: lays the [`PickList`] and its menu out right to left: the
+    /// selected text and the options on the right, the handle on the left.
+    pub fn right_to_left(mut self, right_to_left: bool) -> Self {
+        self.right_to_left = right_to_left;
+        self
     }
 
     /// Sets the placeholder of the [`PickList`].
@@ -646,13 +656,21 @@ where
                         bounds.width,
                         f32::from(line_height.to_absolute(size)),
                     ),
-                    align_x: text::Alignment::Right,
+                    align_x: if self.right_to_left {
+                        text::Alignment::Left
+                    } else {
+                        text::Alignment::Right
+                    },
                     align_y: alignment::Vertical::Center,
                     shaping,
                     wrapping: text::Wrapping::default(),
                 },
                 Point::new(
-                    bounds.x + bounds.width - self.padding.right,
+                    if self.right_to_left {
+                        bounds.x + self.padding.left
+                    } else {
+                        bounds.x + bounds.width - self.padding.right
+                    },
                     bounds.center_y(),
                 ),
                 style.handle_color,
@@ -665,6 +683,28 @@ where
         if let Some(label) = label.or_else(|| self.placeholder.clone()) {
             let text_size =
                 self.text_size.unwrap_or_else(|| renderer.default_size());
+            // prev: in right to left, the text ends at the right padding.
+            // Measured and drawn from its left, since right aligned text
+            // laid out wider than itself is misplaced.
+            let x = if self.right_to_left {
+                use crate::core::text::Paragraph as _;
+                let width = Renderer::Paragraph::with_text(Text {
+                    content: &label,
+                    size: text_size,
+                    line_height: self.text_line_height,
+                    font,
+                    bounds: Size::INFINITE,
+                    align_x: text::Alignment::Default,
+                    align_y: alignment::Vertical::Center,
+                    shaping: self.text_shaping,
+                    wrapping: text::Wrapping::None,
+                })
+                .min_width();
+                (bounds.x + bounds.width - self.padding.right - width)
+                    .max(bounds.x + self.padding.left)
+            } else {
+                bounds.x + self.padding.left
+            };
 
             renderer.fill_text(
                 Text {
@@ -681,7 +721,7 @@ where
                     shaping: self.text_shaping,
                     wrapping: text::Wrapping::default(),
                 },
-                Point::new(bounds.x + self.padding.left, bounds.center_y()),
+                Point::new(x, bounds.center_y()),
                 if selected.is_some() {
                     style.text_color
                 } else {
@@ -723,7 +763,8 @@ where
             .width(bounds.width)
             .padding(self.padding)
             .font(font)
-            .text_shaping(self.text_shaping);
+            .text_shaping(self.text_shaping)
+            .right_to_left(self.right_to_left);
 
             if let Some(text_size) = self.text_size {
                 menu = menu.text_size(text_size);

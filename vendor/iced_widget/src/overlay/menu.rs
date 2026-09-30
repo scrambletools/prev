@@ -41,6 +41,8 @@ pub struct Menu<
     text_shaping: text::Shaping,
     font: Option<Renderer::Font>,
     class: &'a <Theme as Catalog>::Class<'b>,
+    // prev: options on the right.
+    right_to_left: bool,
 }
 
 impl<'a, 'b, T, Message, Theme, Renderer>
@@ -75,7 +77,14 @@ where
             text_shaping: text::Shaping::default(),
             font: None,
             class,
+            right_to_left: false,
         }
+    }
+
+    /// prev: puts the options on the right, for right to left interfaces.
+    pub fn right_to_left(mut self, right_to_left: bool) -> Self {
+        self.right_to_left = right_to_left;
+        self
     }
 
     /// Sets the width of the [`Menu`].
@@ -205,6 +214,7 @@ where
             text_line_height,
             text_shaping,
             class,
+            right_to_left,
         } = menu;
 
         let list = Scrollable::new(List {
@@ -218,6 +228,7 @@ where
             text_shaping,
             padding,
             class,
+            right_to_left,
         })
         .height(menu_height);
 
@@ -344,6 +355,7 @@ where
     text_shaping: text::Shaping,
     font: Option<Renderer::Font>,
     class: &'a <Theme as Catalog>::Class<'b>,
+    right_to_left: bool,
 }
 
 struct ListState {
@@ -554,19 +566,43 @@ where
                 );
             }
 
+            let content = option.to_string();
+            let font = self.font.unwrap_or_else(|| renderer.default_font());
+            // prev: in right to left, the option ends at the right padding,
+            // measured and drawn from its left.
+            let x = if self.right_to_left {
+                use crate::core::text::Paragraph as _;
+                let width = Renderer::Paragraph::with_text(Text {
+                    content: content.as_str(),
+                    bounds: Size::INFINITE,
+                    size: text_size,
+                    line_height: self.text_line_height,
+                    font,
+                    align_x: text::Alignment::Default,
+                    align_y: alignment::Vertical::Center,
+                    shaping: self.text_shaping,
+                    wrapping: text::Wrapping::None,
+                })
+                .min_width();
+                (bounds.x + bounds.width - self.padding.right - width)
+                    .max(bounds.x + self.padding.left)
+            } else {
+                bounds.x + self.padding.left
+            };
+
             renderer.fill_text(
                 Text {
-                    content: option.to_string(),
+                    content,
                     bounds: Size::new(f32::INFINITY, bounds.height),
                     size: text_size,
                     line_height: self.text_line_height,
-                    font: self.font.unwrap_or_else(|| renderer.default_font()),
+                    font,
                     align_x: text::Alignment::Default,
                     align_y: alignment::Vertical::Center,
                     shaping: self.text_shaping,
                     wrapping: text::Wrapping::default(),
                 },
-                Point::new(bounds.x + self.padding.left, bounds.center_y()),
+                Point::new(x, bounds.center_y()),
                 if is_selected {
                     style.selected_text_color
                 } else {
