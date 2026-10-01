@@ -3,7 +3,7 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [1.6.0] - 2026-10-01
 
 ### Added
 
@@ -27,6 +27,12 @@ All notable changes to prev. Versions follow
   closed.
 - Notices go away by themselves after 10 seconds, and their bar takes
   the theme's colors instead of inverted ones.
+- The accent color setting follows the system on every platform: the
+  desktop theme's accent on Linux, and the accent color set on Windows
+  and macOS. The settings file's `omarchy-palette` is now
+  `system-accent`, and the old name still works.
+- New settings default to no animations, a 20 px corner radius and 25%
+  overlay transparency; settings already saved keep their values.
 
 ### Fixed
 
@@ -192,7 +198,7 @@ The first release.
 - SVG drawings and Markdown documents.
 - Autosave, a single running instance, and settings in
   `~/.config/prev.toml`.
-- Material 3 design, light and dark, with colors from the Omarchy theme,
+- Material 3 design, light and dark, with colors from the desktop theme,
   an optional floating toolbar, and reduced motion.
 
 [1.2.1]: https://github.com/scrambletools/prev/releases/tag/v1.2.1

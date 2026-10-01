@@ -24,7 +24,7 @@
       <li>Reorder, rotate, insert, delete, crop and merge pages, and export to PDF or images</li>
       <li>Edit photos: rotate, flip, crop, resize and adjust color, keeping their metadata, and mark them up</li>
       <li>Drag and drop, copy and paste with other apps both ways</li>
-      <li>Autosave with versions kept, Material 3 design, and colors from the Omarchy theme</li>
+      <li>Autosave with versions kept, Material 3 design, and colors from the system accent color</li>
     </ul>
   </description>
 
@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="1.6.0" date="2026-10-01">
+      <description>
+        <p>Drag and drop now works both ways on macOS. Images dropped on the page thumbnails, or dragged there from a page, become pages of their own, a PDF dropped on a page asks whether to add it to the end, and holding Ctrl sends a drop to the sidebar. Colors now follow the system accent color on Windows, macOS and Linux desktops. Also: animated images no longer flicker, notices go away after 10 seconds, and closing the file chooser no longer shows an error.</p>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-09-30">
       <description>
         <p>The interface now comes in 38 languages, adding Bengali, Catalan, Czech, Finnish, Greek, Hungarian, Indonesian, Malay, Norwegian, European Portuguese, Romanian, Swahili, Swedish, Tamil, Thai, Urdu and Vietnamese. Urdu is laid out right to left.</p>
