@@ -100,7 +100,7 @@ System Settings, Privacy & Security. To open without a warning:
 
 ## The Hyprland rule
 
-Omarchy makes every window slightly see-through. `scripts/install.sh`
+Some Hyprland setups make every window slightly see-through. `scripts/install.sh`
 adds a rule keeping prev opaque; packages cannot change a user's
 configuration, so the AUR package prints the rule after installing and
 the README shows it.

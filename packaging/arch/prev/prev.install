@@ -5,7 +5,7 @@ prev: optional helpers
   libheif       HEIC and AVIF images
   curl          pictures dropped from a browser as a web address
 
-On Omarchy, windows are slightly see-through by default, which dims
+Some Hyprland setups make every window slightly see-through, which dims
 photos and pages. To keep prev opaque, add this line to
 ~/.config/hypr/hyprland.lua:
 

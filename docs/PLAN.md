@@ -22,7 +22,7 @@ Material Design 3.
 | Area | Decision |
 |---|---|
 | License | AGPL-3.0-or-later, as MuPDF requires ([ADR 0001](decisions/0001-pdf-engine.md)) |
-| Platforms | Linux, Wayland first (Hyprland and Omarchy), X11 supported; Windows 10 and 11; macOS 11 and later. x86_64 and ARM64 on Linux and Windows, RISC-V on Linux, Apple Silicon on macOS |
+| Platforms | Linux, Wayland first (Hyprland), X11 supported; Windows 10 and 11; macOS 11 and later. x86_64 and ARM64 on Linux and Windows, RISC-V on Linux, Apple Silicon on macOS |
 | Language | Rust, stable toolchain, edition 2024, minimum Rust 1.89 |
 | GUI | iced 0.14: wgpu (Vulkan on Linux, DirectX 12 or Vulkan on Windows, Metal on macOS), tiny-skia on the CPU when no GPU backend starts |
 | PDF engine | MuPDF through the `mupdf` crate, behind an engine trait |
@@ -33,7 +33,7 @@ Material Design 3.
 | Windows | One window per document; images opened together share one window with a thumbnail sidebar; one running instance |
 | Saving | Autosave in place, with the original kept as a version ("Revert To"); Export for copies |
 | Design | Material Design 3 Expressive, drawn with prev's own iced styles and widgets |
-| Colors | M3 dynamic color from a seed: the Omarchy accent when an Omarchy theme is active, prev's blue otherwise; light or dark follows the system |
+| Colors | M3 dynamic color from a seed: the system's accent color (the desktop theme's on Linux, through the settings portal; Windows' and macOS's own), prev's blue otherwise or when turned off; light or dark follows the system |
 | Fonts | Roboto Flex (OFL-1.1) and Material Symbols Rounded (Apache-2.0), bundled |
 | Interface languages | Fluent files in `i18n/`, one per language, 38 languages; the layout mirrors inside panels, dialogs and menus for right to left languages ([TRANSLATING.md](TRANSLATING.md)) |
 | Distribution | GitHub releases: .deb, .rpm, AppImage, tarball, Flatpak bundle, PKGBUILD, Windows MSI and zip, macOS disk image; AUR once published; not on Flathub |
@@ -165,7 +165,7 @@ a Windows and a macOS side; the rest of the app is shared.
 | Keyboard layout, for the input language | XKB layout from winit | the input locale | the input source (TIS) |
 | Clipboard images and prev's page marker | `wl-copy`, `wl-paste` | clipboard-win | the general pasteboard |
 | Drag and drop | vendored smithay-clipboard with a drag and drop patch ([PATCHES.md](../vendor/PATCHES.md)) | OLE drop target, data object and drop source (`dnd_windows.rs`) | AppKit dragging, through the vendored winit's drag hook ([PATCHES.md](../vendor/PATCHES.md), `dnd_macos.rs`) |
-| Theme | Omarchy accent, system light or dark | system light or dark | system light or dark |
+| Theme | desktop theme's accent, system light or dark | accent color (DWM), light or dark | accent color (NSColor), light or dark |
 | Pictures dropped as web addresses | curl | curl, which Windows includes | curl, which macOS includes |
 
 Drag and drop on every system feeds the same drag events, in the types

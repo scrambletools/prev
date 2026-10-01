@@ -4,8 +4,7 @@
 
 A fast, open source document and image viewer for Linux, Windows and
 macOS, similar to macOS Preview. Built in Rust with [iced](https://iced.rs) and
-[MuPDF](https://mupdf.com), at home on Wayland desktops such as Hyprland
-and [Omarchy](https://omarchy.org).
+[MuPDF](https://mupdf.com), at home on Wayland desktops such as Hyprland.
 
 Website and downloads: **[prev.run](https://prev.run)**
 
@@ -136,8 +135,9 @@ For a walkthrough of every feature with more screenshots, see
 - **Material Design 3 interface:** an
   [M3 Expressive](https://m3.material.io) look with Roboto Flex, Material
   Symbols icons, spring motion and keyboard focus (Tab and Shift+Tab).
-  - Colors are generated from the active Omarchy theme's accent, or from
-    prev's own blue, in light or dark.
+  - Colors are generated from the system's accent color (the desktop
+    theme's on Linux, Windows' and macOS's own), or from prev's own blue,
+    in light or dark.
   - Documents and images share one toolbar layout: what is shown and the
     view on the left, editing, panels and export on the right.
   - In narrow windows, toolbar groups that don't fit move into a More
@@ -145,7 +145,7 @@ For a walkthrough of every feature with more screenshots, see
   - Optionally, the toolbar floats over the document as an M3 floating
     toolbar, with the markup bar along the bottom, and hides while the
     pointer is outside the window.
-- **Settings** (the gear button or Ctrl+,): appearance, Omarchy colors,
+- **Settings** (the gear button or Ctrl+,): appearance, the system accent color,
   the floating toolbar and its transparency, animations, corner radius,
   the interface and input languages, and where signatures, version
   history and bookmarks are kept. They are saved in `~/.config/prev.toml`
@@ -181,7 +181,7 @@ packages:
 
 | System | How |
 |---|---|
-| Arch and Omarchy | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
+| Arch | Until prev is on the AUR, build it from the release's PKGBUILD (below) |
 | Debian and Ubuntu | `sudo apt install ./prev_1.5.0-1_amd64.deb` |
 | Fedora | `sudo dnf install ./prev-1.5.0-1.x86_64.rpm` |
 | Flatpak | `flatpak install --user prev-x86_64.flatpak` (or `prev-aarch64.flatpak`) |
@@ -244,7 +244,8 @@ Every package has every feature. Some depend on where prev runs:
   - Settings are in `%APPDATA%\prev\prev.toml`, with signatures, version
     history and bookmarks beside it.
   - HEIC and AVIF work out of the box, as libheif comes with prev.
-  - No Omarchy colors or Hyprland rule.
+  - Colors follow the accent color set in Settings, Personalization,
+    Colors.
 - **macOS:**
   - The app is not yet signed with an Apple Developer ID or notarized,
     so macOS blocks it the first time: open it once, then choose Open
@@ -264,7 +265,7 @@ Every package has every feature. Some depend on where prev runs:
 - **RISC-V** has the .deb, .rpm and tarball, but no AppImage or Flatpak:
   appimagetool and the Flatpak runtime are not built for it.
 
-On Omarchy, windows are slightly see-through by default, which dims
+Some Hyprland setups make every window slightly see-through, which dims
 photos and pages. `scripts/install.sh` adds a Hyprland rule keeping prev
 opaque; with a package, add it to `~/.config/hypr/hyprland.lua`:
 
@@ -326,8 +327,8 @@ launcher and "Open With":
 ```
 
 On Linux, this puts the binary in `~/.local/bin` and the desktop entry, icons and
-man page under `~/.local/share`, and on Omarchy adds the opacity rule
-above (set `PREV_NO_HYPRLAND=1` to skip it). Settings are in
+man page under `~/.local/share`, and on Hyprland setups that make windows see-through adds the opacity
+rule above (set `PREV_NO_HYPRLAND=1` to skip it). Settings are in
 `~/.config/prev.toml`, which also says where signatures, version history
 and bookmarks are kept. Builds made with plain `cargo build` or
 `cargo run` are development builds: they keep their own settings
