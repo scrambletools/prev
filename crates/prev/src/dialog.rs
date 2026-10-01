@@ -75,7 +75,9 @@ mod portal {
                 .iter()
                 .filter_map(|uri| file_uri_to_path(uri.as_str()))
                 .collect()),
-            Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(Vec::new()),
+            // Cancelled, or closed some other way, as GTK's chooser reports
+            // Escape: either way the user chose nothing.
+            Err(ashpd::Error::Response(_)) => Ok(Vec::new()),
             Err(error) => Err(error.to_string()),
         }
     }
@@ -98,7 +100,7 @@ mod portal {
                 .uris()
                 .first()
                 .and_then(|uri| file_uri_to_path(uri.as_str()))),
-            Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(None),
+            Err(ashpd::Error::Response(_)) => Ok(None),
             Err(error) => Err(error.to_string()),
         }
     }
@@ -116,7 +118,7 @@ mod portal {
                 .uris()
                 .first()
                 .and_then(|uri| file_uri_to_path(uri.as_str()))),
-            Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(None),
+            Err(ashpd::Error::Response(_)) => Ok(None),
             Err(error) => Err(error.to_string()),
         }
     }
@@ -149,7 +151,7 @@ mod portal {
                 .first()
                 .and_then(|uri| file_uri_to_path(uri.as_str()))
                 .map(|path| (path, selected.choices().to_vec()))),
-            Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => Ok(None),
+            Err(ashpd::Error::Response(_)) => Ok(None),
             Err(error) => Err(error.to_string()),
         }
     }

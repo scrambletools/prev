@@ -60,7 +60,7 @@ mod linux {
             .map_err(failed)?;
         let prepared = match prepared.response() {
             Ok(prepared) => prepared,
-            Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => return Ok(()),
+            Err(ashpd::Error::Response(_)) => return Ok(()),
             Err(error) => return Err(failed(error)),
         };
         let file = std::fs::File::open(&path)
