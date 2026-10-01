@@ -65,8 +65,12 @@ icon in the Dock go to the running prev the same way.</p>
 size, and the view mode: continuous scroll, single page or two pages side
 by side. Image windows share its layout: what is shown and the view on
 the left, editing, the panels and Export on the right.
-Ctrl+scroll zooms around the pointer, and pages stay sharp at any zoom
-because they render in tiles on background threads.</p>
+Ctrl+scroll zooms in and out around the pointer, and pages stay sharp at
+any zoom because they render in tiles on background threads. In image
+windows, dragging the picture pans around a zoomed-in view (unless the
+selection tool or markup is in use); in documents, dragging selects text
+or uses the markup tool, and the scroll bars and the scroll wheel move
+around the page.</p>
 <p>The sidebar (the button at the far left, or Ctrl+Alt+2 to 5) has four
 tabs: page thumbnails, the table of contents, highlights and notes, and
 bookmarks (Ctrl+D bookmarks the current page). Drag the sidebar's edge to
@@ -255,96 +259,93 @@ let go, and pages, text, areas and images drag out of prev to other prev
 windows, the file manager and other apps. While a drag that prev can
 take is over a window, the window is highlighted; over the page
 thumbnails, a line shows where the pages would go.</p>
-<p>This is on Linux and Windows. On macOS, files dropped from Finder on a
-window are taken as if dropped in its middle: images join an image
-window, other files open in windows of their own. Dragging pictures and
-text in from other apps, and anything out of prev, is still to come
-there.</p>
+<p>Things dropped on the page view land on the page; things dropped on
+the sidebar (a document's page thumbnails, an image window's images) go
+there. Hold Ctrl (Control on macOS, not ⌘) while dropping on the page
+view to send the drop to the sidebar instead, without aiming for it.</p>
 <h3 id="dropping-into-a-document">Dropping into a document</h3>
 <div class="table"><table>
 <thead>
 <tr>
 <th>What you drop</th>
-<th>Where</th>
-<th>What happens</th>
+<th>On a page</th>
+<th>On the page thumbnails, or anywhere with Ctrl</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>An image (from a web page, a screenshot tool, or an area dragged from prev)</td>
-<td>A page</td>
-<td>It goes on the page as an image, centered where you let go, at its own size (96 pixels to the inch), made smaller if it is larger than 80% of the page</td>
+<td>An image file</td>
+<td>It goes on the page as an image, centered where you let go, at its own size (96 pixels to the inch), made smaller if it is larger than 80% of the page. Several image files open together in an image window</td>
+<td>A new page at the line, the size of the page before it, with the image as large as fits, centered</td>
 </tr>
 <tr>
-<td>An image</td>
-<td>Outside the pages (the sidebar, around the pages)</td>
-<td>As above, in the middle of what is visible of the current page</td>
+<td>An image from another app (a web page, a screenshot tool, an area dragged from prev)</td>
+<td>As an image file: on the page where you let go</td>
+<td>A new page at the line, as an image file</td>
 </tr>
 <tr>
-<td>Text (from another app, or selected text dragged from prev)</td>
-<td>Anywhere</td>
-<td>A text box with that text, sized to fit it, where you let go, or in the middle of the view when outside the pages</td>
+<td>A PDF file from the file manager</td>
+<td>prev asks whether to add it to the end of the document or open it in its own window</td>
+<td>Its pages are inserted at the line; with Ctrl over the page view, at the end</td>
 </tr>
 <tr>
 <td>Pages dragged from another prev window, or a PDF dragged from a web page</td>
-<td>The page thumbnails</td>
-<td>Inserted at the line</td>
-</tr>
-<tr>
-<td>The same</td>
-<td>A page</td>
 <td>Inserted after the selected page</td>
+<td>Inserted at the line; with Ctrl over the page view, at the end</td>
 </tr>
 <tr>
-<td>PDF files from the file manager</td>
-<td>The page thumbnails</td>
-<td>Their pages are inserted at the line</td>
-</tr>
-<tr>
-<td>One image file, with the markup bar open</td>
-<td>A page</td>
-<td>It goes on the page, like a dropped image</td>
+<td>Text (from another app, or selected text dragged from prev)</td>
+<td>A text box with that text, sized to fit it, where you let go</td>
+<td>A text box in the middle of what is visible of the current page</td>
 </tr>
 <tr>
 <td>Any other files</td>
-<td>Anywhere</td>
-<td>Each opens in its own window, images dropped together sharing one</td>
+<td colspan="2">Each opens in its own window</td>
 </tr>
 </tbody>
 </table></div>
 <p>Whatever tool is chosen, dropped images and text become annotations the
-select tool can move, and Undo takes them back.</p>
+select tool can move, and Undo takes them back. An image annotation
+dragged from a page onto the thumbnails becomes a new page there too:
+it is copied, and stays on its page unless you hold Shift
+(or Command on macOS), which moves it.</p>
 <h3 id="dropping-into-an-image-window">Dropping into an image window</h3>
 <div class="table"><table>
 <thead>
 <tr>
 <th>What you drop</th>
-<th>What happens</th>
+<th>On the picture</th>
+<th>On the sidebar, or anywhere with Ctrl</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Image files</td>
-<td>They join the window, after its images, in the thumbnail sidebar, which opens; the first of them is shown. Images the window has already are skipped</td>
+<td>They join the window, after its images, in the thumbnail sidebar, which opens; the first of them is shown. Images the window has already are skipped. With the markup bar open, one image file goes on the markup instead</td>
+<td>They join the window, as on the picture</td>
 </tr>
 <tr>
-<td>One image file, with the markup bar open, over the picture</td>
-<td>It goes on the markup</td>
-</tr>
-<tr>
-<td>An image or text</td>
+<td>An image from another app</td>
 <td>It goes on the markup where you let go. If the image had no markup yet, the markup opens and it goes in the middle. Remember to export: markup lasts only while the window is open</td>
+<td>It is saved to your Downloads folder (the one your desktop's user folders name, or <code>~/Downloads</code>), under its own name, numbered if a file has that name already, and joins the window</td>
+</tr>
+<tr>
+<td>Text</td>
+<td colspan="2">It goes on the markup, as an image from another app does on the picture</td>
 </tr>
 <tr>
 <td>Other files, such as PDFs</td>
-<td>Each opens in its own window</td>
+<td colspan="2">Each opens in its own window</td>
 </tr>
 <tr>
-<td>Pages, or a PDF dragged from a web page</td>
-<td>Nothing: prev says to drop them on a document</td>
+<td>Pages</td>
+<td colspan="2">Nothing: prev says to drop them on a document</td>
 </tr>
 </tbody>
 </table></div>
+<p>An image annotation dragged from the markup onto the sidebar is saved
+to Downloads as <code>Image.png</code> and joins the window; Shift (or Command on
+macOS) also takes it off the markup.</p>
 <h3 id="dragging-out-of-prev">Dragging out of prev</h3>
 <div class="table"><table>
 <thead>
@@ -377,32 +378,18 @@ select tool can move, and Undo takes them back.</p>
 </tr>
 </tbody>
 </table></div>
-<p>On Linux, a small picture of the pages, area or image follows the
-pointer while it is dragged; Windows shows its own drag cursor. Dragged images and text are copied; pages are copied
-unless you hold Shift. A page dragged out and dropped back on the same
-window moves there with Shift, or is copied there without it. An image dragged out of the sidebar and
-dropped back on its own window is left alone.</p>
+<p>On Linux and macOS, a small picture of the pages, area or image follows
+the pointer while it is dragged; Windows shows its own drag cursor.
+Dragged images and text are copied. Pages are copied unless you hold
+Shift (or Command on macOS) when you let go, which moves them: they are
+removed from the document they came from. A page dragged out and dropped
+back on the same window moves there with Shift, or is copied there
+without it. An image dragged out of the sidebar and dropped back on its
+own window is left alone.</p>
 <p>For pages going to the file manager, prev writes the PDF to a <code>drag</code>
-folder in its cache (<code>~/.cache/prev</code>, or <code>%LOCALAPPDATA%\prev\cache</code> on
-Windows); it is removed when the next drag starts and when prev quits.</p>
-<h3 id="holding-shift">Holding Shift</h3>
-<p>Shift changes what a drop does:</p>
-<ul>
-<li><strong>Pages</strong> dragged between documents move instead of being copied:
-  they are removed from the document they came from once they are
-  dropped.</li>
-<li><strong>Images</strong> are taken as files: dropped on an image window they join
-  its images, and dropped on a document they open in their own window
-  instead of going on the page. A picture that comes without a file,
-  such as one dragged from a web page, is saved to your Downloads folder
-  first (the one your desktop's user folders name, or <code>~/Downloads</code>),
-  under its own name, numbered if a file has that name already.</li>
-<li><strong>A PDF dragged from a web page</strong> is saved to Downloads the same way,
-  then drops as a PDF file from the file manager would: inserted among
-  the page thumbnails, opened in its own window anywhere else.</li>
-<li><strong>Text</strong>, and files other than images (such as PDFs from the file
-  manager), drop as they would without it.</li>
-</ul>
+folder in its cache (<code>~/.cache/prev</code>, <code>~/Library/Caches/prev</code> on macOS, or
+<code>%LOCALAPPDATA%\prev\cache</code> on Windows); it is removed when the next drag
+starts and when prev quits.</p>
 <h3 id="browsers-and-other-apps">Browsers and other apps</h3>
 <ul>
 <li>Chromium hands over the picture itself, so it arrives at full size.
@@ -413,17 +400,21 @@ Windows); it is removed when the next drag starts and when prev quits.</p>
   address, as text; prev does not fetch them.</li>
 <li>On Linux, drag and drop does not need wl-clipboard; copying and
   pasting images does.</li>
-<li>On Windows, Shift works for drags from any app.</li>
+<li>On Windows and macOS, these keys work for drags from any app.</li>
 <li>Wayland tells the window under a drag nothing about the keys held. prev
-  sees Shift during drags from other apps because Hyprland moves the
-  keyboard focus with the pointer; under compositors that do not, Shift
-  works only for drags that start in prev. Hyprland also never reports
-  whether a drop copied or moved, so prev goes by Shift at both ends.</li>
+  sees Shift and Ctrl during drags from other apps because Hyprland moves
+  the keyboard focus with the pointer; under compositors that do not,
+  they work only for drags that start in prev. Hyprland also never
+  reports whether a drop copied or moved, so prev goes by Shift at both
+  ends.</li>
 </ul>
 <h3 id="not-yet">Not yet</h3>
 <ul>
-<li>Annotations cannot be dragged out of a document, nor from one
-  document to another; copy an area instead.</li>
+<li>Annotations cannot be dragged out of a window, nor from one document
+  to another; copy an area instead. Image annotations can go to their own
+  window's sidebar, as above.</li>
+<li>Images dropped on an image window's sidebar join it after its images,
+  not where they are let go.</li>
 <li>An image window showing a single image has no sidebar to drag it from;
   drag it from the file manager instead.</li>
 <li>The page thumbnails do not scroll by themselves while dragging near
