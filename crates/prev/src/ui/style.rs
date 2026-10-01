@@ -70,12 +70,14 @@ pub fn tooltip(theme: &Theme) -> container::Style {
     }
 }
 
+/// A notice along the bottom of a window, in the theme's own colors, as
+/// dialogs are, rather than inverted.
 pub fn snackbar(theme: &Theme) -> container::Style {
     let scheme = Scheme::of(theme);
     container::Style {
         border: border::rounded(shape::EXTRA_SMALL),
         shadow: elevation::shadow(&scheme, 3),
-        ..filled(scheme.inverse_surface, scheme.inverse_on_surface)
+        ..filled(scheme.surface_container_highest, scheme.on_surface)
     }
 }
 

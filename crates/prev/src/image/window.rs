@@ -456,6 +456,26 @@ fn format_bytes(bytes: u64) -> String {
 }
 
 impl ImageWindow {
+    /// The notices showing: the window's, then its current markup's.
+    pub fn notices(&self) -> Vec<&str> {
+        let markup = self.markup().and_then(|markup| markup.window.notice());
+        self.notice.as_deref().into_iter().chain(markup).collect()
+    }
+
+    /// Clears the window's or its markup's notice if it is still `text`.
+    pub fn dismiss_notice(&mut self, text: &str) {
+        if self.notice.as_deref() == Some(text) {
+            self.notice = None;
+        }
+        for markup in self
+            .items
+            .iter_mut()
+            .filter_map(|item| item.markup.as_mut())
+        {
+            markup.window.dismiss_notice(text);
+        }
+    }
+
     pub fn open(files: Vec<(PathBuf, Source)>) -> (Self, Task<Message>) {
         let sidebar = files.len() > 1;
         let items = files

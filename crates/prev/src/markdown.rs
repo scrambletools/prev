@@ -224,6 +224,18 @@ fn load_image(path: PathBuf) -> Option<Picture> {
 }
 
 impl MarkdownWindow {
+    /// The notice showing, if any.
+    pub fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
+
+    /// Clears the notice if it is still `text`.
+    pub fn dismiss_notice(&mut self, text: &str) {
+        if self.notice.as_deref() == Some(text) {
+            self.notice = None;
+        }
+    }
+
     pub fn open(path: PathBuf) -> (Self, Task<Message>) {
         let watching = Arc::new(AtomicBool::new(true));
         let window = Self {

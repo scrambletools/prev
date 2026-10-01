@@ -298,6 +298,18 @@ pub struct MarkupParts<'a> {
 }
 
 impl PdfWindow {
+    /// The notice showing, if any.
+    pub fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
+
+    /// Clears the notice if it is still `text`.
+    pub fn dismiss_notice(&mut self, text: &str) {
+        if self.notice.as_deref() == Some(text) {
+            self.notice = None;
+        }
+    }
+
     pub fn open(path: PathBuf) -> (Self, Task<Message>) {
         let (handle, opened) = DocumentHandle::open(engine(), path.clone());
         let window = Self {

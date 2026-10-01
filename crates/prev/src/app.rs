@@ -33,6 +33,9 @@ pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
     "io.github.scrambletools.prev.Devel"
 };
 
+/// How long a notice shows before it goes away by itself.
+const NOTICE_TIME: std::time::Duration = std::time::Duration::from_secs(10);
+
 pub struct Prev {
     /// The window that started the drag under way, told how it ends.
     drag_origin: Option<window::Id>,
@@ -57,6 +60,9 @@ pub struct Prev {
     keyboard_rtl: Option<bool>,
     /// The window that last had the focus, which menu bar items act on.
     focused: Option<window::Id>,
+    /// The notices each window showed after the last update, so new ones
+    /// get their timer.
+    notices_seen: BTreeMap<window::Id, Vec<String>>,
     /// Storage paths as typed in the settings dialog, before applying.
     storage_drafts: [String; 3],
     /// Why a typed or chosen path was refused, per storage row.
@@ -214,6 +220,8 @@ pub enum Message {
     /// A file dropped through the windowing system rather than prev's own
     /// drag and drop: on Windows and X11.
     FileDropped(window::Id, PathBuf),
+    /// A notice has shown for NOTICE_TIME.
+    NoticeExpired(window::Id, String),
     /// A drop was read: where it landed, what it brought, and whether Ctrl
     /// sent it to the sidebar.
     DropDecoded(
@@ -312,6 +320,7 @@ impl Prev {
             system_animations: true,
             keyboard_rtl: None,
             focused: None,
+            notices_seen: BTreeMap::new(),
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
         ui::shape::set_surface(prev.settings.corner_radius);
@@ -561,7 +570,89 @@ impl Prev {
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        let task = self.update_inner(message);
+        Task::batch([task, self.time_notices()])
+    }
+
+    /// Every window's notices, as they show now.
+    fn notices(&self) -> BTreeMap<window::Id, Vec<String>> {
+        self.windows
+            .iter()
+            .map(|(id, window)| {
+                let mut notices: Vec<String> = window.notice.iter().cloned().collect();
+                if let Content::Document(document) = &window.content {
+                    notices.extend(
+                        document
+                            .pdf
+                            .as_ref()
+                            .and_then(|pdf| pdf.notice())
+                            .map(str::to_owned),
+                    );
+                    notices.extend(
+                        document
+                            .markdown
+                            .as_ref()
+                            .and_then(|markdown| markdown.notice())
+                            .map(str::to_owned),
+                    );
+                    if let Some(images) = &document.images {
+                        notices.extend(images.notices().into_iter().map(str::to_owned));
+                    }
+                }
+                (*id, notices)
+            })
+            .collect()
+    }
+
+    /// Notices that have just appeared go away after NOTICE_TIME, unless
+    /// they have been replaced or dismissed by then.
+    fn time_notices(&mut self) -> Task<Message> {
+        let now = self.notices();
+        let mut timers = Vec::new();
+        for (id, notices) in &now {
+            let seen = self.notices_seen.get(id);
+            for notice in notices {
+                if seen.is_some_and(|seen| seen.contains(notice)) {
+                    continue;
+                }
+                let (id, notice) = (*id, notice.clone());
+                timers.push(Task::perform(
+                    prev::image::editor::spawn(|| std::thread::sleep(NOTICE_TIME)),
+                    move |_| Message::NoticeExpired(id, notice.clone()),
+                ));
+            }
+        }
+        self.notices_seen = now;
+        Task::batch(timers)
+    }
+
+    /// Clears `notice` from window `id`, wherever it still shows.
+    fn expire_notice(&mut self, id: window::Id, notice: &str) {
+        let Some(window) = self.windows.get_mut(&id) else {
+            return;
+        };
+        if window.notice.as_deref() == Some(notice) {
+            window.notice = None;
+        }
+        if let Content::Document(document) = &mut window.content {
+            if let Some(pdf) = document.pdf.as_mut() {
+                pdf.dismiss_notice(notice);
+            }
+            if let Some(markdown) = document.markdown.as_mut() {
+                markdown.dismiss_notice(notice);
+            }
+            if let Some(images) = document.images.as_mut() {
+                images.dismiss_notice(notice);
+            }
+        }
+    }
+
+    fn update_inner(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::NoticeExpired(id, notice) => {
+                self.expire_notice(id, &notice);
+                Task::none()
+            }
             Message::External(External::OpenPaths(paths)) => self.open_paths(paths),
             #[cfg(target_os = "macos")]
             Message::External(External::Menu(action)) => {
