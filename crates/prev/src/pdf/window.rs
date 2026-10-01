@@ -462,7 +462,7 @@ impl PdfWindow {
         let overlay = if self.signature_dialog.is_some() {
             self.signature_dialog_view(full())
         } else if let Some(notice) = &self.notice {
-            component::snackbar(full(), notice, Message::DismissNotice)
+            component::snackbar_above_bar(full(), notice, Message::DismissNotice, self.markup_bar)
         } else {
             space().into()
         };
@@ -1367,7 +1367,12 @@ impl PdfWindow {
         // Layers over the document are always in the tree, empty when not
         // shown, so opening one keeps the scroll position underneath.
         let notice: Element<'_, Message> = match &self.notice {
-            Some(notice) => component::snackbar(full(), notice, Message::DismissNotice),
+            Some(notice) => component::snackbar_above_bar(
+                full(),
+                notice,
+                Message::DismissNotice,
+                self.markup_bar,
+            ),
             None => space().into(),
         };
         let dialog: Element<'_, Message> = if self.signature_dialog.is_some() {

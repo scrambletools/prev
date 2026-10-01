@@ -512,6 +512,23 @@ pub fn snackbar<'a, Message: Clone + 'a>(
     message: &'a str,
     on_dismiss: Message,
 ) -> Element<'a, Message> {
+    snackbar_above_bar(base, message, on_dismiss, false)
+}
+
+/// A snackbar along the bottom of `base`, above the bottom bar when it
+/// floats over the content (`bottom_bar`), as the markup bar does.
+pub fn snackbar_above_bar<'a, Message: Clone + 'a>(
+    base: impl Into<Element<'a, Message>>,
+    message: &'a str,
+    on_dismiss: Message,
+    bottom_bar: bool,
+) -> Element<'a, Message> {
+    // The bar's room ends a gap above it, the space floating bars keep
+    // between them.
+    let bottom = match floating_room(bottom_bar) {
+        0.0 => 16.0,
+        room => room,
+    };
     let bar = container(
         row![
             font::aligned(font::styled(message, Type::BodyMedium)),
@@ -531,7 +548,12 @@ pub fn snackbar<'a, Message: Clone + 'a>(
         container(enter::from_below(bar))
             .align_bottom(Fill)
             .center_x(Fill)
-            .padding(16)
+            .padding(iced::Padding {
+                top: 16.0,
+                right: 16.0,
+                bottom,
+                left: 16.0,
+            })
     ]
     .into()
 }

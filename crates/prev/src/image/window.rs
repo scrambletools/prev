@@ -1890,7 +1890,9 @@ impl ImageWindow {
         .height(Fill)
         .style(style::surface);
         let page: Element<'_, Message> = match &self.notice {
-            Some(notice) => component::snackbar(page, notice, Message::DismissNotice),
+            Some(notice) => {
+                component::snackbar_above_bar(page, notice, Message::DismissNotice, bottom)
+            }
             None => page.into(),
         };
         let page = match &self.pending_export {
