@@ -502,10 +502,11 @@ settings-input-language-note = यह तय करता है कि खा�
 settings-appearance-system = सिस्टम
 settings-appearance-light = लाइट
 settings-appearance-dark = डार्क
-settings-omarchy-accent = Omarchy एक्सेंट रंग का उपयोग करें
+settings-system-accent = सिस्टम के एक्सेंट रंग का उपयोग करें
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = रंग “{ $theme }” के एक्सेंट से बनाए जाते हैं।
-settings-omarchy-none = कोई Omarchy थीम सक्रिय नहीं है।
+settings-system-accent-note = रंग सिस्टम के एक्सेंट रंग से बनाए जाते हैं।
+settings-system-accent-none = सिस्टम में कोई एक्सेंट रंग नहीं है, इसलिए prev अपने रंग का उपयोग करता है।
 settings-auto-hide = पॉइंटर हटने पर टूलबार छिपाएँ
 settings-auto-hide-note = टूलबार दस्तावेज़ के ऊपर तैरता है और पॉइंटर के विंडो से बाहर रहने पर खिसककर हट जाता है।
 settings-animations = एनिमेशन

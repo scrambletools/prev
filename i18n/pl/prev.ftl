@@ -517,10 +517,11 @@ settings-input-language-note = Określa, po której stronie zaczyna się puste p
 settings-appearance-system = Systemowy
 settings-appearance-light = Jasny
 settings-appearance-dark = Ciemny
-settings-omarchy-accent = Użyj koloru akcentu Omarchy
+settings-system-accent = Użyj koloru akcentu systemu
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Kolory są tworzone na podstawie akcentu motywu „{ $theme }”.
-settings-omarchy-none = Żaden motyw Omarchy nie jest aktywny.
+settings-system-accent-note = Kolory są tworzone na podstawie koloru akcentu systemu.
+settings-system-accent-none = System nie ma koloru akcentu, więc prev używa własnego.
 settings-auto-hide = Ukrywaj pasek narzędzi, gdy wskaźnik opuści okno
 settings-auto-hide-note = Pasek narzędzi unosi się nad dokumentem i chowa się, gdy wskaźnik jest poza oknem.
 settings-animations = Animacje

@@ -494,10 +494,11 @@ settings-input-language-note = Imposta il lato da cui parte un campo di testo vu
 settings-appearance-system = Sistema
 settings-appearance-light = Chiaro
 settings-appearance-dark = Scuro
-settings-omarchy-accent = Usa il colore principale di Omarchy
+settings-system-accent = Usa il colore principale del sistema
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = I colori derivano dal colore principale di “{ $theme }”.
-settings-omarchy-none = Nessun tema Omarchy attivo.
+settings-system-accent-note = I colori derivano dal colore principale del sistema.
+settings-system-accent-none = Il sistema non ha un colore principale, quindi prev usa il proprio.
 settings-auto-hide = Nascondi la barra degli strumenti quando il puntatore esce
 settings-auto-hide-note = La barra degli strumenti fluttua sopra il documento e scivola via mentre il puntatore è fuori dalla finestra.
 settings-animations = Animazioni

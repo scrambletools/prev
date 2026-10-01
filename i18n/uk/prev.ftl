@@ -522,10 +522,11 @@ settings-input-language-note = Визначає, з якого боку почи
 settings-appearance-system = Як у системі
 settings-appearance-light = Світле
 settings-appearance-dark = Темне
-settings-omarchy-accent = Використовувати акцентний колір Omarchy
+settings-system-accent = Використовувати акцентний колір системи
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Кольори побудовано на основі акцентного кольору теми «{ $theme }».
-settings-omarchy-none = Немає активної теми Omarchy.
+settings-system-accent-note = Кольори побудовано на основі акцентного кольору системи.
+settings-system-accent-none = У системі немає акцентного кольору, тому prev використовує власний.
 settings-auto-hide = Ховати панель інструментів, коли вказівник поза вікном
 settings-auto-hide-note = Панель інструментів розташовується над документом і ховається, поки вказівник поза вікном.
 settings-animations = Анімація

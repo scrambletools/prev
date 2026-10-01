@@ -49,6 +49,8 @@ pub struct Prev {
     settings_error: Option<String>,
     omarchy_dir: Option<PathBuf>,
     omarchy: Option<omarchy::Palette>,
+    /// The desktop's, Windows' or macOS's accent color, when it has one.
+    system_accent: Option<Color>,
     system_mode: iced::theme::Mode,
     theme: Theme,
     /// Documents still being written after their windows closed.
@@ -265,9 +267,10 @@ pub enum Message {
     InputLanguageSelected(String),
     /// The keyboard layout changed direction.
     KeyboardDirection(Option<bool>),
-    OmarchyPaletteToggled(bool),
+    SystemAccentToggled(bool),
     DismissNotice(window::Id),
     AnimationsEnabled(Option<bool>),
+    SystemAccent(Option<(u8, u8, u8)>),
     FinalSaveDone,
     /// Window `id` got the keyboard focus.
     WindowFocused(window::Id),
@@ -309,6 +312,7 @@ impl Prev {
             settings_path,
             settings_error,
             omarchy_dir,
+            system_accent: None,
             omarchy: None,
             system_mode: iced::theme::Mode::None,
             theme: Theme::Light,
@@ -333,7 +337,10 @@ impl Prev {
         let task = prev.open_paths(paths);
         let system = iced::system::theme().map(Message::SystemTheme);
         let motion = Task::perform(portal::animations_enabled(), Message::AnimationsEnabled);
-        (prev, Task::batch([task, system, motion]))
+        (
+            prev,
+            Task::batch([task, system, motion, read_system_accent()]),
+        )
     }
 
     fn reload_omarchy(&mut self) {
@@ -347,9 +354,10 @@ impl Prev {
         let (seed, dark) = theme_choice(
             &self.settings,
             self.omarchy.as_ref(),
+            self.system_accent,
             self.system_mode == iced::theme::Mode::Dark,
         );
-        let name = match (&self.omarchy, self.settings.omarchy_palette) {
+        let name = match (&self.omarchy, self.settings.system_accent) {
             (Some(palette), true) => format!("prev ({})", palette.name),
             _ => "prev".to_owned(),
         };
@@ -753,6 +761,13 @@ impl Prev {
             Message::SystemTheme(mode) => {
                 self.system_mode = mode;
                 self.refresh_theme();
+                // A change of accent often comes with one of mode.
+                read_system_accent()
+            }
+            Message::SystemAccent(accent) => {
+                self.system_accent =
+                    accent.map(|(red, green, blue)| Color::from_rgb8(red, green, blue));
+                self.refresh_theme();
                 Task::none()
             }
             Message::Frame(now) => {
@@ -1027,8 +1042,8 @@ impl Prev {
                 }
                 Task::none()
             }
-            Message::OmarchyPaletteToggled(enabled) => {
-                self.settings.omarchy_palette = enabled;
+            Message::SystemAccentToggled(enabled) => {
+                self.settings.system_accent = enabled;
                 self.save_settings();
                 self.refresh_theme();
                 Task::none()
@@ -1656,19 +1671,21 @@ impl Prev {
                 .selected(appearance == value)
                 .on_press(Message::AppearanceSelected(value))
         };
-        let omarchy_note = match &self.omarchy {
-            Some(palette) => prev::fl!("settings-omarchy-note", theme = palette.name.as_str()),
-            None => prev::fl!("settings-omarchy-none"),
+        let accent_note = match (&self.omarchy, self.system_accent) {
+            (Some(palette), _) => prev::fl!("settings-omarchy-note", theme = palette.name.as_str()),
+            (None, Some(_)) => prev::fl!("settings-system-accent-note"),
+            (None, None) => prev::fl!("settings-system-accent-none"),
         };
+        // The title and close button stay put while the settings scroll.
+        let header = row![
+            ui::aligned(ui::styled(prev::fl!("settings-title"), Type::HeadlineSmall)),
+            component::tip(
+                ui::icon_button(Icon::Close).on_press(Message::CloseSettings(id)),
+                prev::fl!("common-close")
+            ),
+        ]
+        .align_y(Center);
         let mut content = column![
-            row![
-                ui::aligned(ui::styled(prev::fl!("settings-title"), Type::HeadlineSmall)),
-                component::tip(
-                    ui::icon_button(Icon::Close).on_press(Message::CloseSettings(id)),
-                    prev::fl!("common-close")
-                ),
-            ]
-            .align_y(Center),
             component::section(prev::fl!("settings-appearance")),
             component::connected(vec![
                 choice(
@@ -1698,15 +1715,15 @@ impl Prev {
             component::section(prev::fl!("settings-colors")),
             row![
                 column![
-                    ui::styled(prev::fl!("settings-omarchy-accent"), Type::BodyLarge),
+                    ui::styled(prev::fl!("settings-system-accent"), Type::BodyLarge),
                     ui::aligned(
-                        ui::styled(omarchy_note, Type::BodyMedium).style(style::on_surface_variant)
+                        ui::styled(accent_note, Type::BodyMedium).style(style::on_surface_variant)
                     ),
                 ]
                 .spacing(2)
                 .width(Fill),
-                toggler(self.settings.omarchy_palette)
-                    .on_toggle(Message::OmarchyPaletteToggled)
+                toggler(self.settings.system_accent)
+                    .on_toggle(Message::SystemAccentToggled)
                     .size(28)
                     .style(style::switch),
             ]
@@ -1844,10 +1861,24 @@ impl Prev {
                 .padding(iced::Padding::ZERO.top(12))
                 .center_x(Fill),
         );
-        // Scrolls when the window is too short for all of it.
-        let card = container(component::scroll(container(content).padding(24)))
-            .width(Length::Fixed(520.0))
-            .style(style::dialog);
+        // Below the header, the settings scroll when the window is too
+        // short for all of them.
+        let card = container(column![
+            container(header).padding(iced::Padding {
+                top: 24.0,
+                right: 24.0,
+                bottom: 0.0,
+                left: 24.0,
+            }),
+            component::scroll(container(content).padding(iced::Padding {
+                top: 0.0,
+                right: 24.0,
+                bottom: 24.0,
+                left: 24.0,
+            })),
+        ])
+        .width(Length::Fixed(520.0))
+        .style(style::dialog);
         // A click on the dimmed window around the dialog closes it.
         mouse_area(
             container(ui::enter::grow(opaque(card)))
@@ -1946,25 +1977,37 @@ fn quit<T>() -> Task<T> {
     iced::exit()
 }
 
-/// The seed color and whether the scheme is dark. The Omarchy accent is
-/// the seed when enabled; in "Follow system" the Omarchy theme's own mode
-/// wins over the system's.
+/// Reads the system's accent color, for the scheme's seed.
+fn read_system_accent() -> Task<Message> {
+    Task::perform(portal::accent_color(), Message::SystemAccent)
+}
+
+/// The seed color and whether the scheme is dark. With the system accent
+/// on, the Omarchy theme's accent is the seed, else the system's own, else
+/// prev's; in "Follow system" the Omarchy theme's own mode wins over the
+/// system's.
 fn theme_choice(
     settings: &Settings,
     omarchy: Option<&omarchy::Palette>,
+    system_accent: Option<Color>,
     system_dark: bool,
 ) -> (Color, bool) {
-    let omarchy = omarchy.filter(|_| settings.omarchy_palette);
+    let omarchy = omarchy.filter(|_| settings.system_accent);
     let dark = match (settings.appearance, omarchy) {
         (Appearance::System, Some(palette)) => palette.mode == omarchy::Mode::Dark,
         (Appearance::System, None) => system_dark,
         (Appearance::Light, _) => false,
         (Appearance::Dark, _) => true,
     };
-    let seed = omarchy.map_or(ui::scheme::PREV_SEED, |palette| {
-        let accent = palette.accent;
-        Color::from_rgb8(accent.red, accent.green, accent.blue)
-    });
+    let seed = match omarchy {
+        Some(palette) => {
+            let accent = palette.accent;
+            Color::from_rgb8(accent.red, accent.green, accent.blue)
+        }
+        None => system_accent
+            .filter(|_| settings.system_accent)
+            .unwrap_or(ui::scheme::PREV_SEED),
+    };
     (seed, dark)
 }
 
@@ -2107,17 +2150,18 @@ mod tests {
 
     fn choice(
         appearance: Appearance,
-        omarchy_palette: bool,
+        system_accent: bool,
         omarchy: Option<&omarchy::Palette>,
         system_dark: bool,
     ) -> (Color, bool) {
         theme_choice(
             &Settings {
                 appearance,
-                omarchy_palette,
+                system_accent,
                 ..Settings::default()
             },
             omarchy,
+            None,
             system_dark,
         )
     }
@@ -2146,6 +2190,30 @@ mod tests {
         assert_eq!(
             choice(Appearance::Light, true, Some(&omarchy), true),
             (accent, false)
+        );
+    }
+
+    #[test]
+    fn system_accent_seeds_the_scheme_without_omarchy() {
+        let accent = Color::from_rgb8(0x00, 0x78, 0xd4);
+        let with = |on: bool, omarchy: Option<&omarchy::Palette>| {
+            theme_choice(
+                &Settings {
+                    system_accent: on,
+                    ..Settings::default()
+                },
+                omarchy,
+                Some(accent),
+                false,
+            )
+            .0
+        };
+        assert_eq!(with(true, None), accent);
+        assert_eq!(with(false, None), ui::scheme::PREV_SEED);
+        assert_eq!(
+            with(true, Some(&omarchy_dark())),
+            Color::from_rgb8(0x82, 0xfb, 0x9c),
+            "the Omarchy accent comes first"
         );
     }
 

@@ -42,6 +42,25 @@ mod linux {
             .ok()
     }
 
+    /// The desktop's accent color, through the settings portal, when the
+    /// desktop sets one (GNOME, KDE).
+    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+        let settings = ashpd::desktop::settings::Settings::new().await.ok()?;
+        let color = settings.accent_color().await.ok()?;
+        let channel = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+        // The portal sends a color outside 0 to 1 when none is set.
+        [color.red(), color.green(), color.blue()]
+            .iter()
+            .all(|value| (0.0..=1.0).contains(value))
+            .then(|| {
+                (
+                    channel(color.red()),
+                    channel(color.green()),
+                    channel(color.blue()),
+                )
+            })
+    }
+
     pub async fn print(path: PathBuf, title: String) -> Result<(), String> {
         use ashpd::desktop::print::{PreparePrintOptions, PrintOptions, PrintProxy};
         use std::os::fd::AsFd;
@@ -130,6 +149,60 @@ mod other {
     /// settings turn them off.
     #[cfg(not(any(windows, target_os = "macos")))]
     pub async fn animations_enabled() -> Option<bool> {
+        None
+    }
+
+    /// Windows' accent color, as Settings, Personalization, Colors sets it:
+    /// the DWM's `AccentColor`, stored as 0xAABBGGRR.
+    #[cfg(windows)]
+    #[allow(unsafe_code)]
+    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+        use windows_sys::Win32::System::Registry::{
+            HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW,
+        };
+        let wide = |text: &str| text.encode_utf16().chain([0]).collect::<Vec<u16>>();
+        let (key, value) = (
+            wide("Software\\Microsoft\\Windows\\DWM"),
+            wide("AccentColor"),
+        );
+        let mut color: u32 = 0;
+        let mut size = std::mem::size_of::<u32>() as u32;
+        // SAFETY: the strings end in nul and live through the call, and
+        // the DWORD read goes to `color`, `size` bytes long.
+        let read = unsafe {
+            RegGetValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                value.as_ptr(),
+                RRF_RT_REG_DWORD,
+                std::ptr::null_mut(),
+                (&raw mut color).cast(),
+                &raw mut size,
+            )
+        };
+        (read == 0).then_some((
+            (color & 0xff) as u8,
+            ((color >> 8) & 0xff) as u8,
+            ((color >> 16) & 0xff) as u8,
+        ))
+    }
+
+    /// macOS's accent color, as System Settings, Appearance sets it.
+    #[cfg(target_os = "macos")]
+    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+        use objc2_app_kit::{NSColor, NSColorSpace};
+        let color =
+            NSColor::controlAccentColor().colorUsingColorSpace(&NSColorSpace::sRGBColorSpace())?;
+        let channel = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+        Some((
+            channel(color.redComponent()),
+            channel(color.greenComponent()),
+            channel(color.blueComponent()),
+        ))
+    }
+
+    #[cfg(not(any(windows, target_os = "macos")))]
+    pub async fn accent_color() -> Option<(u8, u8, u8)> {
         None
     }
 

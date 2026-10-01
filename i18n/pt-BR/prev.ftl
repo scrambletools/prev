@@ -494,10 +494,11 @@ settings-input-language-note = Define o lado em que um campo de texto vazio come
 settings-appearance-system = Sistema
 settings-appearance-light = Claro
 settings-appearance-dark = Escuro
-settings-omarchy-accent = Usar a cor de destaque do Omarchy
+settings-system-accent = Usar a cor de destaque do sistema
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = As cores são criadas a partir da cor de destaque de “{ $theme }”.
-settings-omarchy-none = Nenhum tema do Omarchy está ativo.
+settings-system-accent-note = As cores são criadas a partir da cor de destaque do sistema.
+settings-system-accent-none = O sistema não tem cor de destaque, então o prev usa a sua própria.
 settings-auto-hide = Ocultar a barra de ferramentas quando o ponteiro sair
 settings-auto-hide-note = A barra de ferramentas flutua sobre o documento e se recolhe enquanto o ponteiro está fora da janela.
 settings-animations = Animações

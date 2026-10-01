@@ -496,10 +496,11 @@ settings-input-language-note = Sets the side an empty text field starts on. Text
 settings-appearance-system = System
 settings-appearance-light = Light
 settings-appearance-dark = Dark
-settings-omarchy-accent = Use Omarchy accent color
+settings-system-accent = Use the system accent color
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Colors are built from the accent of “{ $theme }”.
-settings-omarchy-none = No Omarchy theme is active.
+settings-system-accent-note = Colors are built from the system's accent color.
+settings-system-accent-none = The system has no accent color, so prev uses its own.
 settings-auto-hide = Hide the toolbar when the pointer leaves
 settings-auto-hide-note = The toolbar floats over the document and slides away while the pointer is outside the window.
 settings-animations = Animations

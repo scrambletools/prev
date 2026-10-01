@@ -530,10 +530,11 @@ settings-input-language-note = يحدد الجانب الذي يبدأ منه ح
 settings-appearance-system = النظام
 settings-appearance-light = فاتح
 settings-appearance-dark = داكن
-settings-omarchy-accent = استخدام لون التمييز في Omarchy
+settings-system-accent = استخدام لون التمييز في النظام
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = الألوان مبنية على لون التمييز في سمة “{ $theme }”.
-settings-omarchy-none = لا توجد سمة Omarchy نشطة.
+settings-system-accent-note = الألوان مبنية على لون التمييز في النظام.
+settings-system-accent-none = لا يوجد لون تمييز في النظام، لذا يستخدم prev لونه الخاص.
 settings-auto-hide = إخفاء شريط الأدوات عند مغادرة المؤشر
 settings-auto-hide-note = يطفو شريط الأدوات فوق المستند وينزلق بعيدًا عندما يكون المؤشر خارج النافذة.
 settings-animations = الحركات

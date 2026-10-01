@@ -494,10 +494,11 @@ settings-input-language-note = Boş bir metin alanının hangi taraftan başlaya
 settings-appearance-system = Sistem
 settings-appearance-light = Açık
 settings-appearance-dark = Koyu
-settings-omarchy-accent = Omarchy vurgu rengini kullan
+settings-system-accent = Sistem vurgu rengini kullan
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Renkler “{ $theme }” temasının vurgu renginden oluşturulur.
-settings-omarchy-none = Etkin bir Omarchy teması yok.
+settings-system-accent-note = Renkler sistemin vurgu renginden oluşturulur.
+settings-system-accent-none = Sistemin vurgu rengi yok, bu yüzden prev kendi rengini kullanıyor.
 settings-auto-hide = İşaretçi ayrılınca araç çubuğunu gizle
 settings-auto-hide-note = Araç çubuğu belgenin üzerinde durur ve işaretçi pencerenin dışındayken kayarak gizlenir.
 settings-animations = Animasyonlar

@@ -497,10 +497,11 @@ settings-input-language-note = Bepaalt aan welke kant een leeg tekstveld begint.
 settings-appearance-system = Systeem
 settings-appearance-light = Licht
 settings-appearance-dark = Donker
-settings-omarchy-accent = Accentkleur van Omarchy gebruiken
+settings-system-accent = Accentkleur van het systeem gebruiken
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = De kleuren zijn afgeleid van het accent van ‘{ $theme }’.
-settings-omarchy-none = Er is geen Omarchy-thema actief.
+settings-system-accent-note = De kleuren zijn afgeleid van de accentkleur van het systeem.
+settings-system-accent-none = Het systeem heeft geen accentkleur, dus prev gebruikt zijn eigen.
 settings-auto-hide = Knoppenbalk verbergen als de aanwijzer het venster verlaat
 settings-auto-hide-note = De knoppenbalk zweeft boven het document en schuift weg zolang de aanwijzer buiten het venster is.
 settings-animations = Animaties

@@ -467,10 +467,11 @@ settings-input-language-note = 空のテキストフィールドで入力を始�
 settings-appearance-system = システム
 settings-appearance-light = ライト
 settings-appearance-dark = ダーク
-settings-omarchy-accent = Omarchyのアクセントカラーを使用
+settings-system-accent = システムのアクセントカラーを使用
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = 「{ $theme }」のアクセントからカラーを作成しています。
-settings-omarchy-none = 有効なOmarchyテーマがありません。
+settings-system-accent-note = システムのアクセントカラーからカラーを作成しています。
+settings-system-accent-none = システムにアクセントカラーがないため、prev独自のカラーを使用しています。
 settings-auto-hide = ポインタが離れたらツールバーを隠す
 settings-auto-hide-note = ツールバーは書類の上に浮かび、ポインタがウインドウの外にあるあいだはスライドして隠れます。
 settings-animations = アニメーション

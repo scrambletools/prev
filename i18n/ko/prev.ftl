@@ -486,10 +486,11 @@ settings-input-language-note = 빈 텍스트 필드에서 입력이 시작되는
 settings-appearance-system = 시스템
 settings-appearance-light = 라이트
 settings-appearance-dark = 다크
-settings-omarchy-accent = Omarchy 강조 색상 사용
+settings-system-accent = 시스템 강조 색상 사용
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = “{ $theme }”의 강조 색상으로 색상을 만듭니다.
-settings-omarchy-none = 활성화된 Omarchy 테마가 없습니다.
+settings-system-accent-note = 시스템 강조 색상으로 색상을 만듭니다.
+settings-system-accent-none = 시스템에 강조 색상이 없어 prev 자체 색상을 사용합니다.
 settings-auto-hide = 포인터가 벗어나면 도구 막대 숨기기
 settings-auto-hide-note = 도구 막대가 문서 위에 떠 있으며, 포인터가 창 밖에 있는 동안에는 밀려나듯 사라집니다.
 settings-animations = 애니메이션

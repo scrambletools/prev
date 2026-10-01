@@ -36,9 +36,13 @@ print-dialog-failed = Could not show the print dialogue: { $error }
 
 ## Settings, continued
 
-settings-omarchy-accent = Use Omarchy accent colour
+settings-system-accent = Use the system accent colour
 
 settings-omarchy-note = Colours are built from the accent of “{ $theme }”.
+
+settings-system-accent-note = Colours are built from the system's accent colour.
+
+settings-system-accent-none = The system has no accent colour, so prev uses its own.
 
 settings-animations-note = Sliding bars and panels, growing dialogues and springy buttons.
 

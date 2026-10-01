@@ -494,10 +494,11 @@ settings-input-language-note = Bestemmer, hvilken side et tomt tekstfelt starter
 settings-appearance-system = System
 settings-appearance-light = Lys
 settings-appearance-dark = Mørk
-settings-omarchy-accent = Brug Omarchys accentfarve
+settings-system-accent = Brug systemets accentfarve
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Farverne er dannet ud fra accentfarven i “{ $theme }”.
-settings-omarchy-none = Intet Omarchy-tema er aktivt.
+settings-system-accent-note = Farverne er dannet ud fra systemets accentfarve.
+settings-system-accent-none = Systemet har ingen accentfarve, så prev bruger sin egen.
 settings-auto-hide = Skjul værktøjslinjen, når markøren forlader vinduet
 settings-auto-hide-note = Værktøjslinjen svæver over dokumentet og glider væk, mens markøren er uden for vinduet.
 settings-animations = Animationer

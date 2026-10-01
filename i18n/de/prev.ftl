@@ -494,10 +494,11 @@ settings-input-language-note = Legt fest, auf welcher Seite ein leeres Textfeld 
 settings-appearance-system = System
 settings-appearance-light = Hell
 settings-appearance-dark = Dunkel
-settings-omarchy-accent = Omarchy-Akzentfarbe verwenden
+settings-system-accent = Akzentfarbe des Systems verwenden
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Die Farben werden aus der Akzentfarbe von „{ $theme }“ abgeleitet.
-settings-omarchy-none = Kein Omarchy-Theme ist aktiv.
+settings-system-accent-note = Die Farben werden aus der Akzentfarbe des Systems abgeleitet.
+settings-system-accent-none = Das System hat keine Akzentfarbe, daher verwendet prev seine eigene.
 settings-auto-hide = Symbolleiste ausblenden, wenn der Zeiger das Fenster verlässt
 settings-auto-hide-note = Die Symbolleiste schwebt über dem Dokument und gleitet weg, solange der Zeiger außerhalb des Fensters ist.
 settings-animations = Animationen

@@ -494,10 +494,11 @@ settings-input-language-note = تعیین می‌کند کادر متن خالی
 settings-appearance-system = سیستم
 settings-appearance-light = روشن
 settings-appearance-dark = تیره
-settings-omarchy-accent = استفاده از رنگ تأکیدی Omarchy
+settings-system-accent = استفاده از رنگ تأکیدی سیستم
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = رنگ‌ها از رنگ تأکیدی پوستهٔ «{ $theme }» ساخته می‌شوند.
-settings-omarchy-none = هیچ پوستهٔ Omarchy فعالی وجود ندارد.
+settings-system-accent-note = رنگ‌ها از رنگ تأکیدی سیستم ساخته می‌شوند.
+settings-system-accent-none = سیستم رنگ تأکیدی ندارد، پس prev از رنگ خودش استفاده می‌کند.
 settings-auto-hide = پنهان کردن نوار ابزار هنگام خروج نشانگر
 settings-auto-hide-note = نوار ابزار روی سند شناور است و وقتی نشانگر بیرون از پنجره باشد، کنار می‌رود.
 settings-animations = پویانمایی‌ها

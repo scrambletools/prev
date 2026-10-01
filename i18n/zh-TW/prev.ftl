@@ -467,10 +467,11 @@ settings-input-language-note = 決定空白文字欄位從哪一側開始。你�
 settings-appearance-system = 系統
 settings-appearance-light = 淺色
 settings-appearance-dark = 深色
-settings-omarchy-accent = 使用 Omarchy 強調色
+settings-system-accent = 使用系統強調色
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = 顏色是根據「{ $theme }」的強調色產生。
-settings-omarchy-none = 目前沒有啟用的 Omarchy 主題。
+settings-system-accent-note = 顏色是根據系統的強調色產生。
+settings-system-accent-none = 系統沒有強調色，因此 prev 會使用自己的顏色。
 settings-auto-hide = 指標離開時隱藏工具列
 settings-auto-hide-note = 工具列會浮在文件上方，指標移到視窗外時會滑出隱藏。
 settings-animations = 動畫

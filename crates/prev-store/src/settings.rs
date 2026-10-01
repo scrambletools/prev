@@ -14,7 +14,7 @@ const LEGACY_FILE_NAME: &str = "settings.toml";
 /// The `language` and `input-language` setting that follows the system.
 pub const SYSTEM_LANGUAGE: &str = "system";
 /// M3's extra large corner, which dialogs use.
-pub const DEFAULT_CORNER_RADIUS: f32 = 28.0;
+pub const DEFAULT_CORNER_RADIUS: f32 = 20.0;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
@@ -27,8 +27,11 @@ pub struct Settings {
     /// an empty field starts on; or `system` to follow the keyboard layout
     /// in use.
     pub input_language: String,
-    /// Use the active Omarchy theme's colors when its mode matches.
-    pub omarchy_palette: bool,
+    /// Build the colors from the system's accent: the Omarchy theme's on
+    /// Omarchy, else the desktop's, Windows' or macOS's. Older settings
+    /// files call it `omarchy-palette`.
+    #[serde(alias = "omarchy-palette")]
+    pub system_accent: bool,
     /// Float the toolbar over the document and hide it while the pointer
     /// is outside the window.
     pub auto_hide_toolbar: bool,
@@ -67,11 +70,11 @@ impl Default for Settings {
             appearance: Appearance::System,
             language: SYSTEM_LANGUAGE.to_owned(),
             input_language: SYSTEM_LANGUAGE.to_owned(),
-            omarchy_palette: true,
+            system_accent: true,
             auto_hide_toolbar: false,
             corner_radius: DEFAULT_CORNER_RADIUS,
-            overlay_transparency: 0.0,
-            animations: true,
+            overlay_transparency: 25.0,
+            animations: false,
             signatures: locations.signatures,
             versions: locations.versions,
             bookmarks: locations.bookmarks,
@@ -221,7 +224,7 @@ mod tests {
         let path = dir.path().join("nested").join("settings.toml");
         let settings = Settings {
             appearance: Appearance::Dark,
-            omarchy_palette: false,
+            system_accent: false,
             auto_hide_toolbar: true,
             signatures: PathBuf::from("/srv/signatures"),
             ..Settings::default()
@@ -229,11 +232,11 @@ mod tests {
         settings.save_to(&path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("appearance = \"dark\""), "{text}");
-        assert!(text.contains("omarchy-palette = false"), "{text}");
+        assert!(text.contains("system-accent = false"), "{text}");
         assert!(text.contains("auto-hide-toolbar = true"), "{text}");
-        assert!(text.contains("corner-radius = 28"), "{text}");
-        assert!(text.contains("animations = true"), "{text}");
-        assert!(text.contains("overlay-transparency = 0"), "{text}");
+        assert!(text.contains("corner-radius = 20"), "{text}");
+        assert!(text.contains("animations = false"), "{text}");
+        assert!(text.contains("overlay-transparency = 25"), "{text}");
         assert!(text.contains("signatures = \"/srv/signatures\""), "{text}");
         assert!(text.contains("versions = "), "{text}");
         assert!(text.contains("bookmarks = "), "{text}");
@@ -311,8 +314,16 @@ mod tests {
         std::fs::write(&path, "appearance = \"light\"\nfuture-option = 3\n").unwrap();
         let loaded = Settings::load_from(&path).unwrap();
         assert_eq!(loaded.appearance, Appearance::Light);
-        assert!(loaded.omarchy_palette);
+        assert!(loaded.system_accent);
         assert!(!loaded.auto_hide_toolbar);
+    }
+
+    #[test]
+    fn omarchy_palette_is_read_as_system_accent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.toml");
+        std::fs::write(&path, "omarchy-palette = false\n").unwrap();
+        assert!(!Settings::load_from(&path).unwrap().system_accent);
     }
 
     #[test]
