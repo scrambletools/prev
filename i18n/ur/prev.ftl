@@ -146,6 +146,15 @@ drag-start-failed = ڈریگ کرنا شروع نہیں ہو سکا۔
 drag-file-pages = صفحات
 drag-file-one-page = { $name } (صفحہ { $page })
 drag-file-page-range = { $name } (صفحات { $first }–{ $last })
+drag-file-image = تصویر
+drop-pdf-title = اس دستاویز میں شامل کریں؟
+drop-pdf-body = “{ $name }” کو اس دستاویز کے آخر میں شامل کریں، یا اسے الگ ونڈو میں کھولیں؟
+drop-pdfs-body = { $count ->
+    [one] اس PDF فائل کو اس دستاویز کے آخر میں شامل کریں، یا اسے الگ ونڈو میں کھولیں؟
+   *[other] ان { $count } PDF فائلوں کو اس دستاویز کے آخر میں شامل کریں، یا انہیں الگ الگ ونڈوز میں کھولیں؟
+}
+drop-pdf-add = آخر میں شامل کریں
+drop-pdf-open = الگ سے کھولیں
 
 ## PDF window
 
@@ -254,6 +263,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = صفحات کاپی نہیں کیے جا سکے: { $error }
 pages-reading-stopped = پڑھنا رک گیا
+pages-image-unreadable = ایسی تصویر نہیں جسے prev پڑھ سکے
 pages-read-failed = فائل پڑھی نہیں جا سکی: { $error }
 pages-at-least-one = دستاویز میں کم از کم ایک صفحہ ہونا ضروری ہے۔
 pages-crop-needs-area = پہلے مستطیل انتخاب کے ٹول سے کوئی حصہ منتخب کریں۔
@@ -477,6 +487,7 @@ image-cannot-save-format-unbound = “{ $name }” میں تبدیلیاں اس 
 image-cannot-export-animation = اینیمیشنز ابھی برآمد نہیں کی جا سکتیں۔
 image-drop-pages = صفحات کسی دستاویز پر ڈراپ کیے جا سکتے ہیں۔
 image-drag-failed = ڈریگ کرنا شروع نہیں ہو سکا۔
+image-picture-save-failed = تصویر آپ کے ڈاؤن لوڈز فولڈر میں محفوظ نہیں کی جا سکی۔
 image-open-failed = prev یہ تصویر نہیں کھول سکتا
 image-opening = کھل رہا ہے…
 image-name-mismatch-title = نام فارمیٹ سے مماثل نہیں ہے

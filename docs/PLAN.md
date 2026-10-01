@@ -48,7 +48,10 @@ Markdown, SVG scripting and animation, and Intel Macs.
 Planned or considered, but not in prev today:
 
 - Revert To for PDFs, as images have it.
-- Dragging annotations out of a document or between documents.
+- Dragging annotations out of a window or between documents (image
+  annotations can go to their own window's sidebar).
+- Images dropped on an image window's sidebar going where they are let
+  go, not after the others.
 - Cryptographic (PAdES) signatures; the save path leaves room for them.
 - OCR (possible with MuPDF and Tesseract) and markup on SVG drawings.
 - Text inside shapes, shadows, and editing a signature's ink after placing
@@ -60,8 +63,7 @@ Planned or considered, but not in prev today:
 - JPEG 2000 export (the `image` crate cannot encode it).
 - On Windows, a picture of what is dragged under the pointer (Windows
   shows its own drag cursor).
-- On macOS, drag and drop with other apps (only files dropped on a window
-  open today) and copying files in Finder to paste them into prev.
+- On macOS, copying files in Finder to paste them into prev.
 - Further review of the translations other than English.
 
 ## Next
@@ -162,13 +164,16 @@ a Windows and a macOS side; the rest of the app is shared.
 | Menus | in the window | in the window | the menu bar (muda), built in the interface language |
 | Keyboard layout, for the input language | XKB layout from winit | the input locale | the input source (TIS) |
 | Clipboard images and prev's page marker | `wl-copy`, `wl-paste` | clipboard-win | the general pasteboard |
-| Drag and drop | vendored smithay-clipboard with a drag and drop patch ([PATCHES.md](../vendor/PATCHES.md)) | OLE drop target, data object and drop source (`dnd_windows.rs`) | files dropped on a window only |
+| Drag and drop | vendored smithay-clipboard with a drag and drop patch ([PATCHES.md](../vendor/PATCHES.md)) | OLE drop target, data object and drop source (`dnd_windows.rs`) | AppKit dragging, through the vendored winit's drag hook ([PATCHES.md](../vendor/PATCHES.md), `dnd_macos.rs`) |
 | Theme | Omarchy accent, system light or dark | system light or dark | system light or dark |
-| Pictures dropped as web addresses | curl | curl, which Windows includes | not yet |
+| Pictures dropped as web addresses | curl | curl, which Windows includes | curl, which macOS includes |
 
-Drag and drop on Linux and Windows feeds the same drag events, in the types
+Drag and drop on every system feeds the same drag events, in the types
 Paste reads, so dropping works the same everywhere. Hyprland never says
 whether a drop copied or moved, so on Linux Shift decides at both ends.
+On macOS, Command moves as well as Shift, as in Finder, and a drag out
+offers only a copy unless one is held, since Finder would otherwise move
+files dropped on the same disk.
 
 ### Interface
 

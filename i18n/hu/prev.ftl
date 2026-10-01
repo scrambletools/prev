@@ -146,6 +146,15 @@ drag-start-failed = Nem sikerült elkezdeni a húzást.
 drag-file-pages = Oldalak
 drag-file-one-page = { $name } ({ $page }. oldal)
 drag-file-page-range = { $name } ({ $first }–{ $last }. oldal)
+drag-file-image = Kép
+drop-pdf-title = Hozzáadja ehhez a dokumentumhoz?
+drop-pdf-body = „{ $name }”: hozzáfűzi ennek a dokumentumnak a végéhez, vagy saját ablakban nyitja meg?
+drop-pdfs-body = { $count ->
+    [one] { $count } PDF-fájl: hozzáfűzi ennek a dokumentumnak a végéhez, vagy saját ablakban nyitja meg?
+   *[other] { $count } PDF-fájl: hozzáfűzi őket ennek a dokumentumnak a végéhez, vagy mindegyiket saját ablakban nyitja meg?
+}
+drop-pdf-add = Hozzáfűzés a végéhez
+drop-pdf-open = Megnyitás külön
 
 ## PDF window
 
@@ -254,6 +263,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Nem sikerült másolni az oldalakat: { $error }
 pages-reading-stopped = az olvasás leállt
+pages-image-unreadable = nem olyan kép, amelyet a prev be tud olvasni
 pages-read-failed = Nem sikerült beolvasni a fájlt: { $error }
 pages-at-least-one = A dokumentumnak legalább egy oldalt tartalmaznia kell.
 pages-crop-needs-area = Előbb jelöljön ki egy területet a téglalap alakú kijelölés eszközzel.
@@ -474,6 +484,7 @@ image-cannot-save-format-unbound = „{ $name }”: a módosítások nem menthet
 image-cannot-export-animation = Animációk még nem exportálhatók.
 image-drop-pages = Oldalakat csak dokumentumra lehet ejteni.
 image-drag-failed = Nem sikerült elkezdeni a húzást.
+image-picture-save-failed = Nem sikerült menteni a képet a Letöltések mappába.
 image-open-failed = A prev nem tudja megnyitni ezt a képet
 image-opening = Megnyitás…
 image-name-mismatch-title = A név nem egyezik a formátummal

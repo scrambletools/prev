@@ -143,6 +143,15 @@ drag-start-failed = Kunne ikke begynne å dra.
 drag-file-pages = Sider
 drag-file-one-page = { $name } (side { $page })
 drag-file-page-range = { $name } (sider { $first }–{ $last })
+drag-file-image = Bilde
+drop-pdf-title = Vil du legge til i dette dokumentet?
+drop-pdf-body = Vil du legge til «{ $name }» på slutten av dette dokumentet, eller åpne den i et eget vindu?
+drop-pdfs-body = { $count ->
+    [one] Vil du legge til denne PDF-en på slutten av dette dokumentet, eller åpne den i et eget vindu?
+   *[other] Vil du legge til disse { $count } PDF-ene på slutten av dette dokumentet, eller åpne dem i hvert sitt vindu?
+}
+drop-pdf-add = Legg til på slutten
+drop-pdf-open = Åpne separat
 
 ## PDF window
 
@@ -251,6 +260,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Kunne ikke kopiere sidene: { $error }
 pages-reading-stopped = lesingen stoppet
+pages-image-unreadable = er ikke et bilde som prev kan lese
 pages-read-failed = Kunne ikke lese filen: { $error }
 pages-at-least-one = Et dokument må ha minst én side.
 pages-crop-needs-area = Velg først et område med verktøyet for rektangulært utvalg.
@@ -471,6 +481,7 @@ image-cannot-save-format-unbound = Endringer i «{ $name }» kan ikke lagres i f
 image-cannot-export-animation = Animasjoner kan ikke eksporteres ennå.
 image-drop-pages = Sider kan slippes på et dokument.
 image-drag-failed = Kunne ikke begynne å dra.
+image-picture-save-failed = Kunne ikke lagre bildet i Nedlastinger-mappen.
 image-open-failed = prev kan ikke åpne dette bildet
 image-opening = Åpner…
 image-name-mismatch-title = Navnet samsvarer ikke med formatet

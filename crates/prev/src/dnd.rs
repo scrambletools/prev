@@ -1,13 +1,21 @@
 //! The platform's drag and drop, with the same types everywhere. On Linux
 //! it is the vendored smithay-clipboard's Wayland drag and drop, on
-//! Windows OLE's (`dnd_windows`). Elsewhere prev cannot start drags yet,
-//! and files dropped on a window arrive through iced as `FileDropped`.
+//! Windows OLE's (`dnd_windows`), and on macOS AppKit's, through the
+//! vendored winit's drag hook (`dnd_macos`).
 
 #[cfg(target_os = "linux")]
 pub use smithay_clipboard::dnd::*;
 
 #[cfg(not(target_os = "linux"))]
 pub use other::*;
+
+/// Whether Ctrl is held, which sends a drop to the sidebar, when the app
+/// cannot tell from its own key events. Wayland gives windows no way to
+/// ask; there the app's key events are all there is.
+#[cfg(target_os = "linux")]
+pub fn control_held() -> bool {
+    false
+}
 
 /// Stops the clipboard worker, which outlives windows, while the Wayland
 /// connection is still open; call it just before the app exits.
@@ -30,7 +38,7 @@ mod other {
     }
 
     /// A drag over one of the application's windows, or the end of one it
-    /// started, as on Linux. Never sent here yet.
+    /// started, as on Linux.
     #[derive(Debug, Clone, PartialEq)]
     pub enum DragEvent {
         Entered {
@@ -81,23 +89,13 @@ mod other {
 
     #[cfg(windows)]
     pub use crate::dnd_windows::{
-        register, set_accepted_mimes, set_drag_handler, set_prefer_move, start_drag,
+        control_held, register, set_accepted_mimes, set_drag_handler, set_prefer_move, start_drag,
     };
 
-    #[cfg(not(windows))]
-    pub fn set_drag_handler(_handler: impl Fn(DragEvent) + Send + Sync + 'static) {}
-
-    #[cfg(not(windows))]
-    pub fn set_accepted_mimes(_mimes: Vec<String>) {}
-
-    #[cfg(not(windows))]
-    pub fn set_prefer_move(_prefer: bool) {}
-
-    /// Starting drags is not supported here yet.
-    #[cfg(not(windows))]
-    pub fn start_drag(_drag: Drag) -> bool {
-        false
-    }
+    #[cfg(target_os = "macos")]
+    pub use crate::dnd_macos::{
+        control_held, register, set_accepted_mimes, set_drag_handler, set_prefer_move, start_drag,
+    };
 
     /// Parses a `text/uri-list` body: one URI per line, `#` lines are
     /// comments.

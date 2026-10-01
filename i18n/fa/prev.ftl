@@ -176,6 +176,19 @@ drag-start-failed = شروع کشیدن ممکن نشد.
 drag-file-pages = صفحه‌ها
 drag-file-one-page = { $name } (صفحهٔ { $page })
 drag-file-page-range = { $name } (صفحه‌های { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = تصویر
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = به این سند افزوده شود؟
+drop-pdf-body = «{ $name }» به انتهای این سند افزوده شود یا در پنجرهٔ جداگانه‌ای باز شود؟
+drop-pdfs-body = { $count ->
+    [one] این { $count } PDF به انتهای این سند افزوده شوند یا هر کدام در پنجرهٔ جداگانه‌ای باز شوند؟
+   *[other] این { $count } PDF به انتهای این سند افزوده شوند یا هر کدام در پنجرهٔ جداگانه‌ای باز شوند؟
+}
+drop-pdf-add = افزودن به انتها
+drop-pdf-open = باز کردن جداگانه
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = کپی صفحه‌ها ممکن نشد: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = خواندن متوقف شد
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = تصویری نیست که prev بتواند بخواند
 pages-read-failed = خواندن پرونده ممکن نشد: { $error }
 pages-at-least-one = هر سند باید دست‌کم یک صفحه داشته باشد.
 pages-crop-needs-area = ابتدا با ابزار انتخاب مستطیلی یک ناحیه انتخاب کنید.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = تغییرات «{ $name }» را نمی‌ت
 image-cannot-export-animation = پویانمایی‌ها هنوز صادر نمی‌شوند.
 image-drop-pages = صفحه‌ها را می‌توان روی یک سند رها کرد.
 image-drag-failed = شروع کشیدن ممکن نشد.
+image-picture-save-failed = ذخیرهٔ تصویر در پوشهٔ بارگیری‌ها ممکن نشد.
 image-open-failed = prev نمی‌تواند این تصویر را باز کند
 image-opening = در حال باز کردن…
 # Asked when an export's file name has another format's extension.

@@ -146,6 +146,12 @@ drag-start-failed = ไม่สามารถเริ่มลากได้
 drag-file-pages = หน้า
 drag-file-one-page = { $name } (หน้า { $page })
 drag-file-page-range = { $name } (หน้า { $first }–{ $last })
+drag-file-image = รูปภาพ
+drop-pdf-title = เพิ่มลงในเอกสารนี้หรือไม่
+drop-pdf-body = จะเพิ่ม “{ $name }” ต่อท้ายเอกสารนี้ หรือเปิดในหน้าต่างแยก
+drop-pdfs-body = จะเพิ่ม PDF { $count } ไฟล์นี้ต่อท้ายเอกสารนี้ หรือเปิดแต่ละไฟล์ในหน้าต่างแยก
+drop-pdf-add = เพิ่มต่อท้าย
+drop-pdf-open = เปิดแยก
 
 ## PDF window
 
@@ -249,6 +255,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = ไม่สามารถคัดลอกหน้าได้: { $error }
 pages-reading-stopped = การอ่านหยุดลง
+pages-image-unreadable = ไม่ใช่รูปภาพที่ prev อ่านได้
 pages-read-failed = ไม่สามารถอ่านไฟล์ได้: { $error }
 pages-at-least-one = เอกสารต้องมีอย่างน้อยหนึ่งหน้า
 pages-crop-needs-area = เลือกพื้นที่ด้วยเครื่องมือการเลือกแบบสี่เหลี่ยมก่อน
@@ -466,6 +473,7 @@ image-cannot-save-format-unbound = บันทึกการเปลี่ย
 image-cannot-export-animation = ยังส่งออกภาพเคลื่อนไหวไม่ได้
 image-drop-pages = วางหน้าได้บนเอกสารเท่านั้น
 image-drag-failed = ไม่สามารถเริ่มลากได้
+image-picture-save-failed = ไม่สามารถบันทึกรูปภาพในโฟลเดอร์ดาวน์โหลดได้
 image-open-failed = prev เปิดรูปภาพนี้ไม่ได้
 image-opening = กำลังเปิด…
 image-name-mismatch-title = ชื่อไม่ตรงกับรูปแบบ

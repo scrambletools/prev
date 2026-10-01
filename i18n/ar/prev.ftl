@@ -176,6 +176,23 @@ drag-start-failed = تعذّر بدء السحب.
 drag-file-pages = الصفحات
 drag-file-one-page = { $name } (الصفحة { $page })
 drag-file-page-range = { $name } (الصفحات { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = صورة
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = هل تريد الإضافة إلى هذا المستند؟
+drop-pdf-body = هل تريد إضافة “{ $name }” إلى نهاية هذا المستند، أم فتحه في نافذة مستقلة؟
+drop-pdfs-body = { $count ->
+    [zero] هل تريد إضافة ملفات PDF هذه وعددها { $count } إلى نهاية هذا المستند، أم فتحها في نوافذ مستقلة؟
+    [one] هل تريد إضافة ملف PDF هذا إلى نهاية هذا المستند، أم فتحه في نافذة مستقلة؟
+    [two] هل تريد إضافة ملفَي PDF هذين إلى نهاية هذا المستند، أم فتحهما في نافذتين مستقلتين؟
+    [few] هل تريد إضافة ملفات PDF هذه وعددها { $count } ملفات إلى نهاية هذا المستند، أم فتحها في نوافذ مستقلة؟
+    [many] هل تريد إضافة ملفات PDF هذه وعددها { $count } ملفًا إلى نهاية هذا المستند، أم فتحها في نوافذ مستقلة؟
+   *[other] هل تريد إضافة ملفات PDF هذه وعددها { $count } ملف إلى نهاية هذا المستند، أم فتحها في نوافذ مستقلة؟
+}
+drop-pdf-add = إضافة إلى النهاية
+drop-pdf-open = فتح بشكل منفصل
 
 ## PDF window
 
@@ -326,6 +343,9 @@ pages-copied = { $count ->
 pages-copy-failed = تعذّر نسخ الصفحات: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = توقفت القراءة
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = ليس صورة يمكن لـ prev قراءتها
 pages-read-failed = تعذّرت قراءة الملف: { $error }
 pages-at-least-one = يجب أن يحتوي المستند على صفحة واحدة على الأقل.
 pages-crop-needs-area = اختر منطقة باستخدام أداة التحديد المستطيل أولًا.
@@ -602,6 +622,7 @@ image-cannot-save-format-unbound = لا يمكن حفظ التغييرات عل�
 image-cannot-export-animation = لا يمكن تصدير الصور المتحركة بعد.
 image-drop-pages = يمكن إفلات الصفحات على مستند.
 image-drag-failed = تعذّر بدء السحب.
+image-picture-save-failed = تعذّر حفظ الصورة في مجلد التنزيلات.
 image-open-failed = لا يمكن لـ prev فتح هذه الصورة
 image-opening = جارٍ الفتح…
 # Asked when an export's file name has another format's extension.

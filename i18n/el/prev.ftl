@@ -146,6 +146,15 @@ drag-start-failed = Δεν ήταν δυνατή η έναρξη της μετα
 drag-file-pages = Σελίδες
 drag-file-one-page = { $name } (σελίδα { $page })
 drag-file-page-range = { $name } (σελίδες { $first }–{ $last })
+drag-file-image = Εικόνα
+drop-pdf-title = Προσθήκη σε αυτό το έγγραφο;
+drop-pdf-body = Προσθήκη του «{ $name }» στο τέλος αυτού του εγγράφου ή άνοιγμά του σε ξεχωριστό παράθυρο;
+drop-pdfs-body = { $count ->
+    [one] Προσθήκη αυτού του PDF στο τέλος αυτού του εγγράφου ή άνοιγμά του σε ξεχωριστό παράθυρο;
+   *[other] Προσθήκη αυτών των { $count } PDF στο τέλος αυτού του εγγράφου ή άνοιγμά τους σε ξεχωριστά παράθυρα;
+}
+drop-pdf-add = Προσθήκη στο τέλος
+drop-pdf-open = Άνοιγμα χωριστά
 
 ## PDF window
 
@@ -254,6 +263,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Δεν ήταν δυνατή η αντιγραφή των σελίδων: { $error }
 pages-reading-stopped = η ανάγνωση διακόπηκε
+pages-image-unreadable = δεν είναι εικόνα που μπορεί να διαβάσει το prev
 pages-read-failed = Δεν ήταν δυνατή η ανάγνωση του αρχείου: { $error }
 pages-at-least-one = Ένα έγγραφο πρέπει να έχει τουλάχιστον μία σελίδα.
 pages-crop-needs-area = Επιλέξτε πρώτα μια περιοχή με το εργαλείο ορθογώνιας επιλογής.
@@ -474,6 +484,7 @@ image-cannot-save-format-unbound = Οι αλλαγές στο «{ $name }» δε
 image-cannot-export-animation = Οι κινούμενες εικόνες δεν μπορούν ακόμη να εξαχθούν.
 image-drop-pages = Οι σελίδες μπορούν να αφεθούν μόνο σε έγγραφο.
 image-drag-failed = Δεν ήταν δυνατή η έναρξη της μεταφοράς.
+image-picture-save-failed = Δεν ήταν δυνατή η αποθήκευση της εικόνας στον φάκελο Λήψεις.
 image-open-failed = Το prev δεν μπορεί να ανοίξει αυτήν την εικόνα
 image-opening = Άνοιγμα…
 image-name-mismatch-title = Το όνομα δεν ταιριάζει με τη μορφή

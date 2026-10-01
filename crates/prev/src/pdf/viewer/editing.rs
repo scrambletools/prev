@@ -1277,6 +1277,86 @@ impl PdfViewer {
             .map(Outgoing::Text)
     }
 
+    /// The image annotation being moved by its body, with its page, as it
+    /// was before the move.
+    pub fn moving_image(&self) -> Option<(usize, &Annotation)> {
+        match &self.edit.drag {
+            Some(Drag::Move {
+                page,
+                original,
+                handle: Handle::Body,
+                ..
+            }) if original.kind == Kind::Stamp
+                && original.subject.as_deref() != Some("Loupe")
+                && !markup::is_mask(original) =>
+            {
+                Some((*page, original))
+            }
+            _ => None,
+        }
+    }
+
+    /// Ends a move without changing the annotation, which stays where it
+    /// was.
+    pub fn cancel_move(&mut self) {
+        if matches!(self.edit.drag, Some(Drag::Move { .. })) {
+            self.edit.drag = None;
+            self.edit.lift = None;
+            self.press = None;
+        }
+    }
+
+    /// Removes the annotation `id` from `page`, as Delete would.
+    pub fn remove_annotation(&mut self, page: usize, id: &str) -> Task<PdfMessage> {
+        let Some(annotation) = self.markup.get(&page).and_then(|markup| {
+            markup
+                .annotations
+                .iter()
+                .find(|annotation| annotation.id == id)
+                .cloned()
+        }) else {
+            return Task::none();
+        };
+        self.remove(page, annotation)
+    }
+
+    /// Renders `annotation` on `page` alone, on transparency, at about
+    /// print resolution and at most 4096 pixels on a side.
+    pub fn render_annotation(
+        &self,
+        page: usize,
+        annotation: &Annotation,
+    ) -> impl std::future::Future<Output = Result<Bitmap, String>> + use<> {
+        let rect = annotation.rect;
+        let longest = rect.width().max(rect.height()).max(1.0);
+        let scale = (300.0 / 72.0_f32)
+            .max(self.render_scale() * 2.0)
+            .min(4096.0 / longest);
+        let pixels = PixelRect {
+            x: (rect.x0 * scale).round() as i32,
+            y: (rect.y0 * scale).round() as i32,
+            width: (rect.width() * scale).round().max(1.0) as u32,
+            height: (rect.height() * scale).round().max(1.0) as u32,
+        };
+        let receiver = self.handle.lift(page, annotation.id.clone());
+        let pool = std::sync::Arc::clone(&self.pool);
+        async move {
+            let failed = || crate::fl!("markup-render-area-failed");
+            let lifted = receiver
+                .await
+                .ok()
+                .and_then(Result::ok)
+                .ok_or_else(failed)?;
+            match pool
+                .render(lifted.alone, scale, pixels, 1, Ticket::new())
+                .await
+            {
+                Ok(Ok(bitmap)) => Ok(bitmap),
+                _ => Err(failed()),
+            }
+        }
+    }
+
     /// Renders `rect` of `page` at twice the screen's pixels.
     pub fn render_area(
         &self,

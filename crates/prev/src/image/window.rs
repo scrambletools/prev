@@ -270,6 +270,8 @@ pub enum Message {
     SidebarPressed(usize),
     SidebarMoved(iced::Point),
     SidebarReleased,
+    /// A picture from the markup was saved to join the images.
+    PictureSaved(Option<PathBuf>),
 }
 
 /// An export waiting for the user to confirm a name whose extension does
@@ -338,6 +340,9 @@ pub struct ImageWindow {
     sidebar_press: Option<dnd::SidebarPress>,
     /// A drag started since the app last asked.
     drag_started: bool,
+    /// Whether the pointer is over the sidebar, where an image annotation
+    /// moved on the markup can be let go to join the images.
+    pointer_over_sidebar: bool,
 }
 
 /// Uploads `handle` to the GPU, then yields the allocation that keeps it
@@ -485,6 +490,7 @@ impl ImageWindow {
             closing: false,
             sidebar_press: None,
             drag_started: false,
+            pointer_over_sidebar: false,
         };
         let task = window.load_next();
         (window, task)
@@ -681,6 +687,7 @@ impl ImageWindow {
                 self.sidebar_released();
                 Task::none()
             }
+            Message::PictureSaved(path) => self.picture_saved(path),
             Message::Edit(edit) => self.edit(edit),
             Message::PreviewRendered(index, generation, handle) => {
                 let Some(shown) = self.shown_mut(index) else {

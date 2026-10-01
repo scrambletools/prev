@@ -147,6 +147,15 @@ drag-start-failed = Não foi possível começar a arrastar.
 drag-file-pages = Páginas
 drag-file-one-page = { $name } (página { $page })
 drag-file-page-range = { $name } (páginas { $first }–{ $last })
+drag-file-image = Imagem
+drop-pdf-title = Adicionar a este documento?
+drop-pdf-body = Adicionar «{ $name }» ao fim deste documento ou abri-lo numa janela própria?
+drop-pdfs-body = { $count ->
+    [one] Adicionar este PDF ao fim deste documento ou abri-lo numa janela própria?
+   *[other] Adicionar estes { $count } PDF ao fim deste documento ou abri-los em janelas próprias?
+}
+drop-pdf-add = Adicionar ao fim
+drop-pdf-open = Abrir em separado
 
 ## PDF window
 
@@ -255,6 +264,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Não foi possível copiar as páginas: { $error }
 pages-reading-stopped = a leitura foi interrompida
+pages-image-unreadable = não é uma imagem que o prev consiga ler
 pages-read-failed = Não foi possível ler o ficheiro: { $error }
 pages-at-least-one = Um documento precisa de ter pelo menos uma página.
 pages-crop-needs-area = Escolha primeiro uma área com a ferramenta de seleção retangular.
@@ -481,6 +491,7 @@ image-cannot-save-format-unbound = As alterações a «{ $name }» não podem se
 image-cannot-export-animation = Ainda não é possível exportar animações.
 image-drop-pages = As páginas podem ser largadas num documento.
 image-drag-failed = Não foi possível começar a arrastar.
+image-picture-save-failed = Não foi possível guardar a imagem na pasta Transferências.
 image-open-failed = O prev não consegue abrir esta imagem
 image-opening = A abrir…
 image-name-mismatch-title = O nome não corresponde ao formato

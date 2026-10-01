@@ -144,6 +144,15 @@ drag-start-failed = Vetämisen aloittaminen epäonnistui.
 drag-file-pages = Sivut
 drag-file-one-page = { $name } (sivu { $page })
 drag-file-page-range = { $name } (sivut { $first }–{ $last })
+drag-file-image = Kuva
+drop-pdf-title = Lisätäänkö tähän asiakirjaan?
+drop-pdf-body = Lisätäänkö ”{ $name }” tämän asiakirjan loppuun vai avataanko se omaan ikkunaansa?
+drop-pdfs-body = { $count ->
+    [one] Lisätäänkö tämä PDF-tiedosto tämän asiakirjan loppuun vai avataanko se omaan ikkunaansa?
+   *[other] Lisätäänkö nämä { $count } PDF-tiedostoa tämän asiakirjan loppuun vai avataanko ne omiin ikkunoihinsa?
+}
+drop-pdf-add = Lisää loppuun
+drop-pdf-open = Avaa erikseen
 
 ## PDF window
 
@@ -252,6 +261,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Sivujen kopioiminen epäonnistui: { $error }
 pages-reading-stopped = lukeminen keskeytyi
+pages-image-unreadable = ei ole kuva, jota prev osaa lukea
 pages-read-failed = Tiedoston lukeminen epäonnistui: { $error }
 pages-at-least-one = Asiakirjassa on oltava vähintään yksi sivu.
 pages-crop-needs-area = Valitse ensin alue suorakulmaisen valinnan työkalulla.
@@ -472,6 +482,7 @@ image-cannot-save-format-unbound = Tiedoston ”{ $name }” muutoksia ei voi ta
 image-cannot-export-animation = Animaatioita ei voi vielä viedä.
 image-drop-pages = Sivuja voi pudottaa asiakirjaan.
 image-drag-failed = Vetämisen aloittaminen epäonnistui.
+image-picture-save-failed = Kuvan tallentaminen Lataukset-kansioon epäonnistui.
 image-open-failed = prev ei voi avata tätä kuvaa
 image-opening = Avataan…
 image-name-mismatch-title = Nimi ei vastaa tiedostomuotoa

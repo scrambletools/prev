@@ -176,6 +176,21 @@ drag-start-failed = Не вдалося почати перетягування.
 drag-file-pages = Сторінки
 drag-file-one-page = { $name } (с. { $page })
 drag-file-page-range = { $name } (с. { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Зображення
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Додати до цього документа?
+drop-pdf-body = Додати «{ $name }» у кінець цього документа чи відкрити в окремому вікні?
+drop-pdfs-body = { $count ->
+    [one] Додати ці { $count } PDF-файл у кінець цього документа чи відкрити їх в окремих вікнах?
+    [few] Додати ці { $count } PDF-файли у кінець цього документа чи відкрити їх в окремих вікнах?
+    [many] Додати ці { $count } PDF-файлів у кінець цього документа чи відкрити їх в окремих вікнах?
+   *[other] Додати ці { $count } PDF-файлу у кінець цього документа чи відкрити їх в окремих вікнах?
+}
+drop-pdf-add = Додати в кінець
+drop-pdf-open = Відкрити окремо
 
 ## PDF window
 
@@ -319,6 +334,9 @@ pages-copied = { $count ->
 pages-copy-failed = Не вдалося скопіювати сторінки: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = читання перервано
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = prev не може прочитати цей файл як зображення
 pages-read-failed = Не вдалося прочитати файл: { $error }
 pages-at-least-one = У документі має бути хоча б одна сторінка.
 pages-crop-needs-area = Спершу виберіть область інструментом прямокутного виділення.
@@ -596,6 +614,7 @@ image-cannot-save-format-unbound = Зміни у файлі «{ $name }» не �
 image-cannot-export-animation = Анімації поки не можна експортувати.
 image-drop-pages = Сторінки можна перетягнути в документ.
 image-drag-failed = Не вдалося почати перетягування.
+image-picture-save-failed = Не вдалося зберегти зображення в папку «Завантаження».
 image-open-failed = prev не може відкрити це зображення
 image-opening = Відкриття…
 # Asked when an export's file name has another format's extension.

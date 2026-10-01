@@ -184,6 +184,19 @@ drag-start-failed = ड्रैग करना शुरू नहीं क�
 drag-file-pages = पृष्ठ
 drag-file-one-page = { $name } (पृष्ठ { $page })
 drag-file-page-range = { $name } (पृष्ठ { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = छवि
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = इस दस्तावेज़ में जोड़ें?
+drop-pdf-body = “{ $name }” को इस दस्तावेज़ के अंत में जोड़ें, या उसे उसकी अपनी विंडो में खोलें?
+drop-pdfs-body = { $count ->
+    [one] इस PDF को इस दस्तावेज़ के अंत में जोड़ें, या उसे उसकी अपनी विंडो में खोलें?
+   *[other] इन { $count } PDF को इस दस्तावेज़ के अंत में जोड़ें, या उन्हें उनकी अपनी विंडो में खोलें?
+}
+drop-pdf-add = अंत में जोड़ें
+drop-pdf-open = अलग से खोलें
 
 ## PDF window
 
@@ -314,6 +327,9 @@ pages-copied = { $count ->
 pages-copy-failed = पृष्ठ कॉपी नहीं किए जा सके: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = पढ़ना रुक गया
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = ऐसी छवि नहीं है जिसे prev पढ़ सके
 pages-read-failed = फ़ाइल पढ़ी नहीं जा सकी: { $error }
 pages-at-least-one = किसी दस्तावेज़ में कम से कम एक पृष्ठ होना चाहिए।
 pages-crop-needs-area = पहले आयताकार चयन टूल से कोई क्षेत्र चुनें।
@@ -578,6 +594,7 @@ image-cannot-save-format-unbound = “{ $name }” में किए गए �
 image-cannot-export-animation = एनिमेशन अभी एक्सपोर्ट नहीं किए जा सकते।
 image-drop-pages = पृष्ठ केवल किसी दस्तावेज़ पर छोड़े जा सकते हैं।
 image-drag-failed = ड्रैग करना शुरू नहीं किया जा सका।
+image-picture-save-failed = छवि को आपके डाउनलोड फ़ोल्डर में सहेजा नहीं जा सका।
 image-open-failed = prev यह छवि नहीं खोल सकता
 image-opening = खोला जा रहा है…
 # Asked when an export's file name has another format's extension.

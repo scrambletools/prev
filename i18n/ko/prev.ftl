@@ -185,6 +185,16 @@ drag-start-failed = 드래그를 시작할 수 없습니다.
 drag-file-pages = 페이지
 drag-file-one-page = { $name } ({ $page }페이지)
 drag-file-page-range = { $name } ({ $first }–{ $last }페이지)
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = 이미지
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = 이 문서에 추가하겠습니까?
+drop-pdf-body = “{ $name }”을(를) 이 문서의 끝에 추가하겠습니까, 아니면 별도의 창에서 열겠습니까?
+drop-pdfs-body = 이 PDF { $count }개를 이 문서의 끝에 추가하겠습니까, 아니면 각각 별도의 창에서 열겠습니까?
+drop-pdf-add = 끝에 추가
+drop-pdf-open = 따로 열기
 
 ## PDF window
 
@@ -304,6 +314,9 @@ pages-copied = { $count ->
 pages-copy-failed = 페이지를 복사할 수 없습니다: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = 읽기가 중단됨
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = prev에서 읽을 수 있는 이미지가 아님
 pages-read-failed = 파일을 읽을 수 없습니다: { $error }
 pages-at-least-one = 문서에는 페이지가 한 개 이상 있어야 합니다.
 pages-crop-needs-area = 먼저 사각형 선택 도구로 영역을 선택하세요.
@@ -565,6 +578,7 @@ image-cannot-save-format-unbound = “{ $name }”의 변경 사항을 해당 �
 image-cannot-export-animation = 애니메이션은 아직 내보낼 수 없습니다.
 image-drop-pages = 페이지는 문서에만 놓을 수 있습니다.
 image-drag-failed = 드래그를 시작할 수 없습니다.
+image-picture-save-failed = 다운로드 폴더에 이미지를 저장할 수 없습니다.
 image-open-failed = prev에서 이 이미지를 열 수 없습니다
 image-opening = 여는 중…
 # Asked when an export's file name has another format's extension.

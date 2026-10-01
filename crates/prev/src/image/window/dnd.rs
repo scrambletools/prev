@@ -28,19 +28,23 @@ pub enum OnOpen {
 }
 
 impl ImageWindow {
-    /// Takes a drop at `x`, `y` in the window. Returns files it does not
-    /// take, for the app to open.
+    /// Takes a drop at `x`, `y` in the window. With `to_panel` (Ctrl held),
+    /// or on the sidebar, images join the window wherever they land.
+    /// Returns files it does not take, for the app to open.
     pub fn drop_in(
         &mut self,
         x: f32,
         y: f32,
         dropped: Dropped,
         action: Action,
+        to_panel: bool,
     ) -> (Task<Message>, Vec<PathBuf>) {
         let index = self.current;
-        let onto_markup = self.markup().is_some_and(|markup| {
-            markup.window.markup_bar_shown() && markup.window.is_over_pages(x, y)
-        });
+        let onto_markup = !to_panel
+            && !self.drops_on_sidebar(x)
+            && self.markup().is_some_and(|markup| {
+                markup.window.markup_bar_shown() && markup.window.is_over_pages(x, y)
+            });
         match dropped {
             // With the markup bar open, one image file dropped on the
             // picture goes on the markup; otherwise images join the window.
@@ -58,7 +62,7 @@ impl ImageWindow {
             Dropped::Nothing => (Task::none(), Vec::new()),
             dropped => match self.items[index].markup.as_mut() {
                 Some(markup) => {
-                    let (task, files) = markup.window.drop_in(x, y, dropped, action);
+                    let (task, files) = markup.window.drop_in(x, y, dropped, action, false);
                     (task.map(super::markup::wrap(index)), files)
                 }
                 None => {
@@ -72,6 +76,24 @@ impl ImageWindow {
                 }
             },
         }
+    }
+
+    /// The pointer is at `point` while an image annotation is moved on the
+    /// markup, which may be let go over the sidebar.
+    pub fn pointer_at(&mut self, point: Point) {
+        self.pointer_over_sidebar = self.drops_on_sidebar(point.x);
+    }
+
+    /// Whether a drop at `x` lands on the sidebar.
+    pub fn drops_on_sidebar(&self, x: f32) -> bool {
+        self.sidebar && self.items.len() > 1 && x <= self.sidebar_width.value
+    }
+
+    /// Whether pictures dropped at `x` must come as files, saved first if
+    /// they have none: they join the window rather than going on the
+    /// markup.
+    pub fn takes_files(&self, x: f32, to_panel: bool) -> bool {
+        to_panel || self.drops_on_sidebar(x)
     }
 
     /// Adds the images among `paths` to the window, returning the other

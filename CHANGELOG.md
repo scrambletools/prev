@@ -3,6 +3,29 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- Drag and drop on macOS, both ways, as on Linux and Windows: pictures,
+  text, files and pages in; text, areas, pages and images out.
+- Images dropped on the page thumbnails, or dragged there as image
+  annotations, become pages of their own, fitted to the page size.
+- A PDF file dropped on a document's page asks whether to add it to the
+  end or open it in its own window.
+- Ctrl (Control on macOS) while dropping on the page view sends the drop
+  to the sidebar: among the pages, or with an image window's images.
+- An image annotation dragged onto an image window's sidebar is saved to
+  Downloads and joins the window.
+
+### Changed
+
+- Shift no longer takes dropped images as files; Ctrl sends them to the
+  sidebar instead. Shift still moves pages, and on macOS Command does
+  too.
+- An image file dropped on a page goes on it even with the markup bar
+  closed.
+
 ## [1.5.0] - 2026-09-30
 
 ### Added

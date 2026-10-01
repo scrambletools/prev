@@ -147,10 +147,21 @@ pub enum Message {
     InsertRead(Result<Vec<Vec<u8>>, String>),
     ThumbnailPressed(usize),
     ThumbnailsMoved(iced::Point),
+    ThumbnailsLeft,
     /// The mouse button was let go anywhere in the window.
     ThumbnailsReleased,
     Export(ExportMessage),
     ConfirmRedactions(bool),
+    DroppedPdfs(drag_ui::PdfDropChoice),
+    /// An image annotation let go over the sidebar, rendered: where among
+    /// the pages it goes, its page and id, and whether it moves there.
+    AnnotationRendered(
+        Result<prev_pdf::engine::Bitmap, String>,
+        usize,
+        usize,
+        String,
+        bool,
+    ),
     ApplyRedactions,
     /// Turns floating, auto-hiding toolbars on or off; the app handles it.
     ToggleFloatingBars,
@@ -170,12 +181,15 @@ pub enum Message {
     DroppedImage(Option<prev_pdf::engine::Bitmap>, Option<(f32, f32)>),
 }
 
-/// Changes the app applies to the window itself.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Changes the app applies to the window itself, files it opens, or, for
+/// an image's markup, a picture for the image window's sidebar.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
     EnterFullscreen,
     LeaveFullscreen,
     Quit,
+    Open(Vec<PathBuf>),
+    ToSidebar(prev_pdf::engine::Bitmap),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -244,6 +258,13 @@ pub struct PdfWindow {
     pages_focus: bool,
     export_dialog: Option<pages_ui::ExportDialog>,
     redact_confirm: bool,
+    /// PDFs dropped on the page, waiting for the answer to whether they
+    /// join this document or open on their own.
+    dropped_pdfs: Option<Vec<PathBuf>>,
+    /// Where among the pages the pointer is over the thumbnails, while it
+    /// is; or, for an image's markup, `Some` while it is over the image
+    /// window's sidebar.
+    pointer_over_sidebar: Option<usize>,
     /// Whether the pointer is over the window, for floating toolbars.
     pointer_inside: bool,
     /// The inspector panel, with the document information once loaded.
@@ -313,6 +334,8 @@ impl PdfWindow {
             pages_focus: false,
             export_dialog: None,
             redact_confirm: false,
+            dropped_pdfs: None,
+            pointer_over_sidebar: None,
             pointer_inside: true,
             inspector: None,
             image_mode: false,
@@ -515,6 +538,22 @@ impl PdfWindow {
     }
 
     fn viewer_update(&mut self, message: PdfMessage) -> Task<Message> {
+        if let Some(task) = self.image_to_panel(&message) {
+            return task;
+        }
+        // The page canvas does not see the pointer over the image window's
+        // sidebar, so while an image annotation moves on an image's markup
+        // the app reports where the pointer is.
+        if self.image_mode
+            && matches!(
+                message,
+                PdfMessage::Drag { .. } | PdfMessage::Release { .. }
+            )
+        {
+            crate::drag::watch_pointer(
+                matches!(message, PdfMessage::Drag { .. }) && self.moving_image(),
+            );
+        }
         let State::Ready(viewer) = &mut self.state else {
             return Task::none();
         };
@@ -863,6 +902,17 @@ impl PdfWindow {
             Message::ThumbnailPressed(page) => self.thumbnail_pressed(page),
             Message::ThumbnailsMoved(point) => {
                 self.thumbnails_moved(point.y);
+                self.pointer_over_sidebar = self.drop_gap(point.y);
+                if self.moving_image() {
+                    self.drop_hover = self.pointer_over_sidebar;
+                }
+                Task::none()
+            }
+            Message::ThumbnailsLeft => {
+                self.pointer_over_sidebar = None;
+                if self.moving_image() {
+                    self.drop_hover = None;
+                }
                 Task::none()
             }
             Message::ThumbnailsReleased => self.thumbnails_released(),
@@ -872,6 +922,10 @@ impl PdfWindow {
                 Task::none()
             }
             Message::ApplyRedactions => self.apply_redactions(),
+            Message::DroppedPdfs(choice) => self.dropped_pdfs_choice(choice),
+            Message::AnnotationRendered(result, gap, page, id, moving) => {
+                self.annotation_rendered(result, gap, page, id, moving)
+            }
             Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
             Message::ToggleInspector => self.toggle_inspector(),
             Message::MetadataLoaded(metadata) => {
@@ -1310,6 +1364,8 @@ impl PdfWindow {
             self.redact_dialog(full())
         } else if self.export_dialog.is_some() {
             self.export_dialog_view(full())
+        } else if self.dropped_pdfs.is_some() {
+            self.dropped_pdfs_dialog(full())
         } else {
             space().into()
         };
@@ -1875,8 +1931,9 @@ impl PdfWindow {
                     .spacing(0)
                     .width(Fill)
                     .align_x(Center);
-                let list =
-                    mouse_area(container(list).padding([0, 16])).on_move(Message::ThumbnailsMoved);
+                let list = mouse_area(container(list).padding([0, 16]))
+                    .on_move(Message::ThumbnailsMoved)
+                    .on_exit(Message::ThumbnailsLeft);
                 ui::probe::probe(
                     component::scroll(list)
                         .on_scroll(Message::ThumbnailsScrolled)

@@ -13,6 +13,8 @@ pub mod orbital;
 #[cfg(any(x11_platform, wayland_platform, docsrs))]
 pub mod keyboard_layout;
 #[cfg(any(macos_platform, docsrs))]
+pub mod drag_drop;
+#[cfg(any(macos_platform, docsrs))]
 pub mod open_files;
 #[cfg(any(x11_platform, wayland_platform, docsrs))]
 pub mod startup_notify;

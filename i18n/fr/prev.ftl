@@ -176,6 +176,19 @@ drag-start-failed = Impossible de commencer le glisser-déposer.
 drag-file-pages = Pages
 drag-file-one-page = { $name } (page { $page })
 drag-file-page-range = { $name } (pages { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Image
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Ajouter à ce document ?
+drop-pdf-body = Ajouter « { $name } » à la fin de ce document, ou l’ouvrir dans sa propre fenêtre ?
+drop-pdfs-body = { $count ->
+    [one] Ajouter ce PDF à la fin de ce document, ou l’ouvrir dans sa propre fenêtre ?
+   *[other] Ajouter ces { $count } PDF à la fin de ce document, ou les ouvrir chacun dans sa propre fenêtre ?
+}
+drop-pdf-add = Ajouter à la fin
+drop-pdf-open = Ouvrir à part
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Impossible de copier les pages : { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = la lecture s’est interrompue
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = n’est pas une image que prev peut lire
 pages-read-failed = Impossible de lire le fichier : { $error }
 pages-at-least-one = Un document doit contenir au moins une page.
 pages-crop-needs-area = Choisissez d’abord une zone avec l’outil de sélection rectangulaire.
@@ -573,6 +589,7 @@ image-cannot-save-format-unbound = Les modifications de « { $name } » ne peuve
 image-cannot-export-animation = Les animations ne peuvent pas encore être exportées.
 image-drop-pages = Les pages peuvent être déposées sur un document.
 image-drag-failed = Impossible de commencer le glisser-déposer.
+image-picture-save-failed = Impossible d’enregistrer l’image dans votre dossier Téléchargements.
 image-open-failed = prev ne peut pas ouvrir cette image
 image-opening = Ouverture…
 # Asked when an export's file name has another format's extension.

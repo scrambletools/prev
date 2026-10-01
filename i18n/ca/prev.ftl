@@ -146,6 +146,15 @@ drag-start-failed = No s'ha pogut començar a arrossegar.
 drag-file-pages = Pàgines
 drag-file-one-page = { $name } (pàgina { $page })
 drag-file-page-range = { $name } (pàgines { $first }–{ $last })
+drag-file-image = Imatge
+drop-pdf-title = Vols afegir-ho a aquest document?
+drop-pdf-body = Vols afegir «{ $name }» al final d'aquest document o obrir-lo en una finestra pròpia?
+drop-pdfs-body = { $count ->
+    [one] Vols afegir aquest PDF al final d'aquest document o obrir-lo en una finestra pròpia?
+   *[other] Vols afegir aquests { $count } PDF al final d'aquest document o obrir-los en finestres pròpies?
+}
+drop-pdf-add = Afegeix al final
+drop-pdf-open = Obre a part
 
 ## PDF window
 
@@ -254,6 +263,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = No s'han pogut copiar les pàgines: { $error }
 pages-reading-stopped = la lectura s'ha aturat
+pages-image-unreadable = no és una imatge que el prev pugui llegir
 pages-read-failed = No s'ha pogut llegir el fitxer: { $error }
 pages-at-least-one = Un document ha de tenir com a mínim una pàgina.
 pages-crop-needs-area = Primer tria una àrea amb l'eina de selecció rectangular.
@@ -480,6 +490,7 @@ image-cannot-save-format-unbound = Els canvis a «{ $name }» no es poden desar 
 image-cannot-export-animation = Encara no es poden exportar animacions.
 image-drop-pages = Les pàgines es poden deixar anar sobre un document.
 image-drag-failed = No s'ha pogut començar a arrossegar.
+image-picture-save-failed = No s'ha pogut desar la imatge a la carpeta Baixades.
 image-open-failed = El prev no pot obrir aquesta imatge
 image-opening = S'està obrint…
 image-name-mismatch-title = El nom no coincideix amb el format

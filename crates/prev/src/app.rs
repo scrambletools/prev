@@ -36,8 +36,10 @@ pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
 pub struct Prev {
     /// The window that started the drag under way, told how it ends.
     drag_origin: Option<window::Id>,
-    /// Whether Shift is held, which makes dropped images files.
-    shift: bool,
+    /// Whether Ctrl (Control on macOS) is held, which puts drops in the
+    /// window's sidebar: among a document's pages, or with an image
+    /// window's images.
+    control: bool,
     windows: BTreeMap<window::Id, Window>,
     settings: Settings,
     settings_path: Option<PathBuf>,
@@ -171,7 +173,8 @@ struct Window {
     content: Content,
     fullscreen: bool,
     notice: Option<String>,
-    /// The `wl_surface` pointer, used to match drag events to windows.
+    /// The `wl_surface`, window or content view pointer, used to match
+    /// drag events to windows.
     surface: Option<usize>,
     drag_hover: bool,
     /// The settings dialog, shown over this window.
@@ -211,8 +214,8 @@ pub enum Message {
     /// A file dropped through the windowing system rather than prev's own
     /// drag and drop: on Windows and X11.
     FileDropped(window::Id, PathBuf),
-    /// A drop was read: where it landed, what it brought, and whether
-    /// Shift made it a drop of files.
+    /// A drop was read: where it landed, what it brought, and whether Ctrl
+    /// sent it to the sidebar.
     DropDecoded(
         window::Id,
         f32,
@@ -292,7 +295,7 @@ impl Prev {
         prev::i18n::set_language(settings.chosen_language());
         let mut prev = Self {
             drag_origin: None,
-            shift: false,
+            control: false,
             windows: BTreeMap::new(),
             settings,
             settings_path,
@@ -501,6 +504,8 @@ impl Prev {
                 Effect::EnterFullscreen => self.set_fullscreen(id, Some(true)),
                 Effect::LeaveFullscreen => self.set_fullscreen(id, Some(false)),
                 Effect::Quit => quit(),
+                Effect::Open(paths) => self.open_paths_if_any(paths),
+                Effect::ToSidebar(_) => Task::none(),
             })
             .collect();
         Task::batch(std::iter::once(task).chain(effect_tasks))
@@ -670,10 +675,11 @@ impl Prev {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.surface = surface;
                 }
-                // Windows drops go to a target registered on each window.
-                #[cfg(windows)]
-                if let Some(hwnd) = surface {
-                    prev::dnd::register(hwnd);
+                // Drops on Windows go to a target registered on each window;
+                // on macOS each window registers the types it takes.
+                #[cfg(any(windows, target_os = "macos"))]
+                if let Some(handle) = surface {
+                    prev::dnd::register(handle);
                 }
                 Task::none()
             }
@@ -701,6 +707,9 @@ impl Prev {
                 Task::none()
             }
             Message::PointerMoved(id, point) => {
+                if let Some(images) = self.images_mut(id) {
+                    images.pointer_at(point);
+                }
                 let Some(window) = self.windows.get(&id) else {
                     return Task::none();
                 };
@@ -719,10 +728,10 @@ impl Prev {
                 };
                 let (x, y) = (window.size.width / 2.0, window.size.height / 2.0);
                 let dropped = prev::drag::Dropped::Files(vec![path]);
-                self.drop_in(id, x, y, prev::drag::Action::Copy, dropped, self.shift)
+                self.drop_in(id, x, y, prev::drag::Action::Copy, dropped, self.control)
             }
-            Message::DropDecoded(id, x, y, action, dropped, as_file) => {
-                self.drop_in(id, x, y, action, dropped, as_file)
+            Message::DropDecoded(id, x, y, action, dropped, to_panel) => {
+                self.drop_in(id, x, y, action, dropped, to_panel)
             }
             Message::CloseRequested(id) => {
                 if self
@@ -761,12 +770,17 @@ impl Prev {
                 }
             },
             Message::Modifiers(id, modifiers) => {
-                // Shift moves dropped pages instead of copying them, and
-                // takes dropped images as files.
-                self.shift = modifiers.shift();
-                prev::dnd::set_prefer_move(modifiers.shift());
+                // Shift, or Command on macOS, moves dropped pages instead of
+                // copying them; Ctrl puts drops in the sidebar.
+                self.control = modifiers.control();
+                prev::dnd::set_prefer_move(
+                    modifiers.shift() || (cfg!(target_os = "macos") && modifiers.logo()),
+                );
                 if let Some(pdf) = self.pdf_mut(id) {
                     pdf.set_modifiers(modifiers);
+                }
+                if let Some(images) = self.images_mut(id) {
+                    images.set_modifiers(modifiers);
                 }
                 Task::none()
             }
@@ -996,7 +1010,15 @@ impl Prev {
             } => {
                 window.drag_hover = false;
                 let (x, y) = (x as f32, y as f32);
-                let as_file = self.shift;
+                let to_panel = self.control || prev::dnd::control_held();
+                // Pictures joining an image window's images need files.
+                let as_file = match &window.content {
+                    Content::Document(Document {
+                        images: Some(images),
+                        ..
+                    }) => images.takes_files(x, to_panel),
+                    _ => false,
+                };
                 return Task::perform(
                     prev::image::editor::spawn(move || {
                         if as_file {
@@ -1012,7 +1034,7 @@ impl Prev {
                             y,
                             action,
                             dropped.unwrap_or(prev::drag::Dropped::Nothing),
-                            as_file,
+                            to_panel,
                         )
                     },
                 );
@@ -1030,43 +1052,15 @@ impl Prev {
         y: f32,
         action: prev::drag::Action,
         dropped: prev::drag::Dropped,
-        as_file: bool,
+        to_panel: bool,
     ) -> Task<Message> {
-        // With Shift, dropped images are files: they join an image window,
-        // and open in their own window anywhere else. Other files drop as
-        // they would without it.
-        let dropped = match dropped {
-            prev::drag::Dropped::Files(files) if as_file => {
-                let (images, others): (Vec<_>, Vec<_>) = files.into_iter().partition(|path| {
-                    matches!(
-                        filetype::detect_path(path),
-                        Ok(Some(FileKind::Image(_) | FileKind::Svg))
-                    )
-                });
-                let task = match self.images_mut(id) {
-                    Some(images_window) => {
-                        let (task, _) = images_window.add_files(images);
-                        self.with_images(id, |_| task)
-                    }
-                    None => self.open_paths_if_any(images),
-                };
-                if others.is_empty() {
-                    return task;
-                }
-                return Task::batch([
-                    task,
-                    self.drop_in(id, x, y, action, prev::drag::Dropped::Files(others), false),
-                ]);
-            }
-            dropped => dropped,
-        };
         let from_here = self.drag_origin == Some(id);
         let Some(window) = self.windows.get_mut(&id) else {
             return Task::none();
         };
         let (task, files) = match &mut window.content {
             Content::Document(Document { pdf: Some(pdf), .. }) => {
-                let (task, files) = pdf.drop_in(x, y, dropped, action);
+                let (task, files) = pdf.drop_in(x, y, dropped, action, to_panel);
                 (task.map(move |message| Message::Pdf(id, message)), files)
             }
             // An image dragged out of the sidebar and let go over it again.
@@ -1079,7 +1073,7 @@ impl Prev {
                 images: Some(images),
                 ..
             }) => {
-                let (task, files) = images.drop_in(x, y, dropped, action);
+                let (task, files) = images.drop_in(x, y, dropped, action, to_panel);
                 (task.map(move |message| Message::Image(id, message)), files)
             }
             _ => match dropped {
@@ -1978,6 +1972,7 @@ fn wayland_surface(window: &dyn window::Window) -> Option<usize> {
     match window.window_handle().ok()?.as_raw() {
         RawWindowHandle::Wayland(handle) => Some(handle.surface.as_ptr() as usize),
         RawWindowHandle::Win32(handle) => Some(handle.hwnd.get() as usize),
+        RawWindowHandle::AppKit(handle) => Some(handle.ns_view.as_ptr() as usize),
         _ => None,
     }
 }

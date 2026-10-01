@@ -107,6 +107,7 @@ keeps to itself:
   hand a Mac app its files through the application delegate's
   `application:openURLs:`, not as arguments, and winit owns the
   delegate;
+- drags over a window on macOS, of which winit takes only file names;
 - and on macOS it gets in the way of a menu bar (see the last two
   changes).
 
@@ -123,7 +124,13 @@ keeps to itself:
   implements `application:openURLs:` and hands the file paths to
   `src/platform/open_files.rs` (new), which keeps them until prev sets a
   handler; `Cargo.toml` adds the `NSURL` feature it needs.
-- `src/platform/mod.rs`: the two new modules.
+- `src/platform_impl/macos/window_delegate.rs`: the window's dragging
+  destination methods (and `draggingUpdated:`, which it adds) hand the
+  `NSWindow` and the `NSDraggingInfo` to a hook in
+  `src/platform/drag_drop.rs` (new) when prev has set one, and return
+  its drag operation; without a hook they behave as before. prev reads
+  the drag's pasteboard with its own bindings (`crates/prev/src/dnd_macos.rs`).
+- `src/platform/mod.rs`: the new modules.
 - `src/platform_impl/macos/app_state.rs`: winit's default menu goes up
   only when the application has none, since iced starts prev, which puts
   up its menu bar, before winit's launch handler runs.

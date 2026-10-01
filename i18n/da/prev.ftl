@@ -176,6 +176,19 @@ drag-start-failed = Trækningen kunne ikke startes.
 drag-file-pages = Sider
 drag-file-one-page = { $name } (side { $page })
 drag-file-page-range = { $name } (sider { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Billede
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Føj til dette dokument?
+drop-pdf-body = Vil du føje “{ $name }” til slutningen af dette dokument eller åbne den i et separat vindue?
+drop-pdfs-body = { $count ->
+    [one] Vil du føje denne PDF til slutningen af dette dokument eller åbne den i et separat vindue?
+   *[other] Vil du føje disse { $count } PDF'er til slutningen af dette dokument eller åbne dem i hver sit vindue?
+}
+drop-pdf-add = Føj til sidst
+drop-pdf-open = Åbn separat
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Siderne kunne ikke kopieres: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = læsningen stoppede
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = er ikke et billede, som prev kan læse
 pages-read-failed = Filen kunne ikke læses: { $error }
 pages-at-least-one = Et dokument skal have mindst én side.
 pages-crop-needs-area = Vælg først et område med værktøjet til rektangulær markering.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = Ændringer i “{ $name }” kan ikke gemmes 
 image-cannot-export-animation = Animationer kan endnu ikke eksporteres.
 image-drop-pages = Sider kan slippes på et dokument.
 image-drag-failed = Trækningen kunne ikke startes.
+image-picture-save-failed = Billedet kunne ikke gemmes i mappen Overførsler.
 image-open-failed = prev kan ikke åbne dette billede
 image-opening = Åbner…
 # Asked when an export's file name has another format's extension.

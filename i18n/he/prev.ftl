@@ -144,6 +144,16 @@ drag-start-failed = לא ניתן להתחיל בגרירה.
 drag-file-pages = עמודים
 drag-file-one-page = { $name } (עמוד { $page })
 drag-file-page-range = { $name } (עמודים { $first }–{ $last })
+drag-file-image = תמונה
+drop-pdf-title = להוסיף למסמך הזה?
+drop-pdf-body = להוסיף את "{ $name }" לסוף המסמך הזה, או לפתוח אותו בחלון נפרד?
+drop-pdfs-body = { $count ->
+    [one] להוסיף את קובץ ה-PDF הזה לסוף המסמך הזה, או לפתוח אותו בחלון נפרד?
+    [two] להוסיף את שני קובצי ה-PDF האלה לסוף המסמך הזה, או לפתוח אותם בחלונות נפרדים?
+   *[other] להוסיף את { $count } קובצי ה-PDF האלה לסוף המסמך הזה, או לפתוח אותם בחלונות נפרדים?
+}
+drop-pdf-add = הוספה לסוף
+drop-pdf-open = פתיחה בנפרד
 
 ## PDF window
 
@@ -255,6 +265,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = לא ניתן להעתיק את העמודים: { $error }
 pages-reading-stopped = הקריאה הופסקה
+pages-image-unreadable = אינו תמונה ש-prev יכול לקרוא
 pages-read-failed = לא ניתן לקרוא את הקובץ: { $error }
 pages-at-least-one = במסמך חייב להיות לפחות עמוד אחד.
 pages-crop-needs-area = קודם צריך לבחור אזור בכלי הבחירה המלבנית.
@@ -477,6 +488,7 @@ image-cannot-save-format-unbound = אי אפשר לשמור את השינויי�
 image-cannot-export-animation = עדיין אי אפשר לייצא אנימציות.
 image-drop-pages = אפשר לשחרר עמודים רק על מסמך.
 image-drag-failed = לא ניתן להתחיל בגרירה.
+image-picture-save-failed = לא ניתן לשמור את התמונה בתיקיית ההורדות.
 image-open-failed = prev לא יכול לפתוח את התמונה הזו
 image-opening = בפתיחה…
 image-name-mismatch-title = השם לא תואם לפורמט

@@ -176,6 +176,21 @@ drag-start-failed = Не удалось начать перетаскивани�
 drag-file-pages = Страницы
 drag-file-one-page = { $name } (стр. { $page })
 drag-file-page-range = { $name } (стр. { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Изображение
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Добавить в этот документ?
+drop-pdf-body = Добавить «{ $name }» в конец этого документа или открыть в отдельном окне?
+drop-pdfs-body = { $count ->
+    [one] Добавить эти { $count } PDF-файл в конец этого документа или открыть их в отдельных окнах?
+    [few] Добавить эти { $count } PDF-файла в конец этого документа или открыть их в отдельных окнах?
+    [many] Добавить эти { $count } PDF-файлов в конец этого документа или открыть их в отдельных окнах?
+   *[other] Добавить эти { $count } PDF-файла в конец этого документа или открыть их в отдельных окнах?
+}
+drop-pdf-add = Добавить в конец
+drop-pdf-open = Открыть отдельно
 
 ## PDF window
 
@@ -319,6 +334,9 @@ pages-copied = { $count ->
 pages-copy-failed = Не удалось скопировать страницы: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = чтение прервано
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = prev не может прочитать этот файл как изображение
 pages-read-failed = Не удалось прочитать файл: { $error }
 pages-at-least-one = В документе должна быть хотя бы одна страница.
 pages-crop-needs-area = Сначала выберите область инструментом прямоугольного выделения.
@@ -596,6 +614,7 @@ image-cannot-save-format-unbound = Изменения в файле «{ $name }�
 image-cannot-export-animation = Анимации пока нельзя экспортировать.
 image-drop-pages = Страницы можно перетащить в документ.
 image-drag-failed = Не удалось начать перетаскивание.
+image-picture-save-failed = Не удалось сохранить изображение в папку «Загрузки».
 image-open-failed = prev не может открыть это изображение
 image-opening = Открытие…
 # Asked when an export's file name has another format's extension.

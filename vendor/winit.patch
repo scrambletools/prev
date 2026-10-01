@@ -1,6 +1,5 @@
-diff -ruN a/Cargo.toml b/Cargo.toml
---- a/Cargo.toml	2026-09-29 19:00:22.103910672 -0700
-+++ b/Cargo.toml	2026-09-29 19:00:22.120738679 -0700
+--- a/Cargo.toml	2026-09-30 12:16:21.353082401 -0700
++++ b/Cargo.toml	2026-09-30 12:16:21.373840165 -0700
 @@ -509,6 +509,7 @@
      "NSRunLoop",
      "NSString",
@@ -9,9 +8,50 @@ diff -ruN a/Cargo.toml b/Cargo.toml
      "NSValue",
  ]
  
+diff -ruN a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
+--- a/src/platform/drag_drop.rs	1969-12-31 16:00:00.000000000 -0800
++++ b/src/platform/drag_drop.rs	2026-09-30 12:16:21.357182375 -0700
+@@ -0,0 +1,37 @@
++//! prev: drags over a window, for the application to handle itself.
++//!
++//! winit's macOS window takes only file names from a drag. With a hook
++//! set, the window's dragging destination methods call it instead, with
++//! the `NSWindow` and the `NSDraggingInfo` as pointers, so the application
++//! can read any type from the drag's pasteboard with its own bindings. The
++//! hook returns the `NSDragOperation` to show, or for a drop, nonzero when
++//! it took the data.
++
++use std::ffi::c_void;
++use std::sync::RwLock;
++
++/// Which of the dragging destination methods is calling.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum Phase {
++    Entered,
++    Updated,
++    Exited,
++    Perform,
++}
++
++type Hook = Box<dyn Fn(Phase, *const c_void, *const c_void) -> usize + Send + Sync>;
++
++static HOOK: RwLock<Option<Hook>> = RwLock::new(None);
++
++/// Handles drags over every window with `hook`: its arguments are the
++/// phase, the `NSWindow` and the `NSDraggingInfo` (null for `Exited`
++/// when AppKit passes none). It runs on the main thread.
++pub fn set_hook(hook: impl Fn(Phase, *const c_void, *const c_void) -> usize + Send + Sync + 'static) {
++    *HOOK.write().unwrap_or_else(|e| e.into_inner()) = Some(Box::new(hook));
++}
++
++/// The hook's answer, or `None` when no hook is set.
++pub(crate) fn call(phase: Phase, window: *const c_void, info: *const c_void) -> Option<usize> {
++    let hook = HOOK.read().unwrap_or_else(|e| e.into_inner());
++    hook.as_ref().map(|hook| hook(phase, window, info))
++}
 diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 --- a/src/platform/keyboard_layout.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/keyboard_layout.rs	2026-09-29 19:00:22.108775010 -0700
++++ b/src/platform/keyboard_layout.rs	2026-09-30 12:16:21.356493559 -0700
 @@ -0,0 +1,20 @@
 +//! prev: the keyboard layout the user is typing with.
 +//!
@@ -34,13 +74,15 @@ diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 +    *LETTERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(letters);
 +}
 diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
---- a/src/platform/mod.rs	2026-09-29 19:00:22.086835463 -0700
-+++ b/src/platform/mod.rs	2026-09-29 19:00:22.108142290 -0700
-@@ -11,6 +11,10 @@
+--- a/src/platform/mod.rs	2026-09-30 12:16:21.335484589 -0700
++++ b/src/platform/mod.rs	2026-09-30 12:16:21.356653969 -0700
+@@ -11,6 +11,12 @@
  #[cfg(any(orbital_platform, docsrs))]
  pub mod orbital;
  #[cfg(any(x11_platform, wayland_platform, docsrs))]
 +pub mod keyboard_layout;
++#[cfg(any(macos_platform, docsrs))]
++pub mod drag_drop;
 +#[cfg(any(macos_platform, docsrs))]
 +pub mod open_files;
 +#[cfg(any(x11_platform, wayland_platform, docsrs))]
@@ -49,7 +91,7 @@ diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
  pub mod wayland;
 diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 --- a/src/platform/open_files.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/open_files.rs	2026-09-29 19:00:22.108804305 -0700
++++ b/src/platform/open_files.rs	2026-09-30 12:16:21.356699774 -0700
 @@ -0,0 +1,35 @@
 +//! prev: files macOS asks the application to open.
 +//!
@@ -87,8 +129,8 @@ diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 +    }
 +}
 diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
---- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 19:00:22.089809984 -0700
-+++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-29 19:00:22.110454886 -0700
+--- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-30 12:16:21.338623468 -0700
++++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-30 12:16:21.359209338 -0700
 @@ -7,7 +7,8 @@
  #[cfg(x11_platform)]
  use x11_dl::xlib_xcb::xcb_connection_t;
@@ -178,8 +220,8 @@ diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linu
  
      /// Reload the modifiers.
 diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
---- a/src/platform_impl/macos/app_state.rs	2026-09-29 19:00:22.095850739 -0700
-+++ b/src/platform_impl/macos/app_state.rs	2026-09-29 19:00:22.114826525 -0700
+--- a/src/platform_impl/macos/app_state.rs	2026-09-30 12:16:21.345180816 -0700
++++ b/src/platform_impl/macos/app_state.rs	2026-09-30 12:16:21.365100293 -0700
 @@ -8,7 +8,9 @@
  use objc2_app_kit::{
      NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
@@ -223,8 +265,8 @@ diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_s
              // overriding of the default menu even if it's created
              menu::initialize(&app);
 diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
---- a/src/platform_impl/macos/view.rs	2026-09-29 19:00:22.097178176 -0700
-+++ b/src/platform_impl/macos/view.rs	2026-09-29 19:00:22.114866089 -0700
+--- a/src/platform_impl/macos/view.rs	2026-09-30 12:16:21.346476564 -0700
++++ b/src/platform_impl/macos/view.rs	2026-09-30 12:16:21.366658932 -0700
 @@ -524,6 +524,29 @@
              self.update_modifiers(event, true);
          }
@@ -306,3 +348,89 @@ diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
      pub(super) fn new(
          app_delegate: &ApplicationDelegate,
          window: &WinitWindow,
+diff -ruN a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos/window_delegate.rs
+--- a/src/platform_impl/macos/window_delegate.rs	2026-09-30 12:16:21.346771475 -0700
++++ b/src/platform_impl/macos/window_delegate.rs	2026-09-30 12:16:21.366783625 -0700
+@@ -367,15 +367,19 @@
+     unsafe impl NSDraggingDestination for WindowDelegate {
+         /// Invoked when the dragged image enters destination bounds or frame
+         #[method(draggingEntered:)]
+-        fn dragging_entered(&self, sender: &NSObject) -> bool {
++        fn dragging_entered(&self, sender: &NSObject) -> usize {
+             trace_scope!("draggingEntered:");
+ 
++            if let Some(operation) = self.drag_hook(crate::platform::drag_drop::Phase::Entered, Some(sender)) {
++                return operation;
++            }
++
+             use std::path::PathBuf;
+ 
+             let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
+             let filenames = match pb.propertyListForType(unsafe { NSFilenamesPboardType }) {
+                 Some(filenames) => filenames,
+-                None => return false.into(),
++                None => return 0,
+             };
+             let filenames: Retained<NSArray<NSString>> = unsafe { Retained::cast(filenames) };
+ 
+@@ -384,7 +388,16 @@
+                 self.queue_event(WindowEvent::HoveredFile(path));
+             });
+ 
+-            true
++            // NSDragOperationCopy
++            1
++        }
++
++        /// Invoked while the drag moves over the window
++        #[method(draggingUpdated:)]
++        fn dragging_updated(&self, sender: &NSObject) -> usize {
++            trace_scope!("draggingUpdated:");
++            self.drag_hook(crate::platform::drag_drop::Phase::Updated, Some(sender))
++                .unwrap_or(1)
+         }
+ 
+         /// Invoked when the image is released
+@@ -399,6 +412,10 @@
+         fn perform_drag_operation(&self, sender: &NSObject) -> bool {
+             trace_scope!("performDragOperation:");
+ 
++            if let Some(taken) = self.drag_hook(crate::platform::drag_drop::Phase::Perform, Some(sender)) {
++                return (taken != 0).into();
++            }
++
+             use std::path::PathBuf;
+ 
+             let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
+@@ -424,8 +441,11 @@
+ 
+         /// Invoked when the dragging operation is cancelled
+         #[method(draggingExited:)]
+-        fn dragging_exited(&self, _sender: Option<&NSObject>) {
++        fn dragging_exited(&self, sender: Option<&NSObject>) {
+             trace_scope!("draggingExited:");
++            if self.drag_hook(crate::platform::drag_drop::Phase::Exited, sender).is_some() {
++                return;
++            }
+             self.queue_event(WindowEvent::HoveredFileCancelled);
+         }
+     }
+@@ -673,6 +693,18 @@
+ }
+ 
+ impl WindowDelegate {
++    /// prev: hands a dragging destination call to the application's hook,
++    /// if one is set.
++    fn drag_hook(
++        &self,
++        phase: crate::platform::drag_drop::Phase,
++        sender: Option<&NSObject>,
++    ) -> Option<usize> {
++        let window = (self.window() as *const WinitWindow).cast();
++        let info = sender.map_or(std::ptr::null(), |sender| (sender as *const NSObject).cast());
++        crate::platform::drag_drop::call(phase, window, info)
++    }
++
+     pub(super) fn new(
+         app_delegate: &ApplicationDelegate,
+         attrs: WindowAttributes,

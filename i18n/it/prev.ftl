@@ -176,6 +176,19 @@ drag-start-failed = Impossibile iniziare il trascinamento.
 drag-file-pages = Pagine
 drag-file-one-page = { $name } (pagina { $page })
 drag-file-page-range = { $name } (pagine { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Immagine
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Aggiungere a questo documento?
+drop-pdf-body = Aggiungere “{ $name }” alla fine di questo documento o aprirlo in una finestra a parte?
+drop-pdfs-body = { $count ->
+    [one] Aggiungere questo PDF alla fine di questo documento o aprirlo in una finestra a parte?
+   *[other] Aggiungere questi { $count } PDF alla fine di questo documento o aprirli in finestre separate?
+}
+drop-pdf-add = Aggiungi alla fine
+drop-pdf-open = Apri a parte
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Impossibile copiare le pagine: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = la lettura si è interrotta
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = non è un'immagine che prev può leggere
 pages-read-failed = Impossibile leggere il file: { $error }
 pages-at-least-one = Un documento deve avere almeno una pagina.
 pages-crop-needs-area = Prima scegli un'area con lo strumento di selezione rettangolare.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = Le modifiche a “{ $name }” non si possono
 image-cannot-export-animation = Le animazioni non si possono ancora esportare.
 image-drop-pages = Le pagine si possono rilasciare su un documento.
 image-drag-failed = Impossibile iniziare il trascinamento.
+image-picture-save-failed = Impossibile salvare l'immagine nella cartella Download.
 image-open-failed = prev non può aprire questa immagine
 image-opening = Apertura…
 # Asked when an export's file name has another format's extension.

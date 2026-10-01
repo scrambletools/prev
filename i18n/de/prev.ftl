@@ -176,6 +176,19 @@ drag-start-failed = Das Ziehen konnte nicht gestartet werden.
 drag-file-pages = Seiten
 drag-file-one-page = { $name } (Seite { $page })
 drag-file-page-range = { $name } (Seiten { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Bild
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Zu diesem Dokument hinzufügen?
+drop-pdf-body = „{ $name }“ am Ende dieses Dokuments anfügen oder in einem eigenen Fenster öffnen?
+drop-pdfs-body = { $count ->
+    [one] Diese PDF am Ende dieses Dokuments anfügen oder in einem eigenen Fenster öffnen?
+   *[other] Diese { $count } PDFs am Ende dieses Dokuments anfügen oder in eigenen Fenstern öffnen?
+}
+drop-pdf-add = Am Ende anfügen
+drop-pdf-open = Separat öffnen
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Die Seiten konnten nicht kopiert werden: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = das Lesen wurde abgebrochen
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = kein Bild, das prev lesen kann
 pages-read-failed = Die Datei konnte nicht gelesen werden: { $error }
 pages-at-least-one = Ein Dokument muss mindestens eine Seite enthalten.
 pages-crop-needs-area = Wählen Sie zuerst mit dem Werkzeug „Rechteckige Auswahl“ einen Bereich aus.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = Änderungen an „{ $name }“ können in die
 image-cannot-export-animation = Animationen können noch nicht exportiert werden.
 image-drop-pages = Seiten können auf einem Dokument abgelegt werden.
 image-drag-failed = Das Ziehen konnte nicht gestartet werden.
+image-picture-save-failed = Das Bild konnte nicht im Ordner „Downloads“ gespeichert werden.
 image-open-failed = prev kann dieses Bild nicht öffnen
 image-opening = Wird geöffnet …
 # Asked when an export's file name has another format's extension.

@@ -179,6 +179,7 @@ impl ImageWindow {
         index: usize,
         message: pdf_window::Message,
     ) -> Task<Message> {
+        let over_sidebar = self.pointer_over_sidebar;
         let Some(markup) = self
             .items
             .get_mut(index)
@@ -187,6 +188,7 @@ impl ImageWindow {
             return Task::none();
         };
         let opened = matches!(message, pdf_window::Message::Opened(_));
+        markup.window.set_pointer_over_outer_sidebar(over_sidebar);
         let mut task = markup.window.update(message);
         // MuPDF keeps the file open, so it can go now; nothing is left
         // behind however the app ends.
@@ -201,7 +203,7 @@ impl ImageWindow {
                     OnOpen::Drop(x, y, dropped) => Some(
                         markup
                             .window
-                            .drop_in(x, y, dropped, crate::drag::Action::Copy)
+                            .drop_in(x, y, dropped, crate::drag::Action::Copy, false)
                             .0,
                     ),
                 };
@@ -210,10 +212,45 @@ impl ImageWindow {
                 }
             }
         }
-        if let Some(markup) = self.items[index].markup.as_mut() {
-            markup.window.take_effects();
+        let effects = self.items[index]
+            .markup
+            .as_mut()
+            .map(|markup| markup.window.take_effects())
+            .unwrap_or_default();
+        let task = task.map(wrap(index));
+        // An image annotation let go over the sidebar joins the images.
+        let saved = effects.into_iter().filter_map(|effect| match effect {
+            pdf_window::Effect::ToSidebar(picture) => Some(Task::perform(
+                crate::image::editor::spawn(move || {
+                    crate::drag::save_picture(&crate::fl!("drag-file-image"), &picture)
+                }),
+                |path| Message::PictureSaved(path.ok().flatten()),
+            )),
+            _ => None,
+        });
+        Task::batch(std::iter::once(task).chain(saved))
+    }
+
+    /// A picture from the markup, saved, joins the images; or could not be.
+    pub(super) fn picture_saved(&mut self, path: Option<PathBuf>) -> Task<Message> {
+        match path {
+            Some(path) => self.add_images(vec![path]),
+            None => {
+                self.notice = Some(crate::fl!("image-picture-save-failed"));
+                Task::none()
+            }
         }
-        task.map(wrap(index))
+    }
+
+    /// Passes the keys held to the markup, where Shift moves annotations.
+    pub fn set_modifiers(&mut self, modifiers: iced::keyboard::Modifiers) {
+        for markup in self
+            .items
+            .iter_mut()
+            .filter_map(|item| item.markup.as_mut())
+        {
+            markup.window.set_modifiers(modifiers);
+        }
     }
 
     /// Hands the device scale and pointer to every markup window.

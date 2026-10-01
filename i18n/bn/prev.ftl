@@ -147,6 +147,15 @@ drag-start-failed = টেনে আনা শুরু করা যায়�
 drag-file-pages = পৃষ্ঠা
 drag-file-one-page = { $name } (পৃষ্ঠা { $page })
 drag-file-page-range = { $name } (পৃষ্ঠা { $first }–{ $last })
+drag-file-image = ছবি
+drop-pdf-title = এই নথিতে যোগ করবেন?
+drop-pdf-body = “{ $name }” এই নথির শেষে যোগ করবেন, নাকি এটি আলাদা উইন্ডোতে খুলবেন?
+drop-pdfs-body = { $count ->
+    [one] এই { $count }টি PDF এই নথির শেষে যোগ করবেন, নাকি এটি আলাদা উইন্ডোতে খুলবেন?
+   *[other] এই { $count }টি PDF এই নথির শেষে যোগ করবেন, নাকি সেগুলো আলাদা আলাদা উইন্ডোতে খুলবেন?
+}
+drop-pdf-add = শেষে যোগ করুন
+drop-pdf-open = আলাদাভাবে খুলুন
 
 ## PDF window
 
@@ -255,6 +264,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = পৃষ্ঠাগুলো কপি করা যায়নি: { $error }
 pages-reading-stopped = পড়া থেমে গেছে
+pages-image-unreadable = এমন কোনো ছবি নয় যা prev পড়তে পারে
 pages-read-failed = ফাইলটি পড়া যায়নি: { $error }
 pages-at-least-one = একটি নথিতে অন্তত একটি পৃষ্ঠা থাকতে হবে।
 pages-crop-needs-area = আগে আয়তাকার নির্বাচন টুল দিয়ে একটি এলাকা বেছে নিন।
@@ -475,6 +485,7 @@ image-cannot-save-format-unbound = “{ $name }”-এর পরিবর্ত�
 image-cannot-export-animation = অ্যানিমেশন এখনও রপ্তানি করা যায় না।
 image-drop-pages = পৃষ্ঠা শুধু কোনো নথির উপরে ছাড়া যায়।
 image-drag-failed = টেনে আনা শুরু করা যায়নি।
+image-picture-save-failed = আপনার ডাউনলোড ফোল্ডারে ছবিটি সংরক্ষণ করা যায়নি।
 image-open-failed = prev এই ছবিটি খুলতে পারে না
 image-opening = খোলা হচ্ছে…
 image-name-mismatch-title = নামটি ফরম্যাটের সাথে মেলে না

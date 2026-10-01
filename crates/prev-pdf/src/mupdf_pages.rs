@@ -486,6 +486,34 @@ pub(crate) fn annotations_alone(document: &PdfDocument, page: usize) -> Result<P
 /// A PDF of one page of `size` points filled by `image`, for marking up
 /// an image with the PDF tools.
 pub fn image_document(image: &crate::engine::Bitmap, size: Size) -> Result<Vec<u8>> {
+    image_page(image, size, (0.0, 0.0, size.width, size.height))
+}
+
+/// A PDF of one page of `size` points with `image` as large as fits,
+/// centered, for adding an image to a document as a page.
+pub fn image_page_document(image: &crate::engine::Bitmap, size: Size) -> Result<Vec<u8>> {
+    let (width, height) = (image.width.max(1) as f32, image.height.max(1) as f32);
+    let scale = (size.width / width).min(size.height / height);
+    let (fitted_width, fitted_height) = (width * scale, height * scale);
+    image_page(
+        image,
+        size,
+        (
+            (size.width - fitted_width) / 2.0,
+            (size.height - fitted_height) / 2.0,
+            fitted_width,
+            fitted_height,
+        ),
+    )
+}
+
+/// A PDF of one page of `size` points with `image` drawn at `place`: its
+/// left, bottom, width and height.
+fn image_page(
+    image: &crate::engine::Bitmap,
+    size: Size,
+    (left, bottom, width, height): (f32, f32, f32, f32),
+) -> Result<Vec<u8>> {
     let mut document = PdfDocument::new();
     document
         .new_page(MupdfSize::new(size.width, size.height))
@@ -499,7 +527,7 @@ pub fn image_document(image: &crate::engine::Bitmap, size: Size) -> Result<Vec<u
     resources
         .dict_put("XObject", xobjects)
         .map_err(engine_error)?;
-    let contents = format!("q {} 0 0 {} 0 0 cm /Im Do Q", size.width, size.height);
+    let contents = format!("q {width} 0 0 {height} {left} {bottom} cm /Im Do Q");
     let contents = Buffer::from_bytes(contents.as_bytes()).map_err(engine_error)?;
     let contents = document
         .add_stream(&contents, None, false)

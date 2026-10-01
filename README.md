@@ -53,18 +53,24 @@ For a walkthrough of every feature with more screenshots, see
     where it should go.
   - Everything is saved as standard PDF annotations that other viewers
     show and edit.
-- **Drag and drop** both ways, on Linux and Windows
-  ([details](https://prev.run/guide.html#drag-and-drop)); on macOS, files
-  dropped on a window open, and the rest is still to come:
+- **Drag and drop** both ways, on Linux, Windows and macOS
+  ([details](https://prev.run/guide.html#drag-and-drop)):
   - Drop images, text, files and pages from other windows and apps
     where they should go: images and text onto pages or an image's
-    markup, pages and PDFs among the thumbnails, image files into an
-    image window, and other files into windows of their own.
+    markup, pages, PDFs and images (as new pages) among the thumbnails,
+    image files into an image window, and other files into windows of
+    their own. A PDF file dropped on a page asks whether to add it to
+    the end or open it on its own.
+  - Ctrl (Control on macOS) sends a drop on the page view to the sidebar:
+    among the pages, or with an image window's images.
+  - Drag an image annotation onto the thumbnails to make it a page, or
+    onto an image window's sidebar to save it as an image there.
   - Drag selected text, areas (as images), pages (to another document,
     or to the file manager as a PDF) and sidebar images (as their files)
     out of prev.
-  - Shift moves pages instead of copying them, and takes dropped images
-    as files (pictures from web pages are saved to Downloads).
+  - Shift (or Command on macOS) moves pages instead of copying them.
+  - Pictures from web pages that join an image window are saved to
+    Downloads first.
   - Pictures dragged from a browser arrive at full size; where a browser
     gives only their address, prev downloads them with curl if it is
     installed.
@@ -148,8 +154,8 @@ For a walkthrough of every feature with more screenshots, see
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
-  - Drag and drop with other apps both ways, on Wayland and Windows; on
-    macOS, files dropped on a window open.
+  - Drag and drop with other apps both ways, on Wayland, Windows and
+    macOS.
   - On macOS, a menu bar laid out like Preview's, ⌘ shortcuts, and files
     opened from Finder and the Dock go to the running prev.
   - Follows the system light or dark setting and reduced motion setting.
@@ -159,8 +165,7 @@ For a walkthrough of every feature with more screenshots, see
 - Revert To for PDFs, as images have it.
 - Dragging annotations between documents.
 - Signed Windows releases, and prev on winget and the AUR.
-- Signed and notarized macOS releases, and drag and drop with other apps
-  on macOS.
+- Signed and notarized macOS releases.
 
 The [development plan](docs/PLAN.md#not-built-yet) lists more.
 
@@ -248,14 +253,13 @@ Every package has every feature. Some depend on where prev runs:
     signatures, version history and bookmarks beside it.
   - Shortcuts use ⌘ where Linux and Windows use Ctrl, and the menus are
     in the menu bar.
-  - Dropping files on a window opens them; dragging images, text and
-    pages in from other apps or out of prev is not there yet.
+  - Command, as well as Shift, moves pages dragged out, as in Finder.
   - HEIC and AVIF work out of the box, as a decode-only libheif comes
     with prev.
   - Printing uses the system print panel, with pages drawn as prev shows
     them.
-- **Holding Shift** during a drop from another app is seen only under
-  compositors that move keyboard focus with the pointer, such as
+- **Holding Shift or Ctrl** during a drop from another app is seen only
+  under compositors that move keyboard focus with the pointer, such as
   Hyprland.
 - **RISC-V** has the .deb, .rpm and tarball, but no AppImage or Flatpak:
   appimagetool and the Flatpak runtime are not built for it.

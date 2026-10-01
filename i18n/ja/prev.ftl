@@ -176,6 +176,16 @@ drag-start-failed = ドラッグを開始できませんでした。
 drag-file-pages = ページ
 drag-file-one-page = { $name }（ページ { $page }）
 drag-file-page-range = { $name }（ページ { $first }–{ $last }）
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = 画像
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = この書類に追加しますか？
+drop-pdf-body = 「{ $name }」をこの書類の末尾に追加しますか？それとも別のウインドウで開きますか？
+drop-pdfs-body = これら{ $count }個のPDFをこの書類の末尾に追加しますか？それともそれぞれ別のウインドウで開きますか？
+drop-pdf-add = 末尾に追加
+drop-pdf-open = 別ウインドウで開く
 
 ## PDF window
 
@@ -291,6 +301,9 @@ pages-copied = { $count }ページをコピーしました。
 pages-copy-failed = ページをコピーできませんでした：{ $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = 読み込みが中断されました
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = prevで読み込める画像ではありません
 pages-read-failed = ファイルを読み込めませんでした：{ $error }
 pages-at-least-one = 書類には少なくとも1ページが必要です。
 pages-crop-needs-area = 先に長方形選択ツールで領域を選択してください。
@@ -546,6 +559,7 @@ image-cannot-save-format-unbound = 「{ $name }」への変更はこのフォー
 image-cannot-export-animation = アニメーションはまだ書き出せません。
 image-drop-pages = ページは書類にドロップできます。
 image-drag-failed = ドラッグを開始できませんでした。
+image-picture-save-failed = ダウンロードフォルダに画像を保存できませんでした。
 image-open-failed = prevではこの画像を開けません
 image-opening = 開いています…
 # Asked when an export's file name has another format's extension.

@@ -176,6 +176,16 @@ drag-start-failed = 無法開始拖移。
 drag-file-pages = 頁面
 drag-file-one-page = { $name }（第 { $page } 頁）
 drag-file-page-range = { $name }（第 { $first }–{ $last } 頁）
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = 影像
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = 要加入此文件嗎？
+drop-pdf-body = 要將「{ $name }」加到此文件的結尾，還是在獨立的視窗中開啟？
+drop-pdfs-body = 要將這 { $count } 個 PDF 加到此文件的結尾，還是分別在獨立的視窗中開啟？
+drop-pdf-add = 加到結尾
+drop-pdf-open = 單獨開啟
 
 ## PDF window
 
@@ -291,6 +301,9 @@ pages-copied = 已複製 { $count } 個頁面。
 pages-copy-failed = 無法複製頁面：{ $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = 讀取已中斷
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = 不是 prev 可讀取的影像
 pages-read-failed = 無法讀取檔案：{ $error }
 pages-at-least-one = 文件至少需要一個頁面。
 pages-crop-needs-area = 請先使用矩形選取工具選取一個區域。
@@ -546,6 +559,7 @@ image-cannot-save-format-unbound = 對「{ $name }」的更改無法以其格式
 image-cannot-export-animation = 目前尚無法輸出動畫。
 image-drop-pages = 頁面可以拖放到文件上。
 image-drag-failed = 無法開始拖移。
+image-picture-save-failed = 無法將影像儲存到「下載」資料夾。
 image-open-failed = prev 無法開啟此影像
 image-opening = 正在開啟…
 # Asked when an export's file name has another format's extension.

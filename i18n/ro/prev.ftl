@@ -146,6 +146,16 @@ drag-start-failed = Tragerea nu a putut începe.
 drag-file-pages = Pagini
 drag-file-one-page = { $name } (pagina { $page })
 drag-file-page-range = { $name } (paginile { $first }–{ $last })
+drag-file-image = Imagine
+drop-pdf-title = Adaugi în acest document?
+drop-pdf-body = Adaugi „{ $name }” la sfârșitul acestui document sau îl deschizi într-o fereastră separată?
+drop-pdfs-body = { $count ->
+    [one] Adaugi acest fișier PDF la sfârșitul acestui document sau îl deschizi într-o fereastră separată?
+    [few] Adaugi aceste { $count } fișiere PDF la sfârșitul acestui document sau le deschizi în ferestre separate?
+   *[other] Adaugi aceste { $count } de fișiere PDF la sfârșitul acestui document sau le deschizi în ferestre separate?
+}
+drop-pdf-add = Adaugă la sfârșit
+drop-pdf-open = Deschide separat
 
 ## PDF window
 
@@ -257,6 +267,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Paginile nu au putut fi copiate: { $error }
 pages-reading-stopped = citirea s-a oprit
+pages-image-unreadable = nu este o imagine pe care prev o poate citi
 pages-read-failed = Fișierul nu a putut fi citit: { $error }
 pages-at-least-one = Un document trebuie să aibă cel puțin o pagină.
 pages-crop-needs-area = Alege mai întâi o zonă cu instrumentul de selecție dreptunghiulară.
@@ -488,6 +499,7 @@ image-cannot-save-format-unbound = Modificările aduse fișierului „{ $name }�
 image-cannot-export-animation = Animațiile nu pot fi exportate încă.
 image-drop-pages = Paginile pot fi plasate pe un document.
 image-drag-failed = Tragerea nu a putut începe.
+image-picture-save-failed = Imaginea nu a putut fi salvată în dosarul Descărcări.
 image-open-failed = prev nu poate deschide această imagine
 image-opening = Se deschide…
 image-name-mismatch-title = Numele nu se potrivește cu formatul

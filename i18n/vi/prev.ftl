@@ -147,6 +147,12 @@ drag-start-failed = Không thể bắt đầu kéo.
 drag-file-pages = Các trang
 drag-file-one-page = { $name } (trang { $page })
 drag-file-page-range = { $name } (trang { $first }–{ $last })
+drag-file-image = Hình ảnh
+drop-pdf-title = Thêm vào tài liệu này?
+drop-pdf-body = Thêm “{ $name }” vào cuối tài liệu này hay mở trong cửa sổ riêng?
+drop-pdfs-body = Thêm { $count } tệp PDF này vào cuối tài liệu này hay mở mỗi tệp trong một cửa sổ riêng?
+drop-pdf-add = Thêm vào cuối
+drop-pdf-open = Mở riêng
 
 ## PDF window
 
@@ -250,6 +256,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Không thể sao chép các trang: { $error }
 pages-reading-stopped = việc đọc đã dừng
+pages-image-unreadable = không phải là hình ảnh mà prev có thể đọc
 pages-read-failed = Không thể đọc tệp: { $error }
 pages-at-least-one = Tài liệu cần có ít nhất một trang.
 pages-crop-needs-area = Trước tiên, hãy chọn một vùng bằng công cụ vùng chọn chữ nhật.
@@ -467,6 +474,7 @@ image-cannot-save-format-unbound = Không thể lưu các thay đổi của “{
 image-cannot-export-animation = Chưa thể xuất ảnh động.
 image-drop-pages = Chỉ có thể thả trang vào tài liệu.
 image-drag-failed = Không thể bắt đầu kéo.
+image-picture-save-failed = Không thể lưu hình ảnh vào thư mục Tải xuống của bạn.
 image-open-failed = prev không thể mở hình ảnh này
 image-opening = Đang mở…
 image-name-mismatch-title = Tên không khớp với định dạng

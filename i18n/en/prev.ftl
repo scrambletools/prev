@@ -180,6 +180,16 @@ drag-start-failed = Could not start dragging.
 drag-file-pages = Pages
 drag-file-one-page = { $name } (page { $page })
 drag-file-page-range = { $name } (pages { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Image
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Add to This Document?
+drop-pdf-body = Add “{ $name }” to the end of this document, or open it in its own window?
+drop-pdfs-body = Add these { $count } PDFs to the end of this document, or open them in their own windows?
+drop-pdf-add = Add to End
+drop-pdf-open = Open Separately
 
 ## PDF window
 
@@ -311,6 +321,9 @@ pages-copied = { $count ->
 pages-copy-failed = Could not copy the pages: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = reading stopped
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = not an image prev can read
 pages-read-failed = Could not read the file: { $error }
 pages-at-least-one = A document needs at least one page.
 pages-crop-needs-area = Choose an area with the rectangular selection tool first.
@@ -576,6 +589,7 @@ image-cannot-save-format-unbound = Changes to “{ $name }” can't be saved in 
 image-cannot-export-animation = Animations can't be exported yet.
 image-drop-pages = Pages can be dropped on a document.
 image-drag-failed = Could not start dragging.
+image-picture-save-failed = Could not save the picture in your Downloads folder.
 image-open-failed = prev can't open this image
 image-opening = Opening…
 # Asked when an export's file name has another format's extension.

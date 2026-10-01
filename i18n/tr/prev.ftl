@@ -176,6 +176,19 @@ drag-start-failed = Sürükleme başlatılamadı.
 drag-file-pages = Sayfalar
 drag-file-one-page = { $name } (sayfa { $page })
 drag-file-page-range = { $name } (sayfa { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Resim
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Bu belgeye eklensin mi?
+drop-pdf-body = “{ $name }” bu belgenin sonuna eklensin mi, yoksa kendi penceresinde mi açılsın?
+drop-pdfs-body = { $count ->
+    [one] Bu PDF bu belgenin sonuna eklensin mi, yoksa kendi penceresinde mi açılsın?
+   *[other] Bu { $count } PDF bu belgenin sonuna eklensin mi, yoksa her biri kendi penceresinde mi açılsın?
+}
+drop-pdf-add = Sona Ekle
+drop-pdf-open = Ayrı Aç
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Sayfalar kopyalanamadı: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = okuma durdu
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = prev'in okuyabileceği bir resim değil
 pages-read-failed = Dosya okunamadı: { $error }
 pages-at-least-one = Bir belgede en az bir sayfa olmalıdır.
 pages-crop-needs-area = Önce dikdörtgen seçim aracıyla bir alan seçin.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = “{ $name }” dosyasındaki değişiklikler
 image-cannot-export-animation = Animasyonlar henüz dışa aktarılamıyor.
 image-drop-pages = Sayfalar bir belgenin üzerine bırakılabilir.
 image-drag-failed = Sürükleme başlatılamadı.
+image-picture-save-failed = Resim, İndirilenler klasörünüze kaydedilemedi.
 image-open-failed = prev bu resmi açamıyor
 image-opening = Açılıyor…
 # Asked when an export's file name has another format's extension.

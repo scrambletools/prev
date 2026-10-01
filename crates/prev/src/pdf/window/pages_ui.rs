@@ -108,11 +108,33 @@ impl PdfWindow {
         self.modifiers = modifiers;
     }
 
-    fn viewer_mut(&mut self) -> Option<&mut PdfViewer> {
+    pub(super) fn viewer_mut(&mut self) -> Option<&mut PdfViewer> {
         match &mut self.state {
             State::Ready(viewer) => Some(viewer),
             _ => None,
         }
+    }
+
+    pub(super) fn viewer(&self) -> Option<&PdfViewer> {
+        match &self.state {
+            State::Ready(viewer) => Some(viewer),
+            _ => None,
+        }
+    }
+
+    /// The size for pages made from images inserted at `insert_at`: that
+    /// of the page before it, else the first, else Letter.
+    fn image_page_size(&self) -> prev_pdf::geometry::Size {
+        let Some(viewer) = self.viewer() else {
+            return prev_pdf::geometry::Size::new(612.0, 792.0);
+        };
+        let at = self.insert_at.unwrap_or_else(|| viewer.insertion_point());
+        let sizes = &viewer.info.page_sizes;
+        sizes
+            .get(at.saturating_sub(1))
+            .or(sizes.first())
+            .copied()
+            .unwrap_or(prev_pdf::geometry::Size::new(612.0, 792.0))
     }
 
     pub(super) fn page_action(&mut self, action: PageAction) -> Task<Message> {
@@ -198,27 +220,54 @@ impl PdfWindow {
         }
     }
 
-    /// Reads chosen or dropped PDFs, to insert after the selected pages.
+    /// Reads chosen or dropped PDFs, and images as pages of their own, to
+    /// insert at `insert_at`, else after the selected pages.
     pub fn insert_files(&mut self, paths: Vec<PathBuf>) -> Task<Message> {
-        let paths: Vec<PathBuf> = paths
+        let paths: Vec<(PathBuf, Option<prev_image::ImageFormat>)> = paths
             .into_iter()
-            .filter(|path| {
-                matches!(
-                    crate::filetype::detect_path(path),
-                    Ok(Some(crate::filetype::FileKind::Pdf))
-                )
+            .filter_map(|path| match crate::filetype::detect_path(&path) {
+                Ok(Some(crate::filetype::FileKind::Pdf)) => Some((path, None)),
+                Ok(Some(crate::filetype::FileKind::Image(format))) => Some((path, Some(format))),
+                _ => None,
             })
             .collect();
         if paths.is_empty() {
             return Task::none();
         }
+        let size = self.image_page_size();
         Task::perform(
             spawn(move || {
                 paths
                     .iter()
-                    .map(|path| {
-                        std::fs::read(path).map_err(|error| format!("{}: {error}", path.display()))
+                    .map(|(path, image)| {
+                        let failed = |error: String| format!("{}: {error}", path.display());
+                        let bytes =
+                            std::fs::read(path).map_err(|error| failed(error.to_string()))?;
+                        match image {
+                            None => Ok(bytes),
+                            Some(format) => crate::paste::decode(&bytes, *format)
+                                .ok_or_else(|| failed(crate::fl!("pages-image-unreadable")))
+                                .and_then(|image| image_page(&image, size)),
+                        }
                     })
+                    .collect::<Result<Vec<_>, String>>()
+            }),
+            |result| {
+                Message::InsertRead(
+                    result.unwrap_or_else(|_| Err(crate::fl!("pages-reading-stopped"))),
+                )
+            },
+        )
+    }
+
+    /// Inserts `images` as pages of their own at `insert_at`.
+    pub fn insert_images(&mut self, images: Vec<prev_pdf::engine::Bitmap>) -> Task<Message> {
+        let size = self.image_page_size();
+        Task::perform(
+            spawn(move || {
+                images
+                    .iter()
+                    .map(|image| image_page(image, size))
                     .collect::<Result<Vec<_>, String>>()
             }),
             |result| {
@@ -811,4 +860,12 @@ pub(super) fn drop_marker<'a>(shown: bool) -> Element<'a, Message> {
     } else {
         marker.into()
     }
+}
+
+/// A one-page PDF of `image` fitted on a page of `size`.
+fn image_page(
+    image: &prev_pdf::engine::Bitmap,
+    size: prev_pdf::geometry::Size,
+) -> Result<Vec<u8>, String> {
+    prev_pdf::image_page_document(image, size).map_err(|error| error.describe())
 }

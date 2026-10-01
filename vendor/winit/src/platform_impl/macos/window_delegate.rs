@@ -367,15 +367,19 @@ declare_class!(
     unsafe impl NSDraggingDestination for WindowDelegate {
         /// Invoked when the dragged image enters destination bounds or frame
         #[method(draggingEntered:)]
-        fn dragging_entered(&self, sender: &NSObject) -> bool {
+        fn dragging_entered(&self, sender: &NSObject) -> usize {
             trace_scope!("draggingEntered:");
+
+            if let Some(operation) = self.drag_hook(crate::platform::drag_drop::Phase::Entered, Some(sender)) {
+                return operation;
+            }
 
             use std::path::PathBuf;
 
             let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
             let filenames = match pb.propertyListForType(unsafe { NSFilenamesPboardType }) {
                 Some(filenames) => filenames,
-                None => return false.into(),
+                None => return 0,
             };
             let filenames: Retained<NSArray<NSString>> = unsafe { Retained::cast(filenames) };
 
@@ -384,7 +388,16 @@ declare_class!(
                 self.queue_event(WindowEvent::HoveredFile(path));
             });
 
-            true
+            // NSDragOperationCopy
+            1
+        }
+
+        /// Invoked while the drag moves over the window
+        #[method(draggingUpdated:)]
+        fn dragging_updated(&self, sender: &NSObject) -> usize {
+            trace_scope!("draggingUpdated:");
+            self.drag_hook(crate::platform::drag_drop::Phase::Updated, Some(sender))
+                .unwrap_or(1)
         }
 
         /// Invoked when the image is released
@@ -398,6 +411,10 @@ declare_class!(
         #[method(performDragOperation:)]
         fn perform_drag_operation(&self, sender: &NSObject) -> bool {
             trace_scope!("performDragOperation:");
+
+            if let Some(taken) = self.drag_hook(crate::platform::drag_drop::Phase::Perform, Some(sender)) {
+                return (taken != 0).into();
+            }
 
             use std::path::PathBuf;
 
@@ -424,8 +441,11 @@ declare_class!(
 
         /// Invoked when the dragging operation is cancelled
         #[method(draggingExited:)]
-        fn dragging_exited(&self, _sender: Option<&NSObject>) {
+        fn dragging_exited(&self, sender: Option<&NSObject>) {
             trace_scope!("draggingExited:");
+            if self.drag_hook(crate::platform::drag_drop::Phase::Exited, sender).is_some() {
+                return;
+            }
             self.queue_event(WindowEvent::HoveredFileCancelled);
         }
     }
@@ -673,6 +693,18 @@ fn new_window(
 }
 
 impl WindowDelegate {
+    /// prev: hands a dragging destination call to the application's hook,
+    /// if one is set.
+    fn drag_hook(
+        &self,
+        phase: crate::platform::drag_drop::Phase,
+        sender: Option<&NSObject>,
+    ) -> Option<usize> {
+        let window = (self.window() as *const WinitWindow).cast();
+        let info = sender.map_or(std::ptr::null(), |sender| (sender as *const NSObject).cast());
+        crate::platform::drag_drop::call(phase, window, info)
+    }
+
     pub(super) fn new(
         app_delegate: &ApplicationDelegate,
         attrs: WindowAttributes,

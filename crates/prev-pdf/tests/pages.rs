@@ -716,3 +716,36 @@ fn images_become_pages_that_take_markup() {
     assert_eq!(pixel(&layer, 7, 10), [0, 0, 255, 255]);
     assert_eq!(pixel(&layer, 35, 10)[3], 0);
 }
+
+#[test]
+fn image_pages_fit_the_image_in_the_middle() {
+    // A red 2 x 1 image on a 40 x 40 page: 40 x 20, with white above and
+    // below.
+    let image = prev_pdf::engine::Bitmap {
+        width: 2,
+        height: 1,
+        pixels: [255, 0, 0, 255].repeat(2),
+    };
+    let bytes = prev_pdf::image_page_document(&image, Size::new(40.0, 40.0)).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, info, _) = open(&dir, &bytes);
+    assert_eq!(info.page_sizes, vec![Size::new(40.0, 40.0)]);
+    let page = flatten(block_on(handle.display(0))).unwrap();
+    let pixel = |x: i32, y: i32| {
+        let bitmap = page
+            .render(
+                1.0,
+                prev_pdf::geometry::PixelRect {
+                    x,
+                    y,
+                    width: 1,
+                    height: 1,
+                },
+            )
+            .unwrap();
+        bitmap.pixels[..3].to_vec()
+    };
+    assert_eq!(pixel(20, 5), [255, 255, 255]);
+    assert_eq!(pixel(20, 20), [255, 0, 0]);
+    assert_eq!(pixel(20, 35), [255, 255, 255]);
+}

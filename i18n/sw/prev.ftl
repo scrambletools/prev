@@ -148,6 +148,15 @@ drag-start-failed = Imeshindwa kuanza kuburuta.
 drag-file-pages = Kurasa
 drag-file-one-page = { $name } (ukurasa { $page })
 drag-file-page-range = { $name } (kurasa { $first }–{ $last })
+drag-file-image = Picha
+drop-pdf-title = Ongeza kwenye hati hii?
+drop-pdf-body = Ongeza “{ $name }” mwishoni mwa hati hii, au uifungue katika dirisha lake?
+drop-pdfs-body = { $count ->
+    [one] Ongeza PDF hii mwishoni mwa hati hii, au uifungue katika dirisha lake?
+   *[other] Ongeza PDF hizi { $count } mwishoni mwa hati hii, au ufungue kila moja katika dirisha lake?
+}
+drop-pdf-add = Ongeza Mwishoni
+drop-pdf-open = Fungua Kando
 
 ## PDF window
 
@@ -256,6 +265,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Imeshindwa kunakili kurasa: { $error }
 pages-reading-stopped = kusoma kumesimama
+pages-image-unreadable = si picha ambayo prev inaweza kusoma
 pages-read-failed = Imeshindwa kusoma faili: { $error }
 pages-at-least-one = Hati inahitaji angalau ukurasa mmoja.
 pages-crop-needs-area = Kwanza chagua eneo kwa zana ya uteuzi wa mstatili.
@@ -479,6 +489,7 @@ image-cannot-save-format-unbound = Mabadiliko ya “{ $name }” hayawezi kuhifa
 image-cannot-export-animation = Uhuishaji bado hauwezi kuhamishwa.
 image-drop-pages = Kurasa zinaweza kudondoshwa kwenye hati.
 image-drag-failed = Imeshindwa kuanza kuburuta.
+image-picture-save-failed = Imeshindwa kuhifadhi picha kwenye folda yako ya Vipakuliwa.
 image-open-failed = prev haiwezi kufungua picha hii
 image-opening = Inafungua…
 image-name-mismatch-title = Jina halilingani na umbizo

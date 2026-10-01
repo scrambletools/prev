@@ -176,6 +176,21 @@ drag-start-failed = Nie można rozpocząć przeciągania.
 drag-file-pages = Strony
 drag-file-one-page = { $name } (str. { $page })
 drag-file-page-range = { $name } (str. { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Obraz
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Dodać do tego dokumentu?
+drop-pdf-body = Dodać plik „{ $name }” na końcu tego dokumentu czy otworzyć go w osobnym oknie?
+drop-pdfs-body = { $count ->
+    [one] Dodać { $count } plik PDF na końcu tego dokumentu czy otworzyć go w osobnym oknie?
+    [few] Dodać te { $count } pliki PDF na końcu tego dokumentu czy otworzyć je w osobnych oknach?
+    [many] Dodać tych { $count } plików PDF na końcu tego dokumentu czy otworzyć je w osobnych oknach?
+   *[other] Dodać { $count } pliku PDF na końcu tego dokumentu czy otworzyć je w osobnych oknach?
+}
+drop-pdf-add = Dodaj na końcu
+drop-pdf-open = Otwórz osobno
 
 ## PDF window
 
@@ -316,6 +331,9 @@ pages-copied = { $count ->
 pages-copy-failed = Nie można skopiować stron: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = odczyt przerwany
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = prev nie może odczytać tego pliku jako obrazu
 pages-read-failed = Nie można odczytać pliku: { $error }
 pages-at-least-one = Dokument musi mieć co najmniej jedną stronę.
 pages-crop-needs-area = Najpierw wybierz obszar narzędziem zaznaczenia prostokątnego.
@@ -591,6 +609,7 @@ image-cannot-save-format-unbound = Zmian w pliku „{ $name }” nie można zapi
 image-cannot-export-animation = Animacji nie można jeszcze eksportować.
 image-drop-pages = Strony można upuścić na dokument.
 image-drag-failed = Nie można rozpocząć przeciągania.
+image-picture-save-failed = Nie można zapisać obrazu w folderze Pobrane.
 image-open-failed = prev nie może otworzyć tego obrazu
 image-opening = Otwieranie…
 # Asked when an export's file name has another format's extension.

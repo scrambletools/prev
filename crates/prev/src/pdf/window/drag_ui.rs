@@ -55,32 +55,39 @@ impl PdfWindow {
             .and_then(|(_, y)| self.thumbnail_gap(y));
     }
 
-    /// Takes a drop at `x`, `y` in the window. Returns files it does not
-    /// take, for the app to open.
+    /// Takes a drop at `x`, `y` in the window. With `to_panel` (Ctrl held),
+    /// a drop over the page goes among the pages, at the end, as a drop on
+    /// the thumbnails would. Returns files it does not take, for the app
+    /// to open.
     pub fn drop_in(
         &mut self,
         x: f32,
         y: f32,
         dropped: Dropped,
         action: Action,
+        to_panel: bool,
     ) -> (Task<Message>, Vec<PathBuf>) {
         self.drop_hover = None;
         if !matches!(self.state, State::Ready(_)) {
             return (Task::none(), dropped_files(dropped));
         }
         let on_pages = self.drops_on_pages(x) && !self.image_mode;
+        let to_pages = on_pages || (to_panel && !self.image_mode);
+        // Where among the pages it goes: the line on the thumbnails, else
+        // the end.
+        let gap = if on_pages {
+            self.thumbnail_gap(y)
+        } else {
+            self.viewer().map(|viewer| viewer.page_count())
+        };
         let at = self.document_point(x, y);
         match dropped {
             Dropped::Pages(bytes) if !self.image_mode => {
-                let gap = if on_pages {
-                    self.thumbnail_gap(y)
-                } else {
-                    None
-                };
                 let State::Ready(viewer) = &mut self.state else {
                     return (Task::none(), Vec::new());
                 };
-                let gap = gap.unwrap_or_else(|| viewer.insertion_point());
+                let gap =
+                    if to_pages { gap } else { None }.unwrap_or_else(|| viewer.insertion_point());
                 // Pages of this window, dragged out and back: moved or
                 // copied here.
                 if let Some(outgoing) = self.outgoing_pages.as_mut() {
@@ -98,6 +105,10 @@ impl PdfWindow {
                 self.notice = Some(crate::fl!("drag-pages-need-document"));
                 (Task::none(), Vec::new())
             }
+            Dropped::Image(image) if to_pages => {
+                self.insert_at = gap;
+                (self.insert_images(vec![image]), Vec::new())
+            }
             Dropped::Image(image) => (
                 self.viewer_update(PdfMessage::Editing(EditMessage::PasteImage(
                     Arc::new(image),
@@ -109,30 +120,24 @@ impl PdfWindow {
                 self.viewer_update(PdfMessage::Editing(EditMessage::PasteText(text, at))),
                 Vec::new(),
             ),
-            // PDFs go in among the pages; other files open as usual.
-            Dropped::Files(paths) if on_pages => {
-                let (pdfs, others): (Vec<_>, Vec<_>) = paths.into_iter().partition(|path| {
-                    matches!(
-                        crate::filetype::detect_path(path),
-                        Ok(Some(crate::filetype::FileKind::Pdf))
-                    )
-                });
-                if pdfs.is_empty() {
+            // PDFs and images go in among the pages; other files open as
+            // usual.
+            Dropped::Files(paths) if to_pages => {
+                let (pages, others): (Vec<_>, Vec<_>) =
+                    paths.into_iter().partition(|path| becomes_pages(path));
+                if pages.is_empty() {
                     return (Task::none(), others);
                 }
-                self.insert_at = self.thumbnail_gap(y);
-                (self.insert_files(pdfs), others)
+                self.insert_at = gap;
+                (self.insert_files(pages), others)
             }
-            // With the markup bar open, an image file dropped on a page
-            // goes on it.
-            Dropped::Files(paths)
-                if (self.markup_bar || self.image_mode) && at.is_some() && paths.len() == 1 =>
-            {
+            // One image file dropped on a page goes on it.
+            Dropped::Files(paths) if at.is_some() && paths.len() == 1 => {
                 let path = paths[0].clone();
                 let Ok(Some(crate::filetype::FileKind::Image(format))) =
                     crate::filetype::detect_path(&path)
                 else {
-                    return (Task::none(), paths);
+                    return self.ask_about_pdfs(paths);
                 };
                 (
                     Task::perform(
@@ -146,9 +151,155 @@ impl PdfWindow {
                     Vec::new(),
                 )
             }
-            Dropped::Files(paths) => (Task::none(), paths),
+            Dropped::Files(paths) => self.ask_about_pdfs(paths),
             Dropped::Nothing => (Task::none(), Vec::new()),
         }
+    }
+
+    /// Tells an image's markup whether the pointer is over the image
+    /// window's sidebar.
+    pub fn set_pointer_over_outer_sidebar(&mut self, over: bool) {
+        self.pointer_over_sidebar = over.then_some(0);
+    }
+
+    /// Whether an image annotation is being moved by its body.
+    pub(super) fn moving_image(&self) -> bool {
+        self.viewer()
+            .is_some_and(|viewer| viewer.moving_image().is_some())
+    }
+
+    /// An image annotation moved over the sidebar shows the line where it
+    /// would go; let go there, it becomes a page (or, in an image's markup,
+    /// an image of the window) instead of moving on its page. Shift, or
+    /// Command on macOS, moves it there. `None` leaves the message to the
+    /// viewer. The page canvas does not see where the pointer is outside
+    /// it, so the sidebar tracks that.
+    pub(super) fn image_to_panel(&mut self, message: &PdfMessage) -> Option<Task<Message>> {
+        if !matches!(message, PdfMessage::Release { .. }) || !self.moving_image() {
+            return None;
+        }
+        self.drop_hover = None;
+        let gap = self.pointer_over_sidebar?;
+        let moving = self.modifiers.shift() || (cfg!(target_os = "macos") && self.modifiers.logo());
+        let State::Ready(viewer) = &mut self.state else {
+            return None;
+        };
+        let (page, annotation) = viewer
+            .moving_image()
+            .map(|(page, annotation)| (page, annotation.clone()))?;
+        viewer.cancel_move();
+        let render = viewer.render_annotation(page, &annotation);
+        let id = annotation.id;
+        Some(Task::perform(render, move |result| {
+            Message::AnnotationRendered(result, gap, page, id.clone(), moving)
+        }))
+    }
+
+    pub(super) fn annotation_rendered(
+        &mut self,
+        result: Result<Bitmap, String>,
+        gap: usize,
+        page: usize,
+        id: String,
+        moving: bool,
+    ) -> Task<Message> {
+        let image = match result {
+            Ok(image) => image,
+            Err(error) => {
+                self.notice = Some(error);
+                return Task::none();
+            }
+        };
+        let added = if self.image_mode {
+            self.effects.push(super::Effect::ToSidebar(image));
+            Task::none()
+        } else {
+            self.insert_at = Some(gap);
+            self.insert_images(vec![image])
+        };
+        if !moving {
+            return added;
+        }
+        let Some(viewer) = self.viewer_mut() else {
+            return added;
+        };
+        let removed = viewer.remove_annotation(page, &id);
+        Task::batch([added, self.viewer_task(removed)])
+    }
+
+    /// PDFs dropped on the page: the window asks whether they join this
+    /// document or open in their own windows. Other files open.
+    fn ask_about_pdfs(&mut self, paths: Vec<PathBuf>) -> (Task<Message>, Vec<PathBuf>) {
+        if self.image_mode {
+            return (Task::none(), paths);
+        }
+        let (pdfs, others): (Vec<_>, Vec<_>) = paths.into_iter().partition(|path| {
+            matches!(
+                crate::filetype::detect_path(path),
+                Ok(Some(crate::filetype::FileKind::Pdf))
+            )
+        });
+        if !pdfs.is_empty() {
+            self.dropped_pdfs = Some(pdfs);
+        }
+        (Task::none(), others)
+    }
+
+    /// The answer about dropped PDFs: added at the end, opened in their
+    /// own windows, or neither.
+    pub(super) fn dropped_pdfs_choice(&mut self, choice: PdfDropChoice) -> Task<Message> {
+        let Some(paths) = self.dropped_pdfs.take() else {
+            return Task::none();
+        };
+        match choice {
+            PdfDropChoice::Add => {
+                self.insert_at = self.viewer().map(|viewer| viewer.page_count());
+                self.insert_files(paths)
+            }
+            PdfDropChoice::Open => {
+                self.effects.push(super::Effect::Open(paths));
+                Task::none()
+            }
+            PdfDropChoice::Cancel => Task::none(),
+        }
+    }
+
+    pub(super) fn dropped_pdfs_dialog<'a>(
+        &'a self,
+        base: iced::Element<'a, Message>,
+    ) -> iced::Element<'a, Message> {
+        use crate::ui::button::Kind as ButtonKind;
+        use crate::ui::{self, Icon, component};
+        let Some(paths) = &self.dropped_pdfs else {
+            return base;
+        };
+        let body = match paths.as_slice() {
+            [path] => crate::fl!(
+                "drop-pdf-body",
+                name = path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            ),
+            _ => crate::fl!("drop-pdfs-body", count = paths.len()),
+        };
+        component::dialog(
+            base,
+            Some(Icon::NoteAdd),
+            crate::fl!("drop-pdf-title"),
+            body,
+            vec![
+                ui::button(ButtonKind::Text, crate::fl!("common-cancel"))
+                    .on_press(Message::DroppedPdfs(PdfDropChoice::Cancel))
+                    .into(),
+                ui::button(ButtonKind::Text, crate::fl!("drop-pdf-open"))
+                    .on_press(Message::DroppedPdfs(PdfDropChoice::Open))
+                    .into(),
+                ui::button(ButtonKind::Filled, crate::fl!("drop-pdf-add"))
+                    .on_press(Message::DroppedPdfs(PdfDropChoice::Add))
+                    .into(),
+            ],
+        )
     }
 
     pub(super) fn dropped_image(
@@ -294,6 +445,25 @@ impl PdfWindow {
         let task = viewer.remove_pages();
         self.viewer_task(task)
     }
+}
+
+/// What dropped PDFs become: added to the document or opened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PdfDropChoice {
+    Add,
+    Open,
+    Cancel,
+}
+
+/// Whether a file dropped among the pages goes in as pages: a PDF, or an
+/// image as a page of its own.
+fn becomes_pages(path: &std::path::Path) -> bool {
+    matches!(
+        crate::filetype::detect_path(path),
+        Ok(Some(
+            crate::filetype::FileKind::Pdf | crate::filetype::FileKind::Image(_)
+        ))
+    )
 }
 
 fn dropped_files(dropped: Dropped) -> Vec<PathBuf> {

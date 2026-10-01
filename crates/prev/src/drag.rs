@@ -17,7 +17,8 @@ const ICON_SIDE: u32 = 128;
 
 /// Set while a drag of page thumbnails is under way inside a window, so
 /// the app reports the pointer leaving the window, where the drag becomes
-/// one other windows and apps can take.
+/// one other windows and apps can take; and while an image annotation
+/// moves on an image's markup, which may be let go over the sidebar.
 pub static WATCH_POINTER: AtomicBool = AtomicBool::new(false);
 
 pub fn watch_pointer(watch: bool) {
@@ -104,8 +105,8 @@ pub fn decode(mime: &str, data: Vec<u8>) -> Dropped {
     Dropped::Nothing
 }
 
-/// Reads a drop made while holding Shift, which takes images as files:
-/// a file stays itself, and a picture from a web page is saved to the
+/// Reads a drop of images that join an image window, which takes them as
+/// files: a file stays itself, and a picture from a web page is saved to the
 /// Downloads folder first, as a browser would save it. Pages and text are
 /// read as in `decode`.
 pub fn decode_as_file(mime: &str, data: Vec<u8>) -> Dropped {
@@ -187,6 +188,12 @@ fn downloads_dir() -> PathBuf {
         .flatten()
         .find(|folder| folder.is_dir())
         .unwrap_or(home)
+}
+
+/// Saves `bitmap` as a PNG named `name` in the Downloads folder, for a
+/// picture that joins an image window.
+pub fn save_picture(name: &str, bitmap: &Bitmap) -> Option<PathBuf> {
+    save_in(&downloads_dir(), &format!("{name}.png"), &png(bitmap)?)
 }
 
 /// Writes `bytes` as `name` in `folder`, numbering the name if a file has
@@ -462,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn shift_drops_become_files() {
+    fn pictures_taken_as_files_are_saved() {
         let folder = tempfile::tempdir().unwrap();
         let image = image::RgbaImage::from_pixel(2, 2, image::Rgba([9, 8, 7, 255]));
         let mut png = Vec::new();
@@ -480,7 +487,7 @@ mod tests {
         assert_eq!(path(second), folder.path().join("moon (2).png"));
         let data = path(decode_as_file_in("image/png", png, folder.path()));
         assert_eq!(data, folder.path().join("Dropped image.png"));
-        // Files stay where they are; text and pages are as without Shift.
+        // Files stay where they are; text and pages are as in `decode`.
         let local = decode_as_file_in(
             dnd::URI_LIST_MIME,
             b"file:///tmp/a.png\r\n".to_vec(),

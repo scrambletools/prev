@@ -148,6 +148,15 @@ drag-start-failed = இழுக்கத் தொடங்க முடிய�
 drag-file-pages = பக்கங்கள்
 drag-file-one-page = { $name } (பக்கம் { $page })
 drag-file-page-range = { $name } (பக்கங்கள் { $first }–{ $last })
+drag-file-image = படம்
+drop-pdf-title = இந்த ஆவணத்தில் சேர்க்கவா?
+drop-pdf-body = “{ $name }” ஐ இந்த ஆவணத்தின் இறுதியில் சேர்க்கவா, அல்லது அதைத் தனிச் சாளரத்தில் திறக்கவா?
+drop-pdfs-body = { $count ->
+    [one] இந்த PDF-ஐ இந்த ஆவணத்தின் இறுதியில் சேர்க்கவா, அல்லது அதைத் தனிச் சாளரத்தில் திறக்கவா?
+   *[other] இந்த { $count } PDF-களை இந்த ஆவணத்தின் இறுதியில் சேர்க்கவா, அல்லது அவற்றைத் தனித்தனிச் சாளரங்களில் திறக்கவா?
+}
+drop-pdf-add = இறுதியில் சேர்
+drop-pdf-open = தனியாகத் திற
 
 ## PDF window
 
@@ -256,6 +265,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = பக்கங்களை நகலெடுக்க முடியவில்லை: { $error }
 pages-reading-stopped = படித்தல் நின்றுவிட்டது
+pages-image-unreadable = prev படிக்கக்கூடிய படம் அல்ல
 pages-read-failed = கோப்பைப் படிக்க முடியவில்லை: { $error }
 pages-at-least-one = ஓர் ஆவணத்தில் குறைந்தது ஒரு பக்கமாவது இருக்க வேண்டும்.
 pages-crop-needs-area = முதலில் செவ்வகத் தேர்வுக் கருவி மூலம் ஒரு பகுதியைத் தேர்ந்தெடுக்கவும்.
@@ -476,6 +486,7 @@ image-cannot-save-format-unbound = “{ $name }” இல் செய்த ம
 image-cannot-export-animation = அனிமேஷன்களை இன்னும் ஏற்றுமதி செய்ய முடியாது.
 image-drop-pages = பக்கங்களை ஓர் ஆவணத்தின் மீது மட்டுமே விட முடியும்.
 image-drag-failed = இழுக்கத் தொடங்க முடியவில்லை.
+image-picture-save-failed = உங்கள் பதிவிறக்கங்கள் கோப்புறையில் படத்தைச் சேமிக்க முடியவில்லை.
 image-open-failed = prev-ஆல் இந்தப் படத்தைத் திறக்க முடியாது
 image-opening = திறக்கிறது…
 image-name-mismatch-title = பெயர் வடிவமைப்புடன் பொருந்தவில்லை

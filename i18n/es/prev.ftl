@@ -176,6 +176,19 @@ drag-start-failed = No se ha podido empezar a arrastrar.
 drag-file-pages = Páginas
 drag-file-one-page = { $name } (página { $page })
 drag-file-page-range = { $name } (páginas { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Imagen
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = ¿Añadir a este documento?
+drop-pdf-body = ¿Añadir “{ $name }” al final de este documento o abrirlo en su propia ventana?
+drop-pdfs-body = { $count ->
+    [one] ¿Añadir este PDF al final de este documento o abrirlo en su propia ventana?
+   *[other] ¿Añadir estos { $count } PDF al final de este documento o abrirlos en sus propias ventanas?
+}
+drop-pdf-add = Añadir al final
+drop-pdf-open = Abrir por separado
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = No se han podido copiar las páginas: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = la lectura se ha detenido
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = no es una imagen que prev pueda leer
 pages-read-failed = No se ha podido leer el archivo: { $error }
 pages-at-least-one = Un documento necesita al menos una página.
 pages-crop-needs-area = Primero elige un área con la herramienta de selección rectangular.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = Los cambios en “{ $name }” no se pueden g
 image-cannot-export-animation = Las animaciones aún no se pueden exportar.
 image-drop-pages = Las páginas se pueden soltar en un documento.
 image-drag-failed = No se ha podido empezar a arrastrar.
+image-picture-save-failed = No se ha podido guardar la imagen en tu carpeta Descargas.
 image-open-failed = prev no puede abrir esta imagen
 image-opening = Abriendo…
 # Asked when an export's file name has another format's extension.

@@ -147,6 +147,12 @@ drag-start-failed = Tidak dapat mula menyeret.
 drag-file-pages = Halaman
 drag-file-one-page = { $name } (halaman { $page })
 drag-file-page-range = { $name } (halaman { $first }–{ $last })
+drag-file-image = Imej
+drop-pdf-title = Tambah pada dokumen ini?
+drop-pdf-body = Tambah “{ $name }” ke hujung dokumen ini, atau buka dalam tetingkapnya sendiri?
+drop-pdfs-body = Tambah { $count } PDF ini ke hujung dokumen ini, atau buka setiap satu dalam tetingkapnya sendiri?
+drop-pdf-add = Tambah ke Hujung
+drop-pdf-open = Buka Berasingan
 
 ## PDF window
 
@@ -250,6 +256,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Tidak dapat menyalin halaman: { $error }
 pages-reading-stopped = pembacaan terhenti
+pages-image-unreadable = bukan imej yang boleh dibaca oleh prev
 pages-read-failed = Tidak dapat membaca fail: { $error }
 pages-at-least-one = Dokumen memerlukan sekurang-kurangnya satu halaman.
 pages-crop-needs-area = Pilih kawasan dengan alat pilihan segi empat dahulu.
@@ -467,6 +474,7 @@ image-cannot-save-format-unbound = Perubahan pada “{ $name }” tidak boleh di
 image-cannot-export-animation = Animasi belum boleh dieksport.
 image-drop-pages = Halaman hanya boleh dilepaskan pada dokumen.
 image-drag-failed = Tidak dapat mula menyeret.
+image-picture-save-failed = Tidak dapat menyimpan imej dalam folder Muat Turun anda.
 image-open-failed = prev tidak dapat membuka imej ini
 image-opening = Membuka…
 image-name-mismatch-title = Nama tidak sepadan dengan format

@@ -146,6 +146,17 @@ drag-start-failed = Přetahování se nepodařilo zahájit.
 drag-file-pages = Stránky
 drag-file-one-page = { $name } (stránka { $page })
 drag-file-page-range = { $name } (stránky { $first }–{ $last })
+drag-file-image = Obrázek
+drop-pdf-title = Přidat do tohoto dokumentu?
+drop-pdf-body = Přidat soubor „{ $name }“ na konec tohoto dokumentu, nebo ho otevřít v samostatném okně?
+drop-pdfs-body = { $count ->
+    [one] Přidat { $count } soubor PDF na konec tohoto dokumentu, nebo ho otevřít v samostatném okně?
+    [few] Přidat tyto { $count } soubory PDF na konec tohoto dokumentu, nebo je otevřít v samostatných oknech?
+    [many] Přidat těchto { $count } souboru PDF na konec tohoto dokumentu, nebo je otevřít v samostatných oknech?
+   *[other] Přidat těchto { $count } souborů PDF na konec tohoto dokumentu, nebo je otevřít v samostatných oknech?
+}
+drop-pdf-add = Přidat na konec
+drop-pdf-open = Otevřít samostatně
 
 ## PDF window
 
@@ -264,6 +275,7 @@ pages-copied = { $count ->
 }
 pages-copy-failed = Stránky se nepodařilo zkopírovat: { $error }
 pages-reading-stopped = čtení bylo přerušeno
+pages-image-unreadable = není obrázek, který prev umí přečíst
 pages-read-failed = Soubor se nepodařilo přečíst: { $error }
 pages-at-least-one = Dokument musí mít alespoň jednu stránku.
 pages-crop-needs-area = Nejprve vyberte oblast nástrojem Obdélníkový výběr.
@@ -495,6 +507,7 @@ image-cannot-save-format-unbound = Změny souboru „{ $name }“ nelze uložit 
 image-cannot-export-animation = Animace zatím nelze exportovat.
 image-drop-pages = Stránky lze přetáhnout do dokumentu.
 image-drag-failed = Přetahování se nepodařilo zahájit.
+image-picture-save-failed = Obrázek se nepodařilo uložit do složky Stažené.
 image-open-failed = prev tento obrázek neumí otevřít
 image-opening = Otevírání…
 image-name-mismatch-title = Název neodpovídá formátu

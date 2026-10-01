@@ -176,6 +176,19 @@ drag-start-failed = Não foi possível começar a arrastar.
 drag-file-pages = Páginas
 drag-file-one-page = { $name } (página { $page })
 drag-file-page-range = { $name } (páginas { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Imagem
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Adicionar a este documento?
+drop-pdf-body = Adicionar “{ $name }” ao final deste documento ou abri-lo em uma janela própria?
+drop-pdfs-body = { $count ->
+    [one] Adicionar este PDF ao final deste documento ou abri-lo em uma janela própria?
+   *[other] Adicionar estes { $count } PDFs ao final deste documento ou abri-los em janelas próprias?
+}
+drop-pdf-add = Adicionar ao Final
+drop-pdf-open = Abrir Separadamente
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Não foi possível copiar as páginas: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = a leitura foi interrompida
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = não é uma imagem que o prev consiga ler
 pages-read-failed = Não foi possível ler o arquivo: { $error }
 pages-at-least-one = Um documento precisa de pelo menos uma página.
 pages-crop-needs-area = Primeiro escolha uma área com a ferramenta de seleção retangular.
@@ -570,6 +586,7 @@ image-cannot-save-format-unbound = As alterações em “{ $name }” não podem
 image-cannot-export-animation = Ainda não é possível exportar animações.
 image-drop-pages = As páginas podem ser soltas em um documento.
 image-drag-failed = Não foi possível começar a arrastar.
+image-picture-save-failed = Não foi possível salvar a imagem na sua pasta Downloads.
 image-open-failed = O prev não consegue abrir esta imagem
 image-opening = Abrindo…
 # Asked when an export's file name has another format's extension.

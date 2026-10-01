@@ -53,6 +53,15 @@ pub fn set_accepted_mimes(mimes: Vec<String>) {
         .unwrap_or_else(|poison| poison.into_inner()) = mimes;
 }
 
+/// Whether Ctrl, which sends a drop to the sidebar, is held. Asked of the
+/// keyboard: during another app's drag, prev's window is not focused and
+/// hears no key changes.
+pub fn control_held() -> bool {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_CONTROL};
+    // The high bit is set while the key is down.
+    unsafe { GetAsyncKeyState(i32::from(VK_CONTROL)) < 0 }
+}
+
 pub fn set_prefer_move(prefer: bool) {
     PREFER_MOVE.store(prefer, Ordering::Relaxed);
 }

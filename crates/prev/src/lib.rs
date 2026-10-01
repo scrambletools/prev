@@ -3,6 +3,8 @@
 pub mod default_app;
 pub mod dialog;
 pub mod dnd;
+#[cfg(target_os = "macos")]
+mod dnd_macos;
 #[cfg(windows)]
 mod dnd_windows;
 pub mod drag;

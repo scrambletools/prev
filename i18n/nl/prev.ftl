@@ -176,6 +176,19 @@ drag-start-failed = Kan niet beginnen met slepen.
 drag-file-pages = Pagina's
 drag-file-one-page = { $name } (pagina { $page })
 drag-file-page-range = { $name } (pagina's { $first }–{ $last })
+# File name, before ".png", for an image annotation dragged to an image
+# window's sidebar and saved in Downloads.
+drag-file-image = Afbeelding
+# Asked when PDF files are dropped on a document's page. $name is a
+# file name; $count is 2 or more.
+drop-pdf-title = Toevoegen aan dit document?
+drop-pdf-body = ‘{ $name }’ toevoegen aan het einde van dit document, of openen in een eigen venster?
+drop-pdfs-body = { $count ->
+    [one] Deze pdf toevoegen aan het einde van dit document, of openen in een eigen venster?
+   *[other] Deze { $count } pdf's toevoegen aan het einde van dit document, of elk openen in een eigen venster?
+}
+drop-pdf-add = Achteraan toevoegen
+drop-pdf-open = Apart openen
 
 ## PDF window
 
@@ -306,6 +319,9 @@ pages-copied = { $count ->
 pages-copy-failed = Kan de pagina's niet kopiëren: { $error }
 # Shown after an error prefix when reading files was interrupted.
 pages-reading-stopped = lezen is gestopt
+# Shown after a file name when an image dropped among the pages could
+# not be read.
+pages-image-unreadable = geen afbeelding die prev kan lezen
 pages-read-failed = Kan het bestand niet lezen: { $error }
 pages-at-least-one = Een document moet minstens één pagina hebben.
 pages-crop-needs-area = Kies eerst een gebied met het gereedschap voor rechthoekige selectie.
@@ -573,6 +589,7 @@ image-cannot-save-format-unbound = Wijzigingen in ‘{ $name }’ kunnen niet in
 image-cannot-export-animation = Animaties kunnen nog niet worden geëxporteerd.
 image-drop-pages = Pagina's kunnen op een document worden neergezet.
 image-drag-failed = Kan niet beginnen met slepen.
+image-picture-save-failed = Kan de afbeelding niet opslaan in je map Downloads.
 image-open-failed = prev kan deze afbeelding niet openen
 image-opening = Openen…
 # Asked when an export's file name has another format's extension.
