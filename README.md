@@ -289,8 +289,11 @@ cargo build --release
 
 MuPDF is compiled from source as part of the build.
 
-On Windows, install the Visual Studio C++ build tools and LLVM, and set
-`LIBCLANG_PATH` to LLVM's `bin` folder, then run the same `cargo build`.
+On Windows, install the Visual Studio C++ build tools and LLVM, set
+`LIBCLANG_PATH` to LLVM's `bin` folder and `BINDGEN_EXTRA_CLANG_ARGS` to
+`-isystem "<LLVM>\lib\clang\<version>\include"` (see
+`packaging/windows/bindgen-headers.ps1`), then run the same
+`cargo build`.
 For HEIC and AVIF, put `heif.dll` beside `prev.exe`; vcpkg builds it from
 `packaging/windows/vcpkg` (see the README there). `packaging/windows/build.ps1`
 makes the MSI and zip with WiX.
