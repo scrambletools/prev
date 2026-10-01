@@ -25,6 +25,13 @@ All notable changes to prev. Versions follow
   too.
 - An image file dropped on a page goes on it even with the markup bar
   closed.
+- Notices go away by themselves after 10 seconds, and their bar takes
+  the theme's colors instead of inverted ones.
+
+### Fixed
+
+- Animated images no longer flicker while they play.
+- Closing the file chooser with Escape no longer shows an error.
 
 ## [1.5.0] - 2026-09-30
 

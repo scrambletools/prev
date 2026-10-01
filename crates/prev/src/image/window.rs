@@ -49,6 +49,11 @@ const SIDEBAR_THUMBNAIL_MARGIN: f32 =
     2.0 * 12.0 + 2.0 * style::THUMBNAIL_RING + resize::HANDLE_WIDTH;
 /// Full images kept in memory around the current one, in each direction.
 const KEEP_AROUND: usize = 1;
+/// Animation frames kept on the GPU ahead of the one showing. iced draws
+/// nothing the first time it meets an image, so a frame shows only once it
+/// is uploaded; uploading every frame of a long animation would take too
+/// much memory.
+const FRAMES_AHEAD: usize = 4;
 /// Quiet time after an edit before it is written to disk.
 const AUTOSAVE_DELAY: Duration = Duration::from_millis(1200);
 
@@ -95,6 +100,9 @@ struct Shown {
     preview_wanted: bool,
     /// Generation of the edits shown in `image`.
     shown_generation: u64,
+    /// Animation frames on the GPU, by frame number, and those on their way.
+    frame_allocations: HashMap<usize, Allocation>,
+    frames_pending: HashSet<usize>,
     /// The full-size edited image, for saving and exporting.
     edited: Option<Arc<Frame>>,
 }
@@ -114,6 +122,8 @@ impl Shown {
             preview_wanted: false,
             shown_generation: 0,
             edited: None,
+            frame_allocations: HashMap::new(),
+            frames_pending: HashSet::new(),
         }
     }
 
@@ -229,6 +239,8 @@ pub enum Message {
     PreviewAllocated(usize, u64, Option<Allocation>),
     FullRendered(usize, u64, Arc<Frame>),
     FullAllocated(usize, u64, Arc<Frame>, Option<Allocation>),
+    /// An animation frame of an image is on the GPU.
+    FrameAllocated(usize, usize, Option<Allocation>),
     AutosaveDue(usize, u64),
     Saved(usize, u64, Result<(), String>),
     TogglePanel(Panel),
@@ -616,10 +628,12 @@ impl ImageWindow {
                     }
                     Err(error) => ItemState::Failed(error),
                 };
-                if index == self.current {
-                    self.restart_animation();
-                }
-                Task::batch([self.schedule(), self.load_next()])
+                let frames = if index == self.current {
+                    self.restart_animation()
+                } else {
+                    Task::none()
+                };
+                Task::batch([self.schedule(), self.load_next(), frames])
             }
             Message::LevelReady(index, level, handle) => match handle {
                 Some(handle) => allocate(handle, move |allocation| {
@@ -729,6 +743,16 @@ impl ImageWindow {
                     Task::none()
                 };
                 Task::batch([show, next])
+            }
+            Message::FrameAllocated(index, number, allocation) => {
+                let Some(shown) = self.shown_mut(index) else {
+                    return Task::none();
+                };
+                shown.frames_pending.remove(&number);
+                if let Some(allocation) = allocation {
+                    shown.frame_allocations.insert(number, allocation);
+                }
+                Task::none()
             }
             Message::PreviewAllocated(index, generation, allocation) => {
                 let Some(shown) = self.shown_mut(index) else {
@@ -1026,7 +1050,7 @@ impl ImageWindow {
         self.current = index;
         self.fit = Fit::Fit;
         self.selection = None;
-        self.restart_animation();
+        let frames = self.restart_animation();
         // Sidebar entries share one height, so scrolling proportionally keeps
         // the current one fully in view.
         let fraction = index as f32 / (self.items.len() - 1).max(1) as f32;
@@ -1042,15 +1066,50 @@ impl ImageWindow {
             self.schedule(),
             follow,
             self.refresh_inspector(),
+            frames,
         ])
     }
 
-    fn restart_animation(&mut self) {
+    fn restart_animation(&mut self) -> Task<Message> {
         self.frame = 0;
         self.next_frame = self
             .shown()
             .filter(|shown| shown.image.frames.len() > 1)
             .map(|shown| Instant::now() + shown.image.frames[0].1);
+        self.upload_frames()
+    }
+
+    /// Uploads the frames from the one showing to FRAMES_AHEAD after it,
+    /// and lets go of the others.
+    fn upload_frames(&mut self) -> Task<Message> {
+        let (index, frame) = (self.current, self.frame);
+        let Some(shown) = self.shown_mut(index) else {
+            return Task::none();
+        };
+        let count = shown.image.frames.len();
+        if count < 2 {
+            return Task::none();
+        }
+        let wanted: Vec<usize> = (0..=FRAMES_AHEAD.min(count - 1))
+            .map(|ahead| (frame + ahead) % count)
+            .collect();
+        shown
+            .frame_allocations
+            .retain(|number, _| wanted.contains(number));
+        let tasks: Vec<Task<Message>> = wanted
+            .into_iter()
+            .filter(|number| {
+                !shown.frame_allocations.contains_key(number)
+                    && shown.frames_pending.insert(*number)
+            })
+            .map(|number| {
+                let handle = shown.image.frames[number].0.clone();
+                allocate(handle, move |allocation| {
+                    Message::FrameAllocated(index, number, allocation)
+                })
+            })
+            .collect();
+        Task::batch(tasks)
     }
 
     fn canvas_event(&mut self, event: CanvasEvent) -> Task<Message> {
@@ -1080,15 +1139,21 @@ impl ImageWindow {
                     return Task::none();
                 };
                 let frames = shown.image.frames.len();
-                if frames > 1 {
-                    let next = (self.frame + 1) % frames;
-                    let delay = shown.image.frames[next].1;
-                    self.frame = next;
-                    let due = self.next_frame.map_or(now, |due| due + delay);
-                    // Skip ahead rather than race if we fell behind.
-                    self.next_frame = Some(if due < now { now + delay } else { due });
+                if frames < 2 {
+                    return Task::none();
                 }
-                Task::none()
+                let next = (self.frame + 1) % frames;
+                // A frame not yet on the GPU would draw as nothing; keep the
+                // one showing until it is.
+                if !shown.frame_allocations.contains_key(&next) {
+                    return self.upload_frames();
+                }
+                let delay = shown.image.frames[next].1;
+                self.frame = next;
+                let due = self.next_frame.map_or(now, |due| due + delay);
+                // Skip ahead rather than race if we fell behind.
+                self.next_frame = Some(if due < now { now + delay } else { due });
+                self.upload_frames()
             }
         }
     }
