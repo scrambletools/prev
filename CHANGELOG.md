@@ -31,6 +31,13 @@ All notable changes to prev. Versions follow
   desktop theme's accent on Linux, and the accent color set on Windows
   and macOS. The settings file's `omarchy-palette` is now
   `system-accent`, and the old name still works.
+- With the system accent off, or where the system has none, a row of
+  colors in Settings picks the one prev's colors are built from; grey
+  gives a neutral scheme. It is saved as `accent-color`.
+- Ctrl+drag (⌘+drag on macOS) pans a zoomed-in document, whatever tool
+  is chosen.
+- The version in Settings and `prev --version` names the commit it was
+  built from, and the time for development builds.
 - New settings default to no animations, a 20 px corner radius and 25%
   overlay transparency; settings already saved keep their values.
 
@@ -38,6 +45,8 @@ All notable changes to prev. Versions follow
 
 - Animated images no longer flicker while they play.
 - Closing the file chooser with Escape no longer shows an error.
+- Wheel zoom on macOS moves at the same speed as elsewhere instead of
+  barely moving with each notch.
 
 ## [1.5.0] - 2026-09-30
 

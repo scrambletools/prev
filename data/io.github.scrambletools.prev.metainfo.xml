@@ -94,7 +94,7 @@
   <releases>
     <release version="1.6.0" date="2026-10-01">
       <description>
-        <p>Drag and drop now works both ways on macOS. Images dropped on the page thumbnails, or dragged there from a page, become pages of their own, a PDF dropped on a page asks whether to add it to the end, and holding Ctrl sends a drop to the sidebar. Colors now follow the system accent color on Windows, macOS and Linux desktops. Also: animated images no longer flicker, notices go away after 10 seconds, and closing the file chooser no longer shows an error.</p>
+        <p>Drag and drop now works both ways on macOS. Images dropped on the page thumbnails, or dragged there from a page, become pages of their own, a PDF dropped on a page asks whether to add it to the end, and holding Ctrl sends a drop to the sidebar. Colors now follow the system accent color on Windows, macOS and Linux desktops, or a color picked in Settings, and Ctrl+drag pans a zoomed-in document. Also: animated images no longer flicker, notices go away after 10 seconds, and closing the file chooser no longer shows an error.</p>
       </description>
     </release>
     <release version="1.5.0" date="2026-09-30">
