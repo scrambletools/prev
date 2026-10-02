@@ -47,6 +47,9 @@ impl<'a, Message> PageCanvas<'a, Message> {
 #[derive(Default)]
 struct State {
     pressed: bool,
+    /// Where a pan by dragging with the command key last had the pointer,
+    /// in window coordinates.
+    pan_from: Option<iced::Point>,
     last_click: Option<Click>,
     modifiers: Modifiers,
     reported_view: Option<Area>,
@@ -59,6 +62,17 @@ fn visible_area(bounds: Rectangle, viewport: &Rectangle) -> Area {
         y: viewport.y - bounds.y,
         width: viewport.width,
         height: viewport.height,
+    }
+}
+
+/// How many zoom steps a wheel event makes. A mouse wheel moves by whole
+/// lines, but macOS reports a slow notch as a fraction of one, so each
+/// line event counts for at least a step; touchpads move by pixels.
+pub fn wheel_steps(delta: &ScrollDelta) -> f32 {
+    match *delta {
+        ScrollDelta::Lines { y, .. } if y != 0.0 => y.signum() * y.abs().max(1.0),
+        ScrollDelta::Lines { .. } => 0.0,
+        ScrollDelta::Pixels { y, .. } => y / 40.0,
     }
 }
 
@@ -178,6 +192,34 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 }
                 state.modifiers = *modifiers
             }
+            // With the command key (Ctrl, ⌘ on macOS), dragging moves the
+            // view around whatever tool is chosen. The middle button
+            // scrolls as in a browser, which the scrollable does.
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                if state.modifiers.command() =>
+            {
+                if let Some(position) = cursor.position_over(*viewport) {
+                    state.pan_from = cursor.position().or(Some(position));
+                    shell.capture_event();
+                }
+            }
+            Event::Mouse(mouse::Event::CursorMoved { position }) if state.pan_from.is_some() => {
+                if let Some(from) = state.pan_from {
+                    // The content moves under the pointer, so scroll against it.
+                    let (dx, dy) = (from.x - position.x, from.y - position.y);
+                    state.pan_from = Some(*position);
+                    if dx != 0.0 || dy != 0.0 {
+                        shell.publish((self.on_message)(PdfMessage::Pan { dx, dy }));
+                    }
+                    shell.capture_event();
+                }
+            }
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+                if state.pan_from.is_some() =>
+            {
+                state.pan_from = None;
+                shell.capture_event();
+            }
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
                 let Some(position) = cursor.position_over(*viewport) else {
                     return;
@@ -217,10 +259,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 let Some(position) = cursor.position_over(*viewport) else {
                     return;
                 };
-                let lines = match delta {
-                    ScrollDelta::Lines { y, .. } => *y,
-                    ScrollDelta::Pixels { y, .. } => y / 40.0,
-                };
+                let lines = wheel_steps(delta);
                 if lines != 0.0 {
                     let factor = LINE_SCROLL_ZOOM.powf(lines);
                     let anchor = (position.x - viewport.x, position.y - viewport.y);
@@ -238,12 +277,15 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
 
     fn mouse_interaction(
         &self,
-        _tree: &Tree,
+        tree: &Tree,
         layout: Layout<'_>,
         cursor: Cursor,
         viewport: &Rectangle,
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
+        if tree.state.downcast_ref::<State>().pan_from.is_some() {
+            return mouse::Interaction::Grabbing;
+        }
         let Some(position) = cursor.position_over(*viewport) else {
             return mouse::Interaction::None;
         };

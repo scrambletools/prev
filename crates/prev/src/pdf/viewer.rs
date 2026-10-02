@@ -91,6 +91,11 @@ pub enum PdfMessage {
     TextReady(usize, Option<Arc<TextLayout>>),
     LinksReady(usize, Vec<Link>),
     Zoom(Zoom),
+    /// Scroll the view by this much, for a drag that pans.
+    Pan {
+        dx: f32,
+        dy: f32,
+    },
     SetMode(ViewMode),
     GoTo {
         page: usize,
@@ -464,6 +469,8 @@ impl PdfViewer {
                 Task::none()
             }
             PdfMessage::Zoom(zoom) => self.zoom(zoom),
+            // The window scrolls the view for it.
+            PdfMessage::Pan { .. } => Task::none(),
             PdfMessage::SetMode(mode) => {
                 self.mode = mode;
                 self.keep_position(|viewer| viewer.relayout());

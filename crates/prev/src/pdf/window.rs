@@ -553,6 +553,12 @@ impl PdfWindow {
         if let Some(task) = self.image_to_panel(&message) {
             return task;
         }
+        if let PdfMessage::Pan { dx, dy } = message {
+            return operation::scroll_by(
+                self.canvas_id.clone(),
+                scrollable::AbsoluteOffset { x: dx, y: dy },
+            );
+        }
         // The page canvas does not see the pointer over the image window's
         // sidebar, so while an image annotation moves on an image's markup
         // the app reports where the pointer is.

@@ -9,7 +9,7 @@ use iced::advanced::renderer;
 use iced::advanced::widget::{self, Tree, Widget};
 use iced::advanced::{Clipboard, Shell};
 use iced::keyboard::{self, Modifiers};
-use iced::mouse::{self, Cursor, ScrollDelta};
+use iced::mouse::{self, Cursor};
 use iced::widget::image::Handle;
 use iced::{Background, Border, Color, Element, Event, Length, Rectangle, Size, Theme, window};
 
@@ -207,10 +207,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
                 let Some(position) = cursor.position_over(*viewport) else {
                     return;
                 };
-                let lines = match delta {
-                    ScrollDelta::Lines { y, .. } => *y,
-                    ScrollDelta::Pixels { y, .. } => y / 40.0,
-                };
+                let lines = crate::pdf::canvas::wheel_steps(delta);
                 if lines != 0.0 {
                     let anchor = (position.x - viewport.x, position.y - viewport.y);
                     let factor = LINE_SCROLL_ZOOM.powf(lines);
