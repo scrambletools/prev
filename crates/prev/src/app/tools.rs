@@ -182,6 +182,7 @@ fn tool<I: DeserializeOwned + JsonSchema + 'static>(
 }
 
 mod read;
+mod view;
 
 /// Every tool, in the order agents see them.
 static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
@@ -221,6 +222,7 @@ static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
         ),
     ];
     tools.extend(read::tools());
+    tools.extend(view::tools());
     tools
 });
 

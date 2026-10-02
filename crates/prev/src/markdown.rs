@@ -236,6 +236,10 @@ impl MarkdownWindow {
         }
     }
 
+    pub fn inspector_shown(&self) -> bool {
+        self.inspector
+    }
+
     /// The words and lines in the file.
     pub fn counts(&self) -> (usize, usize) {
         self.counts

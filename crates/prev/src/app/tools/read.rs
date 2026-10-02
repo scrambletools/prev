@@ -184,7 +184,7 @@ struct RenderImage {
 }
 
 /// What a window shows, for the read tools.
-enum Shown<'a> {
+pub(super) enum Shown<'a> {
     Start,
     Pdf(&'a PdfViewer),
     Image(&'a ImageWindow),
@@ -209,7 +209,7 @@ fn not_for(window: window::Id, shows: &str, tool: &str) -> Error {
 
 impl Prev {
     /// What window `window` shows, or the window in front.
-    fn shown(&self, window: Option<u64>) -> Result<(window::Id, Shown<'_>), Error> {
+    pub(super) fn shown(&self, window: Option<u64>) -> Result<(window::Id, Shown<'_>), Error> {
         let id = self.tool_window(window)?;
         let shown = match &self.windows[&id].content {
             Content::Start => Shown::Start,
@@ -272,7 +272,11 @@ impl Shown<'_> {
 fn page_index(viewer: &PdfViewer, page: Option<usize>) -> Result<usize, Error> {
     let count = viewer.page_count();
     match page {
-        None => Ok(viewer.current.min(count.saturating_sub(1))),
+        None => Ok(viewer
+            .layout
+            .current_page(&viewer.view)
+            .unwrap_or(viewer.current)
+            .min(count.saturating_sub(1))),
         Some(page) if (1..=count).contains(&page) => Ok(page - 1),
         Some(page) => Err(invalid(format!(
             "Page {page} is not in the document, which has {count} pages."
@@ -621,13 +625,19 @@ fn current_view(app: &mut Prev, input: On, answer: &Answer) -> Task<Message> {
     });
     match shown {
         Shown::Pdf(viewer) => {
-            let visible: Vec<usize> = viewer
+            let mut visible: Vec<usize> = viewer
                 .layout
                 .visible_pages(&viewer.view)
                 .into_iter()
                 .map(|page| page + 1)
                 .collect();
-            view["page"] = json!(viewer.current + 1);
+            visible.sort_unstable();
+            // The page most in view, as the page box shows it.
+            let page = viewer
+                .layout
+                .current_page(&viewer.view)
+                .unwrap_or(viewer.current);
+            view["page"] = json!(page + 1);
             view["pages"] = json!(viewer.page_count());
             view["visible_pages"] = json!(visible);
             view["zoom_percent"] = json!((viewer.layout.zoom * 100.0).round());

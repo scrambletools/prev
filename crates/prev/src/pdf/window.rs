@@ -401,6 +401,15 @@ impl PdfWindow {
         }
     }
 
+    /// The sidebar tab shown, if the sidebar is open.
+    pub fn sidebar(&self) -> Option<Sidebar> {
+        self.sidebar
+    }
+
+    pub fn inspector_shown(&self) -> bool {
+        self.inspector.is_some()
+    }
+
     /// The document, once open.
     pub fn document(&self) -> Option<&DocumentHandle> {
         match &self.state {

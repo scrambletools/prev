@@ -13,6 +13,9 @@ use prev_pdf::text::{Selection, TextLayout};
 use prev_pdf::worker::{DocumentHandle, DocumentInfo, RenderPool, SearchEvent, Ticket};
 
 use super::layout::{self, Area, Fit, Layout, ViewMode};
+
+/// How long an area an agent points at stays outlined.
+const POINTED_TIME: Duration = Duration::from_secs(4);
 pub use pages::Pick;
 use prev_pdf::worker::{Edited, PageMarkup, Restructured};
 
@@ -78,6 +81,8 @@ pub enum Zoom {
         factor: f32,
         anchor: (f32, f32),
     },
+    /// A zoom, where 1.0 is actual size, around the middle of the view.
+    To(f32),
 }
 
 #[derive(Debug, Clone)]
@@ -103,6 +108,21 @@ pub enum PdfMessage {
     },
     NextPage,
     PreviousPage,
+    /// Shows `point` of `page`, in page points, in the middle of the view,
+    /// at `fit` if given.
+    Show {
+        page: usize,
+        point: Point,
+        fit: Option<Fit>,
+    },
+    /// Outlines `rect` of `page` for a few seconds, showing it if it is
+    /// out of view; the number tells this outline from a later one.
+    PointAt {
+        page: usize,
+        rect: Rect,
+        id: u64,
+    },
+    PointDone(u64),
     /// Scroll by logical pixels.
     ScrollBy {
         dx: f32,
@@ -220,6 +240,9 @@ pub struct PdfViewer {
     epoch: u64,
     /// Pages chosen in the sidebar, for page edits.
     pub selected_pages: std::collections::BTreeSet<usize>,
+    /// An area outlined for a moment, as an agent points at it: its page,
+    /// rectangle in page points and number.
+    pub pointed: Option<(usize, Rect, u64)>,
 }
 
 impl PdfViewer {
@@ -285,6 +308,7 @@ impl PdfViewer {
             panning: false,
             epoch: 0,
             selected_pages: std::collections::BTreeSet::new(),
+            pointed: None,
         }
     }
 
@@ -495,6 +519,22 @@ impl PdfViewer {
                 self.schedule()
             }
             PdfMessage::GoTo { page, point } => self.go_to(page, point),
+            PdfMessage::Show { page, point, fit } => self.show(page, point, fit),
+            PdfMessage::PointAt { page, rect, id } => {
+                self.pointed = Some((page, rect, id));
+                self.reveal(page, rect);
+                let shown = Task::perform(
+                    crate::image::editor::spawn(|| std::thread::sleep(POINTED_TIME)),
+                    move |_| PdfMessage::PointDone(id),
+                );
+                Task::batch([self.schedule(), shown])
+            }
+            PdfMessage::PointDone(id) => {
+                if self.pointed.is_some_and(|(_, _, pointed)| pointed == id) {
+                    self.pointed = None;
+                }
+                Task::none()
+            }
             PdfMessage::NextPage => self.step_page(1),
             PdfMessage::PreviousPage => self.step_page(-1),
             PdfMessage::ScrollBy { dx, dy } => {
@@ -619,6 +659,7 @@ impl PdfViewer {
             Zoom::FitWidth => (Fit::Width, center),
             Zoom::FitPage => (Fit::Page, center),
             Zoom::By { factor, anchor } => (Fit::Zoom(self.layout.zoom * factor), anchor),
+            Zoom::To(zoom) => (Fit::Zoom(zoom), center),
         };
         let before = self
             .layout
@@ -651,6 +692,47 @@ impl PdfViewer {
             self.scroll_to(x, y - layout::MARGIN);
         }
         self.schedule()
+    }
+
+    fn show(&mut self, page: usize, point: Point, fit: Option<Fit>) -> Task<PdfMessage> {
+        if page >= self.page_count() {
+            return Task::none();
+        }
+        self.current = page;
+        if let Some(fit) = fit {
+            self.fit = fit;
+        }
+        self.relayout();
+        if let Some((x, y)) = self.layout.to_document(page, point) {
+            self.scroll_to(x - self.view.width / 2.0, y - self.view.height / 2.0);
+        }
+        self.schedule()
+    }
+
+    /// Scrolls `rect` of `page` into view when it is not.
+    fn reveal(&mut self, page: usize, rect: Rect) {
+        if self.mode != ViewMode::Continuous && self.current != page {
+            self.current = page;
+            self.relayout();
+        }
+        let corner = |x, y| self.layout.to_document(page, Point::new(x, y));
+        let (Some(top_left), Some(bottom_right)) =
+            (corner(rect.x0, rect.y0), corner(rect.x1, rect.y1))
+        else {
+            return;
+        };
+        let visible = self.view.contains(top_left.0, top_left.1)
+            && self.view.contains(bottom_right.0, bottom_right.1);
+        if !visible {
+            let middle = (
+                (top_left.0 + bottom_right.0) / 2.0,
+                (top_left.1 + bottom_right.1) / 2.0,
+            );
+            self.scroll_to(
+                middle.0 - self.view.width / 2.0,
+                middle.1 - self.view.height / 2.0,
+            );
+        }
     }
 
     fn step_page(&mut self, step: i64) -> Task<PdfMessage> {

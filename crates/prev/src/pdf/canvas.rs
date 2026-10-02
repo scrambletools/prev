@@ -479,6 +479,32 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                         Background::Color(color),
                     );
                 }
+                // An area an agent points at, outlined in the accent.
+                if let Some((pointed_page, rect, _)) = viewer.pointed
+                    && pointed_page == page
+                {
+                    let accent = theme.palette().primary;
+                    // Room around the area, and a shadow that sets the
+                    // outline off on light and dark pages alike.
+                    let bounds = to_screen(rect).expand(6.0);
+                    renderer.fill_quad(
+                        Quad {
+                            bounds,
+                            border: Border {
+                                color: accent,
+                                width: 4.0,
+                                radius: 8.0.into(),
+                            },
+                            shadow: Shadow {
+                                color: Color::from_rgba8(0, 0, 0, 0.45),
+                                offset: iced::Vector::ZERO,
+                                blur_radius: 10.0,
+                            },
+                            ..Quad::default()
+                        },
+                        Background::Color(Color { a: 0.15, ..accent }),
+                    );
+                }
                 // Fillable form fields get Preview's light blue tint.
                 if viewer.edit.tool == Tool::Select
                     && self.backdrop.is_none()

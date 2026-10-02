@@ -294,6 +294,8 @@ pub enum Message {
     ZoomOut,
     ActualSize,
     FitToWindow,
+    /// A zoom, where 1.0 is actual size.
+    ZoomTo(f32),
     Edit(Edit),
     PreviewRendered(usize, u64, Handle),
     PreviewAllocated(usize, u64, Option<Allocation>),
@@ -614,6 +616,15 @@ impl ImageWindow {
         })
     }
 
+    /// The panel shown beside the image, if any.
+    pub fn panel(&self) -> Option<Panel> {
+        self.panel
+    }
+
+    pub fn sidebar_shown(&self) -> bool {
+        self.sidebar
+    }
+
     pub fn current_path(&self) -> &Path {
         &self.items[self.current].path
     }
@@ -770,6 +781,7 @@ impl ImageWindow {
             Message::ZoomIn => self.zoom_to(self.zoom() * ZOOM_STEP, None),
             Message::ZoomOut => self.zoom_to(self.zoom() / ZOOM_STEP, None),
             Message::ActualSize => self.zoom_to(1.0, None),
+            Message::ZoomTo(zoom) => self.zoom_to(zoom, None),
             Message::FitToWindow => {
                 self.fit = Fit::Fit;
                 self.schedule()
