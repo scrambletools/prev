@@ -80,8 +80,14 @@ pub struct ShownImage {
 pub enum Pixels {
     /// The first frame, with the window's edits.
     Raster(Arc<Frame>),
+    /// Edits still being drawn: the work that draws them, once, and the
+    /// size they come out at.
+    Edits(Arc<std::sync::Mutex<Option<DrawEdits>>>, (u32, u32)),
     Svg(Svg),
 }
+
+/// Draws an image with its edits.
+type DrawEdits = Box<dyn FnOnce() -> Frame + Send>;
 
 impl Pixels {
     /// The pixels, scaled down to fit `max_side` if they are larger.
@@ -95,6 +101,14 @@ impl Pixels {
                 let (width, height) = svg.size();
                 svg.render(fit(width, height))
                     .map_err(|error| error.describe())
+            }
+            Pixels::Edits(draw, _) => {
+                let draw = draw
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .take()
+                    .ok_or("the edits were drawn already")?;
+                Pixels::Raster(Arc::new(draw())).draw(max_side)
             }
             Pixels::Raster(frame) => {
                 let scale = fit(frame.width as f32, frame.height as f32);
@@ -165,6 +179,8 @@ struct Shown {
     frames_pending: HashSet<usize>,
     /// The full-size edited image, for saving and exporting.
     edited: Option<Arc<Frame>>,
+    /// Generation of the edits in `edited`.
+    kept_generation: u64,
 }
 
 impl Shown {
@@ -182,6 +198,7 @@ impl Shown {
             preview_wanted: false,
             shown_generation: 0,
             edited: None,
+            kept_generation: 0,
             frame_allocations: HashMap::new(),
             frames_pending: HashSet::new(),
         }
@@ -603,12 +620,23 @@ impl ImageWindow {
     /// and its pixels as edited so far; `None` while it loads.
     pub fn shown_image(&self) -> Option<ShownImage> {
         let shown = self.shown()?;
-        let pixels = match &shown.image.svg {
-            Some(svg) => Pixels::Svg(svg.clone()),
-            None => Pixels::Raster(shown.current_frame()?),
+        // Edits not yet drawn in full are drawn from the editor, so a
+        // picture taken right after an edit shows it.
+        let pending = shown
+            .editor
+            .as_ref()
+            .filter(|editor| editor.generation != shown.kept_generation);
+        let pixels = match (&shown.image.svg, pending) {
+            (Some(svg), _) => Pixels::Svg(svg.clone()),
+            (None, Some(editor)) => Pixels::Edits(
+                Arc::new(std::sync::Mutex::new(Some(Box::new(editor.render_full())))),
+                editor.output_size(),
+            ),
+            (None, None) => Pixels::Raster(shown.current_frame()?),
         };
         let (width, height) = match &pixels {
             Pixels::Raster(frame) => (frame.width, frame.height),
+            Pixels::Edits(_, size) => *size,
             Pixels::Svg(_) => (shown.image.width, shown.image.height),
         };
         Some(ShownImage {
@@ -1658,6 +1686,7 @@ impl ImageWindow {
             return Task::none();
         }
         shown.edited = Some(Arc::clone(frame));
+        shown.kept_generation = generation;
         self.items[index].thumbnail = Some(thumbnail_of(frame));
         self.items[index].size = Some((frame.width, frame.height));
         Task::perform(

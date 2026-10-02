@@ -16,6 +16,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
+use prev::image::window as image_window;
+
 use super::{Content, Message, Prev};
 
 /// What a tool does, which decides whether prev asks first.
@@ -142,9 +144,64 @@ pub(super) struct Tool {
     run: Run,
 }
 
+/// Tools that draw on an image's markup, which they open first.
+const ON_IMAGE_MARKUP: [&str; 7] = [
+    "add_note",
+    "add_text_box",
+    "add_shape",
+    "edit_annotation",
+    "delete_annotation",
+    "place_image",
+    "place_signature",
+];
+
+/// How often, and how many times, a tool waiting for an image's markup
+/// to open looks again: up to ten seconds.
+const MARKUP_WAIT: std::time::Duration = std::time::Duration::from_millis(200);
+const MARKUP_TRIES: u32 = 50;
+
 impl Tool {
-    /// Runs the tool on `arguments`; it answers through `answer`.
+    /// Runs the tool on `arguments`; it answers through `answer`. A tool
+    /// that draws on an image opens the image's markup first, and runs
+    /// once it is open.
     pub(super) fn start(&self, app: &mut Prev, arguments: Value, answer: Answer) -> Task<Message> {
+        self.start_after(app, arguments, answer, 0)
+    }
+
+    pub(super) fn start_after(
+        &self,
+        app: &mut Prev,
+        arguments: Value,
+        answer: Answer,
+        tries: u32,
+    ) -> Task<Message> {
+        if ON_IMAGE_MARKUP.contains(&self.name)
+            && let Ok(id) = app.tool_window(arguments["window"].as_u64())
+            && let Some(images) = app.images_mut(id)
+            && images
+                .agent_markup()
+                .is_none_or(|(_, viewer, _)| viewer.is_none())
+        {
+            if tries >= MARKUP_TRIES {
+                answer.send(Err(Error::new(
+                    code::INTERNAL_ERROR,
+                    "The image's markup did not open; it can be marked up only when it is not \
+                     being edited, and not as an SVG drawing or animation.",
+                )));
+                return Task::none();
+            }
+            let opening = if images.agent_markup().is_none() && !images.markup_shown() {
+                app.update(Message::Image(id, image_window::Message::ToggleMarkup))
+            } else {
+                Task::none()
+            };
+            let name = self.name;
+            let wait = Task::perform(
+                prev::image::editor::spawn(|| std::thread::sleep(MARKUP_WAIT)),
+                move |_| Message::ToolDeferred(answer.clone(), name, arguments.clone(), tries + 1),
+            );
+            return Task::batch([opening, wait]);
+        }
         (self.run)(app, arguments, answer)
     }
 }
@@ -169,6 +226,9 @@ fn tool<I: DeserializeOwned + JsonSchema + 'static>(
                 schema.remove("$schema");
                 schema.remove("title");
                 schema.remove("description");
+                // Some clients, such as ollama's, need properties even when
+                // there are none.
+                schema.entry("properties").or_insert_with(|| json!({}));
             }
             schema
         },
@@ -202,8 +262,8 @@ static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
             "List windows",
             Kind::Read,
             "Lists prev's open windows: each one's number, title, kind (pdf, image, svg, \
-             markdown, or start for a window with no file), file path, and whether it is the \
-             one in front. Other tools take the number as `window`.",
+             markdown, or start for a window with no file), file path, size in logical pixels, \
+             and whether it is the one in front. Other tools take the number as `window`.",
             |app, _: Nothing, answer| {
                 answer.send(Ok(Output::Json(json!({ "windows": app.window_list() }))));
                 Task::none()
@@ -414,6 +474,7 @@ impl Prev {
                     "kind": kind,
                     "file": file,
                     "focused": self.focused == Some(*id),
+                    "size": [window.size.width.round(), window.size.height.round()],
                 })
             })
             .collect()
@@ -440,6 +501,7 @@ mod tests {
         for tool in TOOLS.iter() {
             let schema = (tool.schema)();
             assert_eq!(schema["type"], "object", "{}: {schema}", tool.name);
+            assert!(schema["properties"].is_object(), "{}: {schema}", tool.name);
             assert!(schema.get("$schema").is_none(), "{}", tool.name);
         }
     }

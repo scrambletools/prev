@@ -14,8 +14,6 @@ use prev_pdf::worker::{DocumentHandle, DocumentInfo, RenderPool, SearchEvent, Ti
 
 use super::layout::{self, Area, Fit, Layout, ViewMode};
 
-/// How long an area an agent points at stays outlined.
-const POINTED_TIME: Duration = Duration::from_secs(4);
 pub use pages::Pick;
 use prev_pdf::worker::{Edited, PageMarkup, Restructured};
 
@@ -115,12 +113,13 @@ pub enum PdfMessage {
         point: Point,
         fit: Option<Fit>,
     },
-    /// Outlines `rect` of `page` for a few seconds, showing it if it is
-    /// out of view; the number tells this outline from a later one.
+    /// Outlines `rect` of `page` for `seconds`, showing it if it is out
+    /// of view; the number tells this outline from a later one.
     PointAt {
         page: usize,
         rect: Rect,
         id: u64,
+        seconds: f32,
     },
     PointDone(u64),
     /// Scroll by logical pixels.
@@ -520,11 +519,18 @@ impl PdfViewer {
             }
             PdfMessage::GoTo { page, point } => self.go_to(page, point),
             PdfMessage::Show { page, point, fit } => self.show(page, point, fit),
-            PdfMessage::PointAt { page, rect, id } => {
+            PdfMessage::PointAt {
+                page,
+                rect,
+                id,
+                seconds,
+            } => {
                 self.pointed = Some((page, rect, id));
                 self.reveal(page, rect);
                 let shown = Task::perform(
-                    crate::image::editor::spawn(|| std::thread::sleep(POINTED_TIME)),
+                    crate::image::editor::spawn(move || {
+                        std::thread::sleep(Duration::from_secs_f32(seconds))
+                    }),
                     move |_| PdfMessage::PointDone(id),
                 );
                 Task::batch([self.schedule(), shown])

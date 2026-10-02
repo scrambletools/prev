@@ -29,8 +29,8 @@ pub(super) fn tools() -> Vec<Tool> {
             "Highlight text",
             Kind::Markup,
             "Highlights, underlines, strikes out or squiggles text on one PDF page: every \
-             place the given text appears there (or one of them), or the text inside a box. \
-             Gives the new annotation's id.",
+             place the given text appears there (or one of them, or only whole words), or the \
+             text inside a box. Gives the new annotation's id.",
             highlight,
         ),
         tool(
@@ -84,7 +84,7 @@ pub(super) fn tools() -> Vec<Tool> {
     ]
 }
 
-/// A colour as "#rrggbb".
+/// A colour as "#rrggbb", or a common name such as red.
 type Hex = String;
 
 #[derive(Deserialize, JsonSchema, Clone, Copy, Default)]
@@ -109,6 +109,9 @@ struct Highlight {
     /// Which place to mark, from 1, when the text appears more than once;
     /// all of them if left out.
     occurrence: Option<usize>,
+    /// Only where the text is whole words, so "heat" leaves "Heatmaster"
+    /// alone.
+    whole_words: Option<bool>,
     /// Mark the text inside this box [x0, y0, x1, y1] instead.
     #[serde(rename = "box")]
     area: Option<[f32; 4]>,
@@ -238,6 +241,8 @@ struct AddRedaction {
     /// Text to mark wherever it appears on the page, ignoring case, one
     /// mark for each place.
     text: Option<String>,
+    /// Only where the text is whole words.
+    whole_words: Option<bool>,
 }
 
 /// `"#rrggbb"` as a colour, or `None` for "none".
@@ -246,12 +251,28 @@ pub(super) fn color(hex: &str) -> Result<Option<Rgb>, Error> {
     if hex.eq_ignore_ascii_case("none") {
         return Ok(None);
     }
+    // Common names, as models often give them.
+    let named = match hex.to_ascii_lowercase().as_str() {
+        "red" => Some("#e01b24"),
+        "orange" => Some("#ff7800"),
+        "yellow" => Some("#ffdb33"),
+        "green" => Some("#2ec27e"),
+        "blue" => Some("#1a5fb4"),
+        "purple" => Some("#9141ac"),
+        "pink" => Some("#f66151"),
+        "brown" => Some("#865e3c"),
+        "black" => Some("#000000"),
+        "white" => Some("#ffffff"),
+        "gray" | "grey" => Some("#77767b"),
+        _ => None,
+    };
+    let hex = named.unwrap_or(hex);
     let digits = hex.strip_prefix('#').unwrap_or(hex);
     let channel = |at: usize| u8::from_str_radix(digits.get(at..at + 2).unwrap_or(""), 16);
     match (digits.len(), channel(0), channel(2), channel(4)) {
         (6, Ok(red), Ok(green), Ok(blue)) => Ok(Some(Rgb::from_rgb8(red, green, blue))),
         _ => Err(invalid(format!(
-            "{hex} is not a colour; give one as \"#rrggbb\"."
+            "{hex} is not a colour; give one as \"#rrggbb\" or a name such as red or blue."
         ))),
     }
 }
@@ -418,12 +439,62 @@ async fn page_text(handle: &DocumentHandle, page: usize) -> Result<TextLayout, E
     off_thread(move || display.text()).await?.map_err(failed)
 }
 
-/// Where `text` appears on page `page`, ignoring case.
-async fn find(handle: &DocumentHandle, page: usize, text: String) -> Result<Vec<Quad>, Error> {
+/// Where `text` appears on page `page`, ignoring case; only as whole
+/// words if `whole_words`.
+async fn find(
+    handle: &DocumentHandle,
+    page: usize,
+    text: String,
+    whole_words: bool,
+) -> Result<Vec<Quad>, Error> {
+    if whole_words {
+        return Ok(find_words(&page_text(handle, page).await?, &text));
+    }
     let display = display(handle, page).await?;
     off_thread(move || display.search(&text))
         .await?
         .map_err(failed)
+}
+
+/// Where `text` appears in `layout` as whole words, ignoring case: one quad
+/// for each place, within a line.
+fn find_words(layout: &TextLayout, text: &str) -> Vec<Quad> {
+    let wanted: Vec<char> = text.trim().chars().flat_map(char::to_lowercase).collect();
+    if wanted.is_empty() {
+        return Vec::new();
+    }
+    let mut found = Vec::new();
+    for line in &layout.lines {
+        let chars: Vec<char> = line
+            .chars
+            .iter()
+            .map(|glyph| {
+                glyph
+                    .character
+                    .to_lowercase()
+                    .next()
+                    .unwrap_or(glyph.character)
+            })
+            .collect();
+        let word = |at: usize| chars.get(at).is_some_and(|c| c.is_alphanumeric());
+        let mut start = 0;
+        while start + wanted.len() <= chars.len() {
+            let end = start + wanted.len();
+            if chars[start..end] == wanted[..] && !(start > 0 && word(start - 1)) && !word(end) {
+                if let Some(bounds) = line.chars[start..end]
+                    .iter()
+                    .map(|glyph| glyph.quad.bounds())
+                    .reduce(|a, b| a.union(&b))
+                {
+                    found.push(Quad::from(bounds));
+                }
+                start = end;
+            } else {
+                start += 1;
+            }
+        }
+    }
+    found
 }
 
 /// The text inside `area`, as one quad per line, with the text itself. A
@@ -500,13 +571,14 @@ fn highlight(app: &mut Prev, input: Highlight, answer: &Answer) -> Task<Message>
     }
     let (id, page, handle) = (target.id, target.page, target.viewer.handle.clone());
     let (text, area, occurrence) = (input.text, input.area, input.occurrence);
+    let whole_words = input.whole_words == Some(true);
     if text.is_some() == area.is_some() {
         return reply(answer, Err(invalid("Give either text or box.")));
     }
     later_edits(id, Route::Pdf, answer, async move {
         let (quads, contents) = match (text, area) {
             (Some(text), _) => {
-                let found = find(&handle, page, text.clone()).await?;
+                let found = find(&handle, page, text.clone(), whole_words).await?;
                 let found = match occurrence {
                     Some(nth) => found
                         .get(nth.wrapping_sub(1))
@@ -806,9 +878,10 @@ fn add_redaction(app: &mut Prev, input: AddRedaction, answer: &Answer) -> Task<M
     }
     let (id, page, handle) = (target.id, target.page, target.viewer.handle.clone());
     let (text, given) = (input.text, input.area);
+    let whole_words = input.whole_words == Some(true);
     later_edits(id, Route::Pdf, answer, async move {
         let rects: Vec<Rect> = match (text, given) {
-            (Some(text), _) => find(&handle, page, text)
+            (Some(text), _) => find(&handle, page, text, whole_words)
                 .await?
                 .iter()
                 .map(Quad::bounds)
@@ -845,7 +918,42 @@ mod tests {
         assert_eq!(color("00ff7f").unwrap(), Some(Rgb::from_rgb8(0, 255, 127)));
         assert_eq!(color("none").unwrap(), None);
         assert!(color("#ff00").is_err());
-        assert!(color("red").is_err());
+        assert_eq!(
+            color("Red").unwrap(),
+            Some(Rgb::from_rgb8(0xe0, 0x1b, 0x24))
+        );
+        assert!(color("teal-ish").is_err());
+    }
+
+    #[test]
+    fn whole_words_leave_longer_words_alone() {
+        let line = |text: &str, y: f32| TextLine {
+            bounds: Rect::new(0.0, y, 200.0, y + 10.0),
+            chars: text
+                .chars()
+                .enumerate()
+                .map(|(index, character)| TextChar {
+                    character,
+                    quad: Quad::from(Rect::new(
+                        index as f32 * 5.0,
+                        y,
+                        index as f32 * 5.0 + 5.0,
+                        y + 10.0,
+                    )),
+                })
+                .collect(),
+        };
+        let layout = TextLayout {
+            lines: vec![
+                line("Heat waves and Heatmaster.", 0.0),
+                line("the heat", 20.0),
+            ],
+        };
+        let found = find_words(&layout, "heat");
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].bounds(), Rect::new(0.0, 0.0, 20.0, 10.0));
+        assert_eq!(found[1].bounds(), Rect::new(20.0, 20.0, 40.0, 30.0));
+        assert_eq!(find_words(&layout, "heat waves").len(), 1);
     }
 
     #[test]

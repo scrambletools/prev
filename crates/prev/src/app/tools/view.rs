@@ -59,8 +59,9 @@ pub(super) fn tools() -> Vec<Tool> {
             "point_at",
             "Point at an area",
             Kind::View,
-            "Outlines an area of a PDF page for a few seconds, scrolling to it if needed, to \
-             point it out to the user. It marks nothing up and changes nothing in the file.",
+            "Outlines an area of a PDF page, or some text on it, for a few seconds or as long as \
+             asked, scrolling to it if needed, to point it out to the user; in a Markdown window, scrolls to some \
+             text and marks it. It marks nothing up and changes nothing in the file.",
             point_at,
         ),
         tool(
@@ -70,7 +71,7 @@ pub(super) fn tools() -> Vec<Tool> {
             "Opens a panel. PDF: thumbnails, contents, notes and bookmarks in the sidebar, \
              inspector, markup_bar, and search, which can take a query. Image: images in the \
              sidebar, adjust_color, adjust_size, inspector, and markup_bar, which the markup \
-             tools need first. Markdown: inspector, and search with a query.",
+             tools open by themselves. Markdown: inspector, and search with a query.",
             show_panel,
         ),
         tool(
@@ -165,12 +166,18 @@ struct SetViewMode {
 struct PointAt {
     /// The window's number from list_windows; the one in front if left out.
     window: Option<u64>,
-    /// The page, from 1.
-    page: usize,
+    /// The PDF page, from 1.
+    page: Option<usize>,
     /// The area [x0, y0, x1, y1] in points from the page's top-left corner,
     /// as page_text and search give boxes.
     #[serde(rename = "box")]
-    area: [f32; 4],
+    area: Option<[f32; 4]>,
+    /// Text to point at instead: its first place on the PDF page, or in a
+    /// Markdown file, which scrolls to it and marks it.
+    text: Option<String>,
+    /// How long the outline stays, 1 to 60 seconds; 4 if left out. Give
+    /// the user time to look, such as while they read the answer.
+    seconds: Option<f32>,
 }
 
 #[derive(Deserialize, JsonSchema, Clone, Copy, PartialEq)]
@@ -507,31 +514,116 @@ fn set_view_mode(app: &mut Prev, input: SetViewMode, answer: &Answer) -> Task<Me
 }
 
 fn point_at(app: &mut Prev, input: PointAt, answer: &Answer) -> Task<Message> {
-    act(app, input.window, answer, |app, id, target| {
-        let Target::Pdf { pages } = target else {
-            return Err(not_for(id, &target, "point_at"));
+    let (id, target) = match app.view_target(input.window) {
+        Ok(found) => found,
+        Err(error) => return reply(answer, Err(error)),
+    };
+    match (&target, input.area, input.text) {
+        (Target::Markdown { .. }, None, Some(text)) => {
+            // The window shows the Markdown, not its syntax.
+            let text = shown_markdown(&text);
+            answer.send(Ok(Output::Text(format!(
+                "Window {} shows and marks \"{text}\".",
+                number(id)
+            ))));
+            app.send_markdown(id, markdown::Message::SearchChanged(text))
+        }
+        (Target::Markdown { .. }, ..) => reply(
+            answer,
+            Err(invalid("In a Markdown window, point at text, with text.")),
+        ),
+        (Target::Pdf { pages }, area, text) => {
+            let Some(page_number) = input.page else {
+                return reply(answer, Err(invalid("Give the page.")));
+            };
+            let index = match page(page_number, *pages) {
+                Ok(index) => index,
+                Err(error) => return reply(answer, Err(error)),
+            };
+            let seconds = input.seconds.unwrap_or(4.0).clamp(1.0, 60.0);
+            match (area, text) {
+                (Some([x0, y0, x1, y1]), None) => {
+                    let rect = Rect::new(x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1));
+                    app.point(id, answer, index, seconds, Ok(rect))
+                }
+                (None, Some(text)) => {
+                    let handle = match app.shown_pdf(input.window, "point_at") {
+                        Ok(viewer) => viewer.handle.clone(),
+                        Err(error) => return reply(answer, Err(error)),
+                    };
+                    let answer = answer.clone();
+                    Task::perform(
+                        async move {
+                            let display = super::read::display(&handle, index).await?;
+                            let needle = text.clone();
+                            let found = super::read::off_thread(move || display.search(&needle))
+                                .await?
+                                .map_err(super::read::failed)?;
+                            found.first().map(|quad| quad.bounds()).ok_or_else(|| {
+                                invalid(format!("\"{text}\" is not on page {page_number}."))
+                            })
+                        },
+                        move |found| Message::ToolPoint(id, answer.clone(), index, seconds, found),
+                    )
+                }
+                _ => reply(answer, Err(invalid("Give either box or text."))),
+            }
+        }
+        (target, ..) => reply(answer, Err(not_for(id, target, "point_at"))),
+    }
+}
+
+/// `text` as a Markdown window shows it: without heading marks, emphasis,
+/// code ticks or list bullets.
+fn shown_markdown(text: &str) -> String {
+    let text = text.trim();
+    let text = text
+        .trim_start_matches('#')
+        .trim_start_matches('>')
+        .trim_start();
+    let text = text
+        .strip_prefix("- ")
+        .or_else(|| text.strip_prefix("* "))
+        .unwrap_or(text);
+    text.replace(['`', '*'], "").trim().to_owned()
+}
+
+impl Prev {
+    /// Outlines `rect` of page `index` in window `id` for a moment.
+    pub(in crate::app) fn point(
+        &mut self,
+        id: window::Id,
+        answer: &Answer,
+        index: usize,
+        seconds: f32,
+        rect: Result<Rect, Error>,
+    ) -> Task<Message> {
+        let rect = match rect {
+            Ok(rect) => rect,
+            Err(error) => return reply(answer, Err(error)),
         };
-        let index = page(input.page, pages)?;
-        let [x0, y0, x1, y1] = input.area;
-        let rect = Rect::new(x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1));
+        if !self.windows.contains_key(&id) {
+            return reply(
+                answer,
+                Err(invalid(format!("Window {} closed.", number(id)))),
+            );
+        }
         let pointed = POINTED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let task = app.send_pdf(
+        answer.send(Ok(Output::Text(format!(
+            "The area is outlined on page {} of window {} for {seconds} seconds.",
+            index + 1,
+            number(id)
+        ))));
+        self.send_pdf(
             id,
             PdfMessage::PointAt {
                 page: index,
                 rect,
                 id: pointed,
+                seconds,
             },
-        );
-        Ok((
-            task,
-            format!(
-                "The area is outlined on page {} of window {} for a few seconds.",
-                input.page,
-                number(id)
-            ),
-        ))
-    })
+        )
+    }
 }
 
 fn show_panel(app: &mut Prev, input: ShowPanel, answer: &Answer) -> Task<Message> {
@@ -706,4 +798,17 @@ fn close_window(app: &mut Prev, input: On, answer: &Answer) -> Task<Message> {
         number(id)
     ))));
     app.update(Message::CloseRequested(id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn markdown_syntax_is_left_out() {
+        assert_eq!(shown_markdown("## Install"), "Install");
+        assert_eq!(shown_markdown("- **Fedora:** `dnf`"), "Fedora: dnf");
+        assert_eq!(shown_markdown("> quoted"), "quoted");
+        assert_eq!(shown_markdown("plain words"), "plain words");
+    }
 }

@@ -288,6 +288,16 @@ pub enum Message {
     AskBeforeToggled(tools::Kind, bool),
     /// A tool that waited on something answers.
     ToolAnswer(tools::Answer, Result<tools::Output, prev::control::Error>),
+    /// point_at found the text to outline on a page, or not.
+    ToolPoint(
+        window::Id,
+        tools::Answer,
+        usize,
+        f32,
+        Result<prev_pdf::geometry::Rect, prev::control::Error>,
+    ),
+    /// A tool waiting for an image's markup to open looks again.
+    ToolDeferred(tools::Answer, &'static str, serde_json::Value, u32),
     /// apply_redactions counted the marks to apply, or found none.
     ToolRedact(
         window::Id,
@@ -1134,6 +1144,13 @@ impl Prev {
             }
             Message::ToolReplaced(id, answer, result) => self.image_replaced(id, &answer, result),
             Message::ToolRedact(id, answer, marks) => self.redact(id, &answer, marks),
+            Message::ToolPoint(id, answer, page, seconds, rect) => {
+                self.point(id, &answer, page, seconds, rect)
+            }
+            Message::ToolDeferred(answer, name, arguments, tries) => match tools::find(name) {
+                Some(tool) => tool.start_after(self, arguments, answer, tries),
+                None => Task::none(),
+            },
             Message::ToolMarkup(id, route, answer, edits, output) => {
                 self.agent_markup(id, route, &answer, edits, output)
             }

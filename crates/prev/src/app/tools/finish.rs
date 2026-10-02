@@ -10,6 +10,7 @@ use prev::image::editor;
 use prev::pdf::export::{self as pdf_export, Format};
 use prev::pdf::viewer::editing::AgentEdit;
 use prev::pdf::window as pdf_window;
+use prev_image::decode::Frame;
 use prev_image::encode::SaveFormat;
 use prev_pdf::annotation::{Annotation, Kind as AnnotationKind, StampContent, new_id};
 use prev_pdf::engine::{ExportOptions, PageDisplay, Reduce};
@@ -55,7 +56,8 @@ pub(super) fn tools() -> Vec<Tool> {
              some pages, flattened so its markup and fields can no longer be changed, made \
              smaller, or with a password; or as PNG, JPEG, TIFF, WebP or OpenEXR pictures of \
              its pages, one file per page except TIFF. An image exports with its edits and \
-             markup as PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR. The format \
+             markup as PNG, JPEG, WebP, TIFF, BMP, TGA, QOI, PPM or OpenEXR, at its own size or \
+             scaled, which leaves the open image as it is. The format \
              follows the file name's extension. An existing file is replaced only with \
              overwrite.",
             export,
@@ -107,7 +109,9 @@ struct Export {
     dpi: Option<f32>,
     /// JPEG quality, 1 to 100; 92 if left out.
     quality: Option<u8>,
-    /// SVG drawings: pixels per point of the drawing; 1 if left out.
+    /// Images: the size to export at, as a share of the image's own, such
+    /// as 0.5 for half; SVG drawings: pixels per point of the drawing. 1
+    /// if left out. The open image keeps its size.
     scale: Option<f32>,
 }
 
@@ -408,7 +412,17 @@ fn export(app: &mut Prev, input: Export, answer: &Answer) -> Task<Message> {
                 |result| result,
             ))
         }
-        Shown::Image(_) => {
+        Shown::Image(images) => {
+            let scaled = input
+                .scale
+                .filter(|scale| (*scale - 1.0).abs() > f32::EPSILON);
+            let raster = images
+                .shown_image()
+                .filter(|image| !matches!(image.pixels, prev::image::window::Pixels::Svg(_)));
+            let markup = images.agent_markup().and_then(|(_, viewer, scale)| {
+                viewer.map(|viewer| (viewer.handle.clone(), viewer.info.page_sizes[0], scale))
+            });
+            let original = images.current_path().to_path_buf();
             let choice = match extension(&target).as_str() {
                 "jpg" | "jpeg" => "jpeg",
                 "tif" | "tiff" => "tiff",
@@ -435,6 +449,62 @@ fn export(app: &mut Prev, input: Export, answer: &Answer) -> Task<Message> {
                 SaveFormat::Jpeg { .. } => SaveFormat::Jpeg { quality },
                 format => format,
             };
+            // A raster image at another size is drawn and written here, so
+            // the open image keeps its size.
+            if let (Some(scale), Some(image)) = (scaled, raster) {
+                let scale = scale.clamp(0.01, 16.0);
+                let width = ((image.width as f32 * scale).round() as u32).max(1);
+                let height = ((image.height as f32 * scale).round() as u32).max(1);
+                let pixels = image.pixels;
+                return answer.clone().later(Task::perform(
+                    async move {
+                        let frame = match markup {
+                            Some((handle, size, image_scale)) => {
+                                let display = display(&handle, 0).await?;
+                                let at = image_scale * scale;
+                                let (wide, high) = prev_pdf::engine::page_pixels(size, at);
+                                let bitmap = off_thread(move || {
+                                    display.render(
+                                        at,
+                                        prev_pdf::geometry::PixelRect {
+                                            x: 0,
+                                            y: 0,
+                                            width: wide,
+                                            height: high,
+                                        },
+                                    )
+                                })
+                                .await?
+                                .map_err(failed)?;
+                                Frame {
+                                    width: bitmap.width,
+                                    height: bitmap.height,
+                                    pixels: bitmap.pixels,
+                                    delay: std::time::Duration::ZERO,
+                                }
+                            }
+                            None => off_thread(move || {
+                                pixels
+                                    .draw(None)
+                                    .map(|frame| resized(&frame, width, height))
+                            })
+                            .await?
+                            .map_err(failed)?,
+                        };
+                        let (wide, high) = (frame.width, frame.height);
+                        let path = target.clone();
+                        off_thread(move || editor::export(&original, &frame, &path, format))
+                            .await?
+                            .map_err(failed)?;
+                        Ok(Output::Json(json!({
+                            "files": [target.display().to_string()],
+                            "width": wide,
+                            "height": high,
+                        })))
+                    },
+                    |result| result,
+                ));
+            }
             let scale = input.scale.map(|scale| scale.clamp(0.1, 16.0));
             app.agents.exports.push((id, answer.clone()));
             app.update(Message::Image(
@@ -450,6 +520,25 @@ fn export(app: &mut Prev, input: Export, answer: &Answer) -> Task<Message> {
                 shown.what()
             ))),
         ),
+    }
+}
+
+/// `frame` scaled to `width` by `height`.
+fn resized(frame: &Frame, width: u32, height: u32) -> Frame {
+    if (frame.width, frame.height) == (width, height) {
+        return frame.clone();
+    }
+    let Some(image) = image::RgbaImage::from_raw(frame.width, frame.height, frame.pixels.clone())
+    else {
+        return frame.clone();
+    };
+    let scaled =
+        image::imageops::resize(&image, width, height, image::imageops::FilterType::Lanczos3);
+    Frame {
+        width,
+        height,
+        pixels: scaled.into_raw(),
+        delay: std::time::Duration::ZERO,
     }
 }
 
