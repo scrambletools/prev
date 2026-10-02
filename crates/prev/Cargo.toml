@@ -39,6 +39,8 @@ prev-pdf.workspace = true
 prev-store.workspace = true
 rmcp = { version = "3", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["rt"] }
+schemars = "1"
+base64 = "0.22"
 
 
 # The desktop portal and Wayland drag and drop; Windows has its own side

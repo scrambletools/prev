@@ -8,12 +8,11 @@ use std::time::{Duration, Instant};
 use iced::window;
 use iced::{Element, Task};
 use prev::control::{Call, Error, code};
-use prev::filetype::FileKind;
 use prev::ui::button::Kind;
 use prev::ui::{self, Icon, component};
 use serde_json::{Value, json};
 
-use super::{Content, Message, Prev};
+use super::{Message, Prev};
 
 /// What agents hear while outside control is off.
 const OFF_MESSAGE: &str = "Outside control is off in prev's Settings.";
@@ -65,7 +64,7 @@ impl Prev {
             })),
             // Listing does nothing, so agents see the tools while outside
             // control is off, and hear why at their first call.
-            "tools/list" => Ok(json!({ "tools": tools() })),
+            "tools/list" => Ok(json!({ "tools": super::tools::list() })),
             _ if !self.settings.outside_control => Err(Error::new(code::OFF, OFF_MESSAGE)),
             // An agent connected: ask the user now, not at its first call.
             "agent/hello" => {
@@ -76,7 +75,7 @@ impl Prev {
             "tools/call" => {
                 let (name, shown) = agent(&call.params["agent"]);
                 if self.settings.allowed_agents.contains(&name) {
-                    self.call_tool(&call.params)
+                    return self.run_tool(call);
                 } else if self.agents.declined.contains(&name) {
                     Err(declined(&shown))
                 } else {
@@ -159,20 +158,20 @@ impl Prev {
         } else {
             self.agents.declined.insert(prompt.name);
         }
+        let mut tasks = Vec::new();
         for call in prompt.waiting {
-            let answer = if allow {
-                self.call_tool(&call.params)
+            if allow {
+                tasks.push(self.run_tool(call));
             } else {
-                Err(declined(&prompt.shown))
-            };
-            call.reply(answer);
+                call.reply(Err(declined(&prompt.shown)));
+            }
         }
         if self.agents.prompts.is_empty() {
             self.agents.shown_at = None;
-            Task::none()
         } else {
-            self.prompt_shown()
+            tasks.push(self.prompt_shown());
         }
+        Task::batch(tasks)
     }
 
     /// Outside control was turned off: waiting agents hear so.
@@ -219,49 +218,6 @@ impl Prev {
             ],
         ))
     }
-
-    /// Runs the tool a `tools/call` names, giving an MCP tool result.
-    fn call_tool(&mut self, params: &Value) -> Result<Value, Error> {
-        match params["name"].as_str().unwrap_or_default() {
-            "list_windows" => Ok(tool_result(json!({ "windows": self.window_list() }))),
-            name => Err(Error::new(
-                code::INVALID_PARAMS,
-                format!("prev has no tool {name}"),
-            )),
-        }
-    }
-
-    fn window_list(&self) -> Vec<Value> {
-        self.windows
-            .iter()
-            .map(|(id, window)| {
-                let (kind, file) = match &window.content {
-                    Content::Start => ("start", None),
-                    Content::Document(document) => {
-                        let kind = match &document.kind {
-                            Ok(Some(FileKind::Pdf)) => "pdf",
-                            Ok(Some(FileKind::Image(_))) => "image",
-                            Ok(Some(FileKind::Svg)) => "svg",
-                            Ok(Some(FileKind::Markdown)) => "markdown",
-                            Ok(None) | Err(_) => "unreadable",
-                        };
-                        let path = document
-                            .images
-                            .as_ref()
-                            .map_or(document.path.as_path(), |images| images.current_path());
-                        (kind, Some(path.display().to_string()))
-                    }
-                };
-                json!({
-                    "window": id.to_string().parse::<u64>().unwrap_or_default(),
-                    "title": self.base_title(*id),
-                    "kind": kind,
-                    "file": file,
-                    "focused": self.focused == Some(*id),
-                })
-            })
-            .collect()
-    }
 }
 
 fn declined(agent: &str) -> Error {
@@ -269,26 +225,4 @@ fn declined(agent: &str) -> Error {
         code::DECLINED,
         format!("The user did not allow {agent} to control prev."),
     )
-}
-
-/// The tools prev offers, as MCP describes them.
-fn tools() -> Value {
-    json!([
-        {
-            "name": "list_windows",
-            "title": "List windows",
-            "description": "Lists prev's open windows: each one's number, title, kind (pdf, image, svg, markdown, or start for a window with no file) and file path, and which has the focus.",
-            "inputSchema": { "type": "object", "properties": {} },
-            "annotations": { "readOnlyHint": true },
-        },
-    ])
-}
-
-/// A tool's answer, as structured content and the same as text for
-/// agents that read only text.
-fn tool_result(value: Value) -> Value {
-    json!({
-        "content": [{ "type": "text", "text": value.to_string() }],
-        "structuredContent": value,
-    })
 }

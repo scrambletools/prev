@@ -27,6 +27,7 @@ use raw_window_handle::RawWindowHandle;
 use crate::External;
 
 mod agents;
+mod tools;
 
 #[cfg(target_os = "linux")]
 pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
@@ -281,6 +282,8 @@ pub enum Message {
     AgentAnswered(bool),
     /// A new prompt's buttons now take clicks.
     AgentPromptReady,
+    /// A tool that waited on something answers.
+    ToolAnswer(tools::Answer, Result<tools::Output, prev::control::Error>),
     /// A color picked for the scheme, as "#RRGGBB".
     AccentPicked(String),
     DismissNotice(window::Id),
@@ -1086,6 +1089,10 @@ impl Prev {
             }
             Message::AgentAnswered(allow) => self.agent_answered(allow),
             Message::AgentPromptReady => Task::none(),
+            Message::ToolAnswer(answer, result) => {
+                answer.send(result);
+                Task::none()
+            }
         }
     }
 
