@@ -722,6 +722,10 @@ menu-bring-all-to-front = அனைத்தையும் முன்னா�
 ## Outside control
 
 settings-outside-control = வெளிக் கட்டுப்பாடு
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = பொது
+settings-tab-agents = முகவர்கள்
 settings-allow-outside-control = வெளிக் கட்டுப்பாட்டை அனுமதி
 settings-allow-outside-control-note = Claude Code போன்ற AI முகவர்கள் prev --mcp மூலம் prev-இல் உங்கள் கோப்புகளைப் படிக்கவும் மாற்றவும் முடியும். ஒவ்வொரு புதிய முகவருக்கும் முன் prev கேட்கும்.
 # $agents is a list of agent names, such as claude-code.

@@ -726,6 +726,10 @@ menu-bring-all-to-front = Porta-ho tot al davant
 ## Outside control
 
 settings-outside-control = Control extern
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = General
+settings-tab-agents = Agents
 settings-allow-outside-control = Permet el control extern
 settings-allow-outside-control-note = Els agents d'IA com ara Claude Code poden llegir i canviar els teus fitxers al prev mitjançant prev --mcp. El prev pregunta abans de cada agent nou.
 # $agents is a list of agent names, such as claude-code.

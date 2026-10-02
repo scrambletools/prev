@@ -455,7 +455,7 @@ your answer. Signing and applying redactions ask at first, as Undo cannot
 take them back; the others start off. The agent is told which tools ask,
 so it can tell you to look at prev.</p>
 <figure class="portrait"><img class="shot" src="screenshots/agent-ask.png" alt="prev asking: Let Claude Code sign this file?, adding that Undo cannot take this back, over a filled-in membership form" width="900" height="995" loading="lazy"></figure>
-<figure><img class="shot" src="screenshots/settings-outside-control.png" alt="Settings scrolled to Outside control: Allow outside control on, Claude Code allowed, and the Ask before an agent switches, with signing and applying redactions on" width="1360" height="791" loading="lazy"></figure>
+<figure><img class="shot" src="screenshots/settings-outside-control.png" alt="The Agents tab of Settings: Allow outside control on, Claude Code allowed, and the Ask before an agent switches, with signing and applying redactions on" width="1360" height="791" loading="lazy"></figure>
 <h3 id="agent-work">What agents can do</h3>
 <ul>
 <li><strong>Read</strong>: the windows open, a document's pages, text with its
@@ -488,10 +488,14 @@ Windows; <code>~/Library/Application Support/prev/versions</code> on macOS),
 unless the settings say otherwise. For images, the inspector's Revert To
 list puts an earlier version back; Revert To for PDFs is still to come.</p>
 <h2 id="settings">Settings</h2>
-<figure><img class="shot" src="screenshots/settings.png" alt="The Settings dialog" width="1360" height="796" loading="lazy"></figure>
+<figure><img class="shot" src="screenshots/settings.png" alt="The Appearance tab of Settings: light or dark, the accent color, and how windows look" width="1360" height="791" loading="lazy"></figure>
 <p>Settings opens over the current window, from the gear button at the end
 of the toolbar or Ctrl+,. Close it with its close button, Escape or a
-click outside it. Changes apply to every window at once:</p>
+click outside it. Changes apply to every window at once. Its four tabs
+are General, with the languages and the default app; Appearance, with
+light or dark, colors and how windows look; Agents, for
+<a href="#ai-agents">AI agents</a>; and Storage, with where prev keeps your
+files:</p>
 <ul>
 <li><strong>Appearance</strong>: follow the system's light or dark setting, or choose
   one.</li>
@@ -545,7 +549,7 @@ click outside it. Changes apply to every window at once:</p>
 <li><strong>Storage</strong>: where prev keeps signatures, version history and
   bookmarks.</li>
 </ul>
-<figure><img class="shot" src="screenshots/default-app.png" alt="The Settings dialog scrolled to Default app, with a green dot beside Make Default and the line 41 of 41 file types open with prev" width="1360" height="796" loading="lazy"></figure>
+<figure><img class="shot" src="screenshots/default-app.png" alt="The General tab of Settings, with the languages and Default app: a green dot beside Make Default and the line 41 of 41 file types open with prev" width="1360" height="791" loading="lazy"></figure>
 <figure class="states"><img class="shot" src="screenshots/default-app-states.png" alt="The Default app row three times: a red dot with 0 of 41 file types, an amber dot with 3 of 41, and a green dot with 41 of 41" width="520" height="348" loading="lazy"><figcaption>None, some and all of prev's file types opening with prev.</figcaption></figure>
 <p>Keyboard shortcuts can be changed in the <code>[keys]</code> table of the settings
 file, <code>prev.toml</code>; the Settings dialog has no place for them. The

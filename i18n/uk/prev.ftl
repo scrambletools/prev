@@ -892,6 +892,10 @@ menu-bring-all-to-front = Усі на передній план
 ## Outside control
 
 settings-outside-control = Зовнішнє керування
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Загальні
+settings-tab-agents = Агенти
 settings-allow-outside-control = Дозволити зовнішнє керування
 settings-allow-outside-control-note = ШІ-агенти, як-от Claude Code, можуть читати й змінювати ваші файли в prev через prev --mcp. prev питає перед кожним новим агентом.
 # $agents is a list of agent names, such as claude-code.

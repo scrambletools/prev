@@ -831,6 +831,10 @@ menu-bring-all-to-front = 前置全部窗口
 ## Outside control
 
 settings-outside-control = 外部控制
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = 通用
+settings-tab-agents = 智能体
 settings-allow-outside-control = 允许外部控制
 settings-allow-outside-control-note = Claude Code 等 AI 智能体可以通过 prev --mcp 读取和更改你在 prev 中的文件。每个新智能体接入前，prev 都会先询问。
 # $agents is a list of agent names, such as claude-code.

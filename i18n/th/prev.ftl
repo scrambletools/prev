@@ -708,6 +708,10 @@ menu-bring-all-to-front = นำทั้งหมดมาไว้ด้าน
 ## Outside control
 
 settings-outside-control = การควบคุมจากภายนอก
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = ทั่วไป
+settings-tab-agents = เอเจนต์
 settings-allow-outside-control = อนุญาตการควบคุมจากภายนอก
 settings-allow-outside-control-note = เอเจนต์ AI เช่น Claude Code สามารถอ่านและแก้ไขไฟล์ของคุณใน prev ได้ผ่าน prev --mcp โดย prev จะถามก่อนทุกครั้งที่มีเอเจนต์ใหม่
 # $agents is a list of agent names, such as claude-code.

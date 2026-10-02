@@ -709,6 +709,10 @@ menu-bring-all-to-front = Đưa tất cả ra trước
 ## Outside control
 
 settings-outside-control = Điều khiển từ bên ngoài
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Chung
+settings-tab-agents = Tác nhân
 settings-allow-outside-control = Cho phép điều khiển từ bên ngoài
 settings-allow-outside-control-note = Các tác nhân AI như Claude Code có thể đọc và thay đổi tệp của bạn trong prev, thông qua prev --mcp. prev sẽ hỏi trước mỗi tác nhân mới.
 # $agents is a list of agent names, such as claude-code.

@@ -745,6 +745,10 @@ menu-bring-all-to-front = Přenést vše do popředí
 ## Outside control
 
 settings-outside-control = Vnější ovládání
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Obecné
+settings-tab-agents = Agenti
 settings-allow-outside-control = Povolit vnější ovládání
 settings-allow-outside-control-note = Agenti AI, například Claude Code, mohou přes prev --mcp číst a měnit vaše soubory v prev. Před každým novým agentem se prev zeptá.
 # $agents is a list of agent names, such as claude-code.

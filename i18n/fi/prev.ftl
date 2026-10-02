@@ -718,6 +718,10 @@ menu-bring-all-to-front = Tuo kaikki eteen
 ## Outside control
 
 settings-outside-control = Ulkoinen ohjaus
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Yleiset
+settings-tab-agents = Agentit
 settings-allow-outside-control = Salli ulkoinen ohjaus
 settings-allow-outside-control-note = Tekoälyagentit, kuten Claude Code, voivat lukea ja muuttaa tiedostojasi previssä komennon prev --mcp kautta. prev kysyy ennen jokaista uutta agenttia.
 # $agents is a list of agent names, such as claude-code.

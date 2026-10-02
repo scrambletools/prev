@@ -864,6 +864,10 @@ menu-bring-all-to-front = Tout ramener au premier plan
 ## Outside control
 
 settings-outside-control = Contrôle externe
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Général
+settings-tab-agents = Agents
 settings-allow-outside-control = Autoriser le contrôle externe
 settings-allow-outside-control-note = Les agents IA comme Claude Code peuvent lire et modifier vos fichiers dans prev, via prev --mcp. prev demande avant chaque nouvel agent.
 # $agents is a list of agent names, such as claude-code.

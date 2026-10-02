@@ -831,6 +831,10 @@ menu-bring-all-to-front = すべてを手前に移動
 ## Outside control
 
 settings-outside-control = 外部からの操作
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = 一般
+settings-tab-agents = エージェント
 settings-allow-outside-control = 外部からの操作を許可
 settings-allow-outside-control-note = Claude CodeなどのAIエージェントが、prev --mcpを通じてprevでファイルを読み取り、変更できるようになります。新しいエージェントごとにprevが確認します。
 # $agents is a list of agent names, such as claude-code.

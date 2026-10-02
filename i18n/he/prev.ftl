@@ -724,6 +724,10 @@ menu-bring-all-to-front = הבאת הכול לחזית
 ## Outside control
 
 settings-outside-control = שליטה מבחוץ
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = כללי
+settings-tab-agents = סוכנים
 settings-allow-outside-control = התרת שליטה מבחוץ
 settings-allow-outside-control-note = סוכני AI כמו Claude Code יכולים לקרוא ולשנות קבצים ב-prev, דרך prev --mcp. prev שואל לפני כל סוכן חדש.
 # $agents is a list of agent names, such as claude-code.

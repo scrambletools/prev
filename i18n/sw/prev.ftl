@@ -725,6 +725,10 @@ menu-bring-all-to-front = Leta Zote Mbele
 ## Outside control
 
 settings-outside-control = Udhibiti wa nje
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Jumla
+settings-tab-agents = Mawakala
 settings-allow-outside-control = Ruhusu udhibiti wa nje
 settings-allow-outside-control-note = Mawakala wa AI kama Claude Code wanaweza kusoma na kubadilisha faili zako katika prev, kupitia prev --mcp. prev huuliza kabla ya kila wakala mpya.
 # $agents is a list of agent names, such as claude-code.

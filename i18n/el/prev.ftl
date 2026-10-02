@@ -720,6 +720,10 @@ menu-bring-all-to-front = Μεταφορά όλων μπροστά
 ## Outside control
 
 settings-outside-control = Εξωτερικός έλεγχος
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Γενικά
+settings-tab-agents = Πράκτορες
 settings-allow-outside-control = Να επιτρέπεται ο εξωτερικός έλεγχος
 settings-allow-outside-control-note = Πράκτορες AI όπως το Claude Code μπορούν να διαβάζουν και να αλλάζουν τα αρχεία σας στο prev, μέσω του prev --mcp. Το prev ρωτά πριν από κάθε νέο πράκτορα.
 # $agents is a list of agent names, such as claude-code.

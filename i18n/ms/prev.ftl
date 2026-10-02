@@ -709,6 +709,10 @@ menu-bring-all-to-front = Bawa Semua ke Hadapan
 ## Outside control
 
 settings-outside-control = Kawalan luar
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Umum
+settings-tab-agents = Ejen
 settings-allow-outside-control = Benarkan kawalan luar
 settings-allow-outside-control-note = Ejen AI seperti Claude Code boleh membaca dan mengubah fail anda dalam prev melalui prev --mcp. prev akan bertanya sebelum setiap ejen baharu.
 # $agents is a list of agent names, such as claude-code.

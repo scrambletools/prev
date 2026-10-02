@@ -709,6 +709,10 @@ menu-bring-all-to-front = Bawa Semua ke Depan
 ## Outside control
 
 settings-outside-control = Kendali luar
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Umum
+settings-tab-agents = Agen
 settings-allow-outside-control = Izinkan kendali luar
 settings-allow-outside-control-note = Agen AI seperti Claude Code dapat membaca dan mengubah berkas Anda di prev melalui prev --mcp. prev akan bertanya sebelum setiap agen baru.
 # $agents is a list of agent names, such as claude-code.

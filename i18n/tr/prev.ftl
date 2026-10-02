@@ -861,6 +861,10 @@ menu-bring-all-to-front = Tümünü Öne Getir
 ## Outside control
 
 settings-outside-control = Dışarıdan denetim
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Genel
+settings-tab-agents = Ajanlar
 settings-allow-outside-control = Dışarıdan denetime izin ver
 settings-allow-outside-control-note = Claude Code gibi yapay zekâ ajanları, prev --mcp aracılığıyla prev'deki dosyalarınızı okuyup değiştirebilir. prev her yeni ajandan önce sorar.
 # $agents is a list of agent names, such as claude-code.

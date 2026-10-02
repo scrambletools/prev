@@ -852,6 +852,10 @@ menu-bring-all-to-front = 모두 앞으로 가져오기
 ## Outside control
 
 settings-outside-control = 외부 제어
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = 일반
+settings-tab-agents = 에이전트
 settings-allow-outside-control = 외부 제어 허용
 settings-allow-outside-control-note = Claude Code 같은 AI 에이전트가 prev --mcp를 통해 prev에서 파일을 읽고 변경할 수 있습니다. 새 에이전트마다 prev가 먼저 묻습니다.
 # $agents is a list of agent names, such as claude-code.

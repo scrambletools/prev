@@ -721,6 +721,10 @@ menu-bring-all-to-front = সব সামনে আনুন
 ## Outside control
 
 settings-outside-control = বাইরের নিয়ন্ত্রণ
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = সাধারণ
+settings-tab-agents = এজেন্ট
 settings-allow-outside-control = বাইরের নিয়ন্ত্রণের অনুমতি দিন
 settings-allow-outside-control-note = Claude Code-এর মতো AI এজেন্ট prev --mcp ব্যবহার করে prev-এ আপনার ফাইল পড়তে ও পরিবর্তন করতে পারে। প্রতিটি নতুন এজেন্টের আগে prev জিজ্ঞাসা করে।
 # $agents is a list of agent names, such as claude-code.

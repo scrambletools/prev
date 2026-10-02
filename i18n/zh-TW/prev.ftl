@@ -831,6 +831,10 @@ menu-bring-all-to-front = 將此程式所有視窗移至最前
 ## Outside control
 
 settings-outside-control = 外部控制
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = 一般
+settings-tab-agents = 代理程式
 settings-allow-outside-control = 允許外部控制
 settings-allow-outside-control-note = Claude Code 等 AI 代理程式可以透過 prev --mcp 讀取和變更你在 prev 中的檔案。每個新的代理程式接入前，prev 都會先詢問。
 # $agents is a list of agent names, such as claude-code.

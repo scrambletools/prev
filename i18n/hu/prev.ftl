@@ -720,6 +720,10 @@ menu-bring-all-to-front = Az összes előtérbe hozása
 ## Outside control
 
 settings-outside-control = Külső vezérlés
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Általános
+settings-tab-agents = Ügynökök
 settings-allow-outside-control = Külső vezérlés engedélyezése
 settings-allow-outside-control-note = Az MI-ügynökök, például a Claude Code, a prev --mcp segítségével olvashatják és módosíthatják a prevben lévő fájljait. A prev minden új ügynök előtt rákérdez.
 # $agents is a list of agent names, such as claude-code.

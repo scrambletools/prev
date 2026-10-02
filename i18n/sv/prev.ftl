@@ -717,6 +717,10 @@ menu-bring-all-to-front = Lägg alla överst
 ## Outside control
 
 settings-outside-control = Extern styrning
+# Settings tabs; Appearance and Storage use settings-appearance and
+# settings-storage.
+settings-tab-general = Allmänt
+settings-tab-agents = Agenter
 settings-allow-outside-control = Tillåt extern styrning
 settings-allow-outside-control-note = AI-agenter som Claude Code kan läsa och ändra dina filer i prev via prev --mcp. prev frågar före varje ny agent.
 # $agents is a list of agent names, such as claude-code.

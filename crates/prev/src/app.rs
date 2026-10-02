@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use iced::keyboard::{self, Key, Modifiers};
-use iced::widget::{container, mouse_area, opaque, pick_list, space, stack, text, toggler};
+use iced::widget::{container, pick_list, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
-use iced::{Center, Color, Element, Event, Fill, Length, Size, Subscription, Task, Theme, event};
+use iced::{Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
 use prev::default_app;
 use prev::dnd::DragEvent;
 use prev::filetype::{self, FileKind};
@@ -27,6 +27,7 @@ use raw_window_handle::RawWindowHandle;
 use crate::External;
 
 mod agents;
+mod settings_view;
 mod tools;
 
 #[cfg(target_os = "linux")]
@@ -68,6 +69,8 @@ pub struct Prev {
     /// Agents waiting to be allowed to control prev, and the ones turned
     /// away.
     agents: agents::Agents,
+    /// The Settings tab shown, kept for the next time Settings opens.
+    settings_tab: settings_view::SettingsTab,
     /// The notices each window showed after the last update, so new ones
     /// get their timer.
     notices_seen: BTreeMap<window::Id, Vec<String>>,
@@ -275,6 +278,7 @@ pub enum Message {
     KeyboardDirection(Option<bool>),
     SystemAccentToggled(bool),
     OutsideControlToggled(bool),
+    SettingsTab(settings_view::SettingsTab),
     /// Forget the agents allowed to control prev, so they are asked about
     /// again.
     ForgetAgents,
@@ -377,6 +381,7 @@ impl Prev {
             keyboard_rtl: None,
             focused: None,
             agents: agents::Agents::default(),
+            settings_tab: settings_view::SettingsTab::default(),
             notices_seen: BTreeMap::new(),
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
@@ -1117,6 +1122,10 @@ impl Prev {
                 self.refresh_theme();
                 Task::none()
             }
+            Message::SettingsTab(tab) => {
+                self.settings_tab = tab;
+                Task::none()
+            }
             Message::OutsideControlToggled(enabled) => {
                 self.settings.outside_control = enabled;
                 if !enabled {
@@ -1833,284 +1842,6 @@ impl Prev {
         ]
         .spacing(16)
         .align_y(Center)
-        .into()
-    }
-
-    fn settings_dialog(&self, id: window::Id) -> Element<'_, Message> {
-        let appearance = self.settings.appearance;
-        let choice = |glyph: Icon, label: String, value: Appearance| {
-            ui::with_icon(Kind::Tonal, glyph, label)
-                .selected(appearance == value)
-                .on_press(Message::AppearanceSelected(value))
-        };
-        let accent_note = match (
-            self.settings.system_accent,
-            &self.omarchy,
-            self.system_accent,
-        ) {
-            (false, _, _) => prev::fl!("settings-accent-chosen-note"),
-            (true, Some(palette), _) => {
-                prev::fl!("settings-omarchy-note", theme = palette.name.as_str())
-            }
-            (true, None, Some(_)) => prev::fl!("settings-system-accent-note"),
-            (true, None, None) => prev::fl!("settings-system-accent-none"),
-        };
-        // The picked color is in use when the system accent is off or the
-        // system has none.
-        let picking = !self.settings.system_accent
-            || (self.omarchy.is_none() && self.system_accent.is_none());
-        let chosen = chosen_accent(&self.settings);
-        let swatches = picking.then(|| {
-            row(ACCENT_SWATCHES
-                .iter()
-                .map(|&swatch| accent_swatch(swatch, color_to_hex(swatch) == color_to_hex(chosen))))
-            .spacing(4)
-            .wrap()
-        });
-        // The title and close button stay put while the settings scroll.
-        let header = row![
-            ui::aligned(ui::styled(prev::fl!("settings-title"), Type::HeadlineSmall)),
-            component::tip(
-                ui::icon_button(Icon::Close).on_press(Message::CloseSettings(id)),
-                prev::fl!("common-close")
-            ),
-        ]
-        .align_y(Center);
-        let mut content = column![
-            component::section(prev::fl!("settings-appearance")),
-            component::connected(vec![
-                choice(
-                    Icon::Settings,
-                    prev::fl!("settings-appearance-system"),
-                    Appearance::System
-                ),
-                choice(
-                    Icon::LightMode,
-                    prev::fl!("settings-appearance-light"),
-                    Appearance::Light
-                ),
-                choice(
-                    Icon::DarkMode,
-                    prev::fl!("settings-appearance-dark"),
-                    Appearance::Dark
-                ),
-            ]),
-            component::section(prev::fl!("settings-language")),
-            self.language_field(),
-            component::section(prev::fl!("settings-input-language")),
-            self.input_language_field(),
-            ui::aligned(
-                ui::styled(prev::fl!("settings-input-language-note"), Type::BodySmall)
-                    .style(style::on_surface_variant)
-            ),
-            component::section(prev::fl!("settings-colors")),
-            row![
-                column![
-                    ui::styled(prev::fl!("settings-system-accent"), Type::BodyLarge),
-                    ui::aligned(
-                        ui::styled(accent_note, Type::BodyMedium).style(style::on_surface_variant)
-                    ),
-                ]
-                .spacing(2)
-                .width(Fill),
-                toggler(self.settings.system_accent)
-                    .on_toggle(Message::SystemAccentToggled)
-                    .size(28)
-                    .style(style::switch),
-            ]
-            .spacing(16)
-            .align_y(Center),
-            swatches.map_or_else(|| Element::from(space()), Element::from),
-            component::section(prev::fl!("settings-windows")),
-            row![
-                column![
-                    ui::styled(prev::fl!("settings-auto-hide"), Type::BodyLarge),
-                    ui::aligned(
-                        ui::styled(prev::fl!("settings-auto-hide-note"), Type::BodyMedium)
-                            .style(style::on_surface_variant)
-                    ),
-                ]
-                .spacing(2)
-                .width(Fill),
-                toggler(self.settings.auto_hide_toolbar)
-                    .on_toggle(Message::AutoHideToolbarToggled)
-                    .size(28)
-                    .style(style::switch),
-            ]
-            .spacing(16)
-            .align_y(Center),
-            row![
-                column![
-                    ui::styled(prev::fl!("settings-animations"), Type::BodyLarge),
-                    ui::styled(
-                        if self.system_animations {
-                            prev::fl!("settings-animations-note")
-                        } else {
-                            prev::fl!("settings-animations-reduced")
-                        },
-                        Type::BodyMedium
-                    )
-                    .style(style::on_surface_variant),
-                ]
-                .spacing(2)
-                .width(Fill),
-                toggler(self.settings.animations)
-                    .on_toggle(Message::AnimationsToggled)
-                    .size(28)
-                    .style(style::switch),
-            ]
-            .spacing(16)
-            .align_y(Center),
-            row![
-                column![
-                    ui::styled(prev::fl!("settings-corner-radius"), Type::BodyLarge),
-                    ui::aligned(
-                        ui::styled(prev::fl!("settings-corner-radius-note"), Type::BodyMedium)
-                            .style(style::on_surface_variant)
-                    ),
-                ]
-                .spacing(2)
-                .width(Fill),
-                ui::styled(
-                    prev::fl!(
-                        "settings-corner-radius-value",
-                        radius = format!("{:.0}", self.settings.corner_radius)
-                    ),
-                    Type::LabelLarge
-                )
-                .style(style::on_surface_variant),
-                iced::widget::slider(
-                    0.0..=32.0,
-                    self.settings.corner_radius,
-                    Message::CornerRadius
-                )
-                .step(1.0_f32)
-                .on_release(Message::SliderReleased)
-                .width(160)
-                .height(style::SLIDER_HEIGHT)
-                .style(|theme: &Theme, status| {
-                    style::slider(Backdrop::ContainerHigh.color(&ui::Scheme::of(theme)))(
-                        theme, status,
-                    )
-                }),
-            ]
-            .spacing(16)
-            .align_y(Center),
-            row![
-                column![
-                    ui::styled(prev::fl!("settings-overlay"), Type::BodyLarge),
-                    ui::aligned(
-                        ui::styled(prev::fl!("settings-overlay-note"), Type::BodyMedium)
-                            .style(style::on_surface_variant)
-                    ),
-                ]
-                .spacing(2)
-                .width(Fill),
-                ui::styled(
-                    prev::fl!(
-                        "settings-overlay-value",
-                        percent = format!("{:.0}", self.settings.overlay_transparency)
-                    ),
-                    Type::LabelLarge
-                )
-                .style(style::on_surface_variant),
-                iced::widget::slider(
-                    0.0..=90.0,
-                    self.settings.overlay_transparency,
-                    Message::OverlayTransparency
-                )
-                .step(5.0_f32)
-                .on_release(Message::SliderReleased)
-                .width(160)
-                .height(style::SLIDER_HEIGHT)
-                .style(|theme: &Theme, status| {
-                    style::slider(Backdrop::ContainerHigh.color(&ui::Scheme::of(theme)))(
-                        theme, status,
-                    )
-                }),
-            ]
-            .spacing(16)
-            .align_y(Center),
-            component::section(prev::fl!("settings-outside-control")),
-            row![
-                column![
-                    ui::styled(prev::fl!("settings-allow-outside-control"), Type::BodyLarge),
-                    ui::aligned(
-                        ui::styled(
-                            prev::fl!("settings-allow-outside-control-note"),
-                            Type::BodyMedium
-                        )
-                        .style(style::on_surface_variant)
-                    ),
-                ]
-                .spacing(2)
-                .width(Fill),
-                toggler(self.settings.outside_control)
-                    .on_toggle(Message::OutsideControlToggled)
-                    .size(28)
-                    .style(style::switch),
-            ]
-            .spacing(16)
-            .align_y(Center),
-            self.allowed_agents_view(),
-            self.ask_before_view(),
-            component::section(prev::fl!("settings-default-app")),
-            self.default_app_view(),
-            component::section(prev::fl!("settings-storage")),
-            self.storage_view(),
-        ]
-        .spacing(12);
-        if let Some(error) = &self.settings_error {
-            content = content.push(ui::aligned(
-                ui::styled(error, Type::BodyMedium).style(style::error_text),
-            ));
-        }
-        let version = env!("CARGO_PKG_VERSION");
-        let build = if prev_store::paths::PRODUCTION {
-            prev::fl!(
-                "settings-version",
-                version = version,
-                build = env!("PREV_COMMIT")
-            )
-        } else {
-            let build = concat!(env!("PREV_COMMIT"), ", ", env!("PREV_BUILT"), " UTC");
-            prev::fl!(
-                "settings-version-development",
-                version = version,
-                build = build
-            )
-        };
-        content = content.push(
-            container(ui::styled(build, Type::BodySmall).style(style::on_surface_variant))
-                .padding(iced::Padding::ZERO.top(12))
-                .center_x(Fill),
-        );
-        // Below the header, the settings scroll when the window is too
-        // short for all of them.
-        let card = container(column![
-            container(header).padding(iced::Padding {
-                top: 24.0,
-                right: 24.0,
-                bottom: 0.0,
-                left: 24.0,
-            }),
-            component::scroll(container(content).padding(iced::Padding {
-                top: 0.0,
-                right: 24.0,
-                bottom: 24.0,
-                left: 24.0,
-            })),
-        ])
-        .width(Length::Fixed(520.0))
-        .style(style::dialog);
-        // A click on the dimmed window around the dialog closes it.
-        mouse_area(
-            container(ui::enter::grow(opaque(card)))
-                .padding(24)
-                .center(Fill)
-                .style(style::scrim),
-        )
-        .on_press(Message::CloseSettings(id))
         .into()
     }
 }
