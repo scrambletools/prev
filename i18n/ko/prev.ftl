@@ -862,3 +862,23 @@ agent-prompt-title = { $agent }이(가) prev를 제어하도록 허용하시겠�
 agent-prompt-body = { $agent }이(가) 열려 있는 파일을 읽고 변경하기 위해 prev의 외부 제어를 사용하려고 합니다. 외부 제어는 설정에서 끌 수 있습니다.
 agent-prompt-allow = 허용
 agent-prompt-deny = 허용 안 함
+settings-ask-before-note = 에이전트가 다음 작업을 하기 전에 묻기:
+settings-ask-reading = 파일 읽기
+settings-ask-viewing = 보기 또는 창 변경
+settings-ask-marking-up = 파일에 마크업
+settings-ask-editing = 파일 편집
+settings-ask-signing = 파일에 서명
+settings-ask-redacting = 가림 표시 적용
+settings-ask-exporting = 파일 내보내기
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = { $agent }이(가) 이 파일을 읽도록 허용하시겠습니까?
+agent-ask-view = { $agent }이(가) 보기를 변경하도록 허용하시겠습니까?
+agent-ask-markup = { $agent }이(가) 이 파일에 마크업하도록 허용하시겠습니까?
+agent-ask-edit = { $agent }이(가) 이 파일을 편집하도록 허용하시겠습니까?
+agent-ask-sign = { $agent }이(가) 이 파일에 서명하도록 허용하시겠습니까?
+agent-ask-redact = { $agent }이(가) 가림 표시를 적용하도록 허용하시겠습니까?
+agent-ask-export = { $agent }이(가) 이 파일을 내보내도록 허용하시겠습니까?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent }이(가) “{ $tool }”을(를) 사용하려고 합니다. prev가 무엇을 물을지는 설정에서 선택합니다.
+agent-ask-final = 이 작업은 실행 취소할 수 없습니다.

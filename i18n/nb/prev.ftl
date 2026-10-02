@@ -727,3 +727,23 @@ agent-prompt-title = Vil du la { $agent } styre prev?
 agent-prompt-body = { $agent } ber om å bruke prevs eksterne styring til å lese de åpne filene dine og endre dem. Du kan slå av ekstern styring i Innstillinger.
 agent-prompt-allow = Tillat
 agent-prompt-deny = Ikke tillat
+settings-ask-before-note = Spør før en agent:
+settings-ask-reading = Leser en fil
+settings-ask-viewing = Endrer visningen eller et vindu
+settings-ask-marking-up = Legger til markering i en fil
+settings-ask-editing = Redigerer en fil
+settings-ask-signing = Signerer en fil
+settings-ask-redacting = Bruker sladding
+settings-ask-exporting = Eksporterer en fil
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Vil du la { $agent } lese denne filen?
+agent-ask-view = Vil du la { $agent } endre visningen?
+agent-ask-markup = Vil du la { $agent } legge til markering i denne filen?
+agent-ask-edit = Vil du la { $agent } redigere denne filen?
+agent-ask-sign = Vil du la { $agent } signere denne filen?
+agent-ask-redact = Vil du la { $agent } bruke sladding?
+agent-ask-export = Vil du la { $agent } eksportere denne filen?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } ber om å bruke «{ $tool }». I Innstillinger velger du hva prev spør om.
+agent-ask-final = Dette kan ikke angres.

@@ -871,3 +871,23 @@ agent-prompt-title = { $agent } prev'i denetleyebilsin mi?
 agent-prompt-body = { $agent }, açık dosyalarınızı okuyup değiştirmek için prev'in dışarıdan denetimini kullanmak istiyor. Dışarıdan denetimi Ayarlar'dan kapatabilirsiniz.
 agent-prompt-allow = İzin ver
 agent-prompt-deny = İzin verme
+settings-ask-before-note = Bir ajan şunları yapmadan önce sor:
+settings-ask-reading = Dosya okuma
+settings-ask-viewing = Görünümü veya bir pencereyi değiştirme
+settings-ask-marking-up = Dosyaya işaretleme ekleme
+settings-ask-editing = Dosya düzenleme
+settings-ask-signing = Dosya imzalama
+settings-ask-redacting = Karartmaları uygulama
+settings-ask-exporting = Dosyayı dışa aktarma
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = { $agent } bu dosyayı okuyabilsin mi?
+agent-ask-view = { $agent } görünümü değiştirebilsin mi?
+agent-ask-markup = { $agent } bu dosyaya işaretleme ekleyebilsin mi?
+agent-ask-edit = { $agent } bu dosyayı düzenleyebilsin mi?
+agent-ask-sign = { $agent } bu dosyayı imzalayabilsin mi?
+agent-ask-redact = { $agent } karartmaları uygulayabilsin mi?
+agent-ask-export = { $agent } bu dosyayı dışa aktarabilsin mi?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent }, “{ $tool }” aracını kullanmak istiyor. prev'in neleri soracağını Ayarlar'dan seçebilirsiniz.
+agent-ask-final = Bu işlem geri alınamaz.

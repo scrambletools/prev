@@ -734,3 +734,23 @@ agent-prompt-title = לאפשר ל-{ $agent } לשלוט ב-prev?
 agent-prompt-body = { $agent } מבקש להשתמש בשליטה מבחוץ של prev, כדי לקרוא את הקבצים הפתוחים ולשנות אותם. אפשר לכבות את השליטה מבחוץ בהגדרות.
 agent-prompt-allow = אישור
 agent-prompt-deny = דחייה
+settings-ask-before-note = לשאול לפני פעולות אלה של סוכן:
+settings-ask-reading = קריאת קובץ
+settings-ask-viewing = שינוי התצוגה או חלון
+settings-ask-marking-up = הוספת סימונים לקובץ
+settings-ask-editing = עריכת קובץ
+settings-ask-signing = חתימה על קובץ
+settings-ask-redacting = החלת השחרות
+settings-ask-exporting = ייצוא קובץ
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = לאפשר ל-{ $agent } לקרוא את הקובץ הזה?
+agent-ask-view = לאפשר ל-{ $agent } לשנות את התצוגה?
+agent-ask-markup = לאפשר ל-{ $agent } להוסיף סימונים לקובץ הזה?
+agent-ask-edit = לאפשר ל-{ $agent } לערוך את הקובץ הזה?
+agent-ask-sign = לאפשר ל-{ $agent } לחתום על הקובץ הזה?
+agent-ask-redact = לאפשר ל-{ $agent } להחיל השחרות?
+agent-ask-export = לאפשר ל-{ $agent } לייצא את הקובץ הזה?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } מבקש להשתמש ב-"{ $tool }". בהגדרות אפשר לבחור על מה prev שואל.
+agent-ask-final = אי אפשר לבטל את הפעולה הזו.

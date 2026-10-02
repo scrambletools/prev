@@ -1,6 +1,7 @@
 //! Outside control: the calls programs make over the control channel,
 //! mostly AI agents through `prev --mcp`. prev asks the user before an
-//! agent it has not seen gets to act.
+//! agent it has not seen gets to act, and before a tool runs whose kind
+//! Settings asks about.
 
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
@@ -12,6 +13,7 @@ use prev::ui::button::Kind;
 use prev::ui::{self, Icon, component};
 use serde_json::{Value, json};
 
+use super::tools::{self, Answer, Tool};
 use super::{Message, Prev};
 
 /// What agents hear while outside control is off.
@@ -29,6 +31,22 @@ pub(super) struct Agents {
     /// Agents the user did not allow, until prev quits.
     declined: BTreeSet<String>,
     /// When the first prompt came up.
+    shown_at: Option<Instant>,
+    /// Tool calls waiting for the user to allow them, the first for each
+    /// window shown over it first.
+    approvals: Vec<Approval>,
+}
+
+/// A tool call waiting for the user to allow it to run.
+struct Approval {
+    window: window::Id,
+    /// The agent, by the name the user knows it by.
+    agent: String,
+    tool: &'static Tool,
+    arguments: Value,
+    answer: Answer,
+    /// When it came up over its window, which takes answers a moment
+    /// later.
     shown_at: Option<Instant>,
 }
 
@@ -75,7 +93,7 @@ impl Prev {
             "tools/call" => {
                 let (name, shown) = agent(&call.params["agent"]);
                 if self.settings.allowed_agents.contains(&name) {
-                    return self.run_tool(call);
+                    return self.run_tool(call, shown);
                 } else if self.agents.declined.contains(&name) {
                     Err(declined(&shown))
                 } else {
@@ -126,24 +144,91 @@ impl Prev {
     /// behind other windows.
     fn prompt_shown(&mut self) -> Task<Message> {
         self.agents.shown_at = Some(Instant::now());
-        let ready = Task::perform(
-            prev::image::editor::spawn(|| std::thread::sleep(ANSWER_DELAY)),
-            |_| Message::AgentPromptReady,
-        );
         match self.prompt_window() {
-            Some(id) => Task::batch([
-                ready,
-                window::request_user_attention(id, Some(window::UserAttention::Critical)),
-            ]),
-            None => ready,
+            Some(id) => notice_prompt(id),
+            None => Task::none(),
         }
     }
 
     /// Whether the first prompt has been up long enough to take answers.
     fn prompt_ready(&self) -> bool {
-        self.agents
-            .shown_at
-            .is_some_and(|shown| shown.elapsed() >= ANSWER_DELAY)
+        ready(self.agents.shown_at)
+    }
+
+    /// Holds a call of `tool` on window `id` until the user allows it.
+    pub(super) fn ask_to_run(
+        &mut self,
+        id: window::Id,
+        agent: String,
+        tool: &'static Tool,
+        arguments: Value,
+        answer: Answer,
+    ) -> Task<Message> {
+        let first = !self.agents.approvals.iter().any(|asked| asked.window == id);
+        self.agents.approvals.push(Approval {
+            window: id,
+            agent,
+            tool,
+            arguments,
+            answer,
+            shown_at: first.then(Instant::now),
+        });
+        if first {
+            notice_prompt(id)
+        } else {
+            Task::none()
+        }
+    }
+
+    /// The user answered the tool call shown over window `id`.
+    pub(super) fn run_answered(&mut self, id: window::Id, allow: bool) -> Task<Message> {
+        let Some(index) = self
+            .agents
+            .approvals
+            .iter()
+            .position(|asked| asked.window == id)
+        else {
+            return Task::none();
+        };
+        if !ready(self.agents.approvals[index].shown_at) {
+            return Task::none();
+        }
+        let asked = self.agents.approvals.remove(index);
+        let mut tasks = Vec::new();
+        if allow {
+            tasks.push(asked.tool.start(self, asked.arguments, asked.answer));
+        } else {
+            asked.answer.send(Err(Error::new(
+                code::DECLINED,
+                format!("The user did not allow {}.", asked.tool.name),
+            )));
+        }
+        if let Some(next) = self
+            .agents
+            .approvals
+            .iter_mut()
+            .find(|asked| asked.window == id)
+        {
+            next.shown_at = Some(Instant::now());
+            tasks.push(notice_prompt(id));
+        }
+        Task::batch(tasks)
+    }
+
+    /// Window `id` closed: the calls waiting on it hear so.
+    pub(super) fn window_gone(&mut self, id: window::Id) {
+        self.agents.approvals.retain(|asked| {
+            if asked.window == id {
+                asked.answer.send(Err(Error::new(
+                    code::DECLINED,
+                    format!(
+                        "The window closed before the user allowed {}.",
+                        asked.tool.name
+                    ),
+                )));
+            }
+            asked.window != id
+        });
     }
 
     /// The user answered the first prompt.
@@ -161,7 +246,7 @@ impl Prev {
         let mut tasks = Vec::new();
         for call in prompt.waiting {
             if allow {
-                tasks.push(self.run_tool(call));
+                tasks.push(self.run_tool(call, prompt.shown.clone()));
             } else {
                 call.reply(Err(declined(&prompt.shown)));
             }
@@ -181,6 +266,9 @@ impl Prev {
                 call.reply(Err(Error::new(code::OFF, OFF_MESSAGE)));
             }
         }
+        for asked in self.agents.approvals.drain(..) {
+            asked.answer.send(Err(Error::new(code::OFF, OFF_MESSAGE)));
+        }
         self.agents.shown_at = None;
     }
 
@@ -191,15 +279,28 @@ impl Prev {
             .or_else(|| self.windows.keys().next().copied())
     }
 
-    /// Whether window `id` shows a prompt, which Escape answers.
-    pub(super) fn shows_agent_prompt(&self, id: window::Id) -> bool {
+    /// Whether window `id` shows an agent's prompt to connect.
+    fn shows_connect_prompt(&self, id: window::Id) -> bool {
         !self.agents.prompts.is_empty() && self.prompt_window() == Some(id)
     }
 
-    /// The prompt over window `id`, if it shows one.
+    /// Answers the prompt over window `id`, if it shows one, as Escape
+    /// does with Don't Allow.
+    pub(super) fn answer_prompt(&mut self, id: window::Id, allow: bool) -> Option<Task<Message>> {
+        if self.shows_connect_prompt(id) {
+            Some(self.agent_answered(allow))
+        } else if self.agents.approvals.iter().any(|asked| asked.window == id) {
+            Some(self.run_answered(id, allow))
+        } else {
+            None
+        }
+    }
+
+    /// The prompt over window `id`, if it shows one: an agent asking to
+    /// connect, else the first tool call waiting on the window.
     pub(super) fn agent_prompt(&self, id: window::Id) -> Option<Element<'_, Message>> {
-        if !self.shows_agent_prompt(id) {
-            return None;
+        if !self.shows_connect_prompt(id) {
+            return self.run_prompt(id);
         }
         let agent = self.agents.prompts[0].shown.as_str();
         let ready = self.prompt_ready();
@@ -218,6 +319,63 @@ impl Prev {
             ],
         ))
     }
+}
+
+impl Prev {
+    fn run_prompt(&self, id: window::Id) -> Option<Element<'_, Message>> {
+        let asked = self
+            .agents
+            .approvals
+            .iter()
+            .find(|asked| asked.window == id)?;
+        let agent = asked.agent.as_str();
+        let title = match asked.tool.kind {
+            tools::Kind::Read => prev::fl!("agent-ask-read", agent = agent),
+            tools::Kind::View => prev::fl!("agent-ask-view", agent = agent),
+            tools::Kind::Markup => prev::fl!("agent-ask-markup", agent = agent),
+            tools::Kind::Edit => prev::fl!("agent-ask-edit", agent = agent),
+            tools::Kind::Sign => prev::fl!("agent-ask-sign", agent = agent),
+            tools::Kind::Redact => prev::fl!("agent-ask-redact", agent = agent),
+            tools::Kind::Export => prev::fl!("agent-ask-export", agent = agent),
+        };
+        let mut body = prev::fl!("agent-ask-body", agent = agent, tool = asked.tool.title);
+        if asked.tool.kind.is_final() {
+            body = format!("{body} {}", prev::fl!("agent-ask-final"));
+        }
+        let ready = ready(asked.shown_at);
+        Some(component::dialog(
+            iced::widget::space().width(iced::Fill).height(iced::Fill),
+            Some(Icon::Lock),
+            title,
+            body,
+            vec![
+                ui::button(Kind::Text, prev::fl!("agent-prompt-deny"))
+                    .on_press_maybe(ready.then_some(Message::RunAnswered(id, false)))
+                    .into(),
+                ui::button(Kind::Filled, prev::fl!("agent-prompt-allow"))
+                    .on_press_maybe(ready.then_some(Message::RunAnswered(id, true)))
+                    .into(),
+            ],
+        ))
+    }
+}
+
+/// Whether a prompt shown at `shown_at` takes answers yet.
+fn ready(shown_at: Option<Instant>) -> bool {
+    shown_at.is_some_and(|shown| shown.elapsed() >= ANSWER_DELAY)
+}
+
+/// A prompt came up over window `id`: its buttons take clicks after a
+/// moment, and the window asks for attention until the user comes to it,
+/// as prev may be behind other windows.
+fn notice_prompt(id: window::Id) -> Task<Message> {
+    Task::batch([
+        Task::perform(
+            prev::image::editor::spawn(|| std::thread::sleep(ANSWER_DELAY)),
+            |_| Message::AgentPromptReady,
+        ),
+        window::request_user_attention(id, Some(window::UserAttention::Critical)),
+    ])
 }
 
 fn declined(agent: &str) -> Error {

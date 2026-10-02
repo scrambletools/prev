@@ -719,3 +719,23 @@ agent-prompt-title = Cho phép { $agent } điều khiển prev?
 agent-prompt-body = { $agent } yêu cầu dùng tính năng điều khiển từ bên ngoài của prev để đọc và thay đổi các tệp bạn đang mở. Bạn có thể tắt điều khiển từ bên ngoài trong Cài đặt.
 agent-prompt-allow = Cho phép
 agent-prompt-deny = Không cho phép
+settings-ask-before-note = Hỏi trước khi tác nhân:
+settings-ask-reading = Đọc tệp
+settings-ask-viewing = Thay đổi chế độ xem hoặc cửa sổ
+settings-ask-marking-up = Đánh dấu tệp
+settings-ask-editing = Sửa tệp
+settings-ask-signing = Ký tệp
+settings-ask-redacting = Áp dụng vùng che
+settings-ask-exporting = Xuất tệp
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Cho phép { $agent } đọc tệp này?
+agent-ask-view = Cho phép { $agent } thay đổi chế độ xem?
+agent-ask-markup = Cho phép { $agent } đánh dấu tệp này?
+agent-ask-edit = Cho phép { $agent } sửa tệp này?
+agent-ask-sign = Cho phép { $agent } ký tệp này?
+agent-ask-redact = Cho phép { $agent } áp dụng vùng che?
+agent-ask-export = Cho phép { $agent } xuất tệp này?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } yêu cầu dùng “{ $tool }”. Bạn có thể chọn những gì prev sẽ hỏi trong Cài đặt.
+agent-ask-final = Không thể hoàn tác thao tác này.

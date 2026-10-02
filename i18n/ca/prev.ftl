@@ -736,3 +736,23 @@ agent-prompt-title = Vols permetre que { $agent } controli el prev?
 agent-prompt-body = { $agent } demana fer servir el control extern del prev per llegir els fitxers oberts i canviar-los. Pots desactivar el control extern a Configuració.
 agent-prompt-allow = Permet
 agent-prompt-deny = No permetis
+settings-ask-before-note = Pregunta abans que un agent:
+settings-ask-reading = Llegeixi un fitxer
+settings-ask-viewing = Canviï la visualització o una finestra
+settings-ask-marking-up = Afegeixi marques a un fitxer
+settings-ask-editing = Editi un fitxer
+settings-ask-signing = Signi un fitxer
+settings-ask-redacting = Apliqui censures
+settings-ask-exporting = Exporti un fitxer
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Vols permetre que { $agent } llegeixi aquest fitxer?
+agent-ask-view = Vols permetre que { $agent } canviï la visualització?
+agent-ask-markup = Vols permetre que { $agent } afegeixi marques a aquest fitxer?
+agent-ask-edit = Vols permetre que { $agent } editi aquest fitxer?
+agent-ask-sign = Vols permetre que { $agent } signi aquest fitxer?
+agent-ask-redact = Vols permetre que { $agent } apliqui censures?
+agent-ask-export = Vols permetre que { $agent } exporti aquest fitxer?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } demana fer servir «{ $tool }». A Configuració pots triar què pregunta el prev.
+agent-ask-final = Aquesta acció no es pot desfer.

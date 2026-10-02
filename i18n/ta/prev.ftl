@@ -732,3 +732,23 @@ agent-prompt-title = prev-ஐக் கட்டுப்படுத்த { $a
 agent-prompt-body = உங்கள் திறந்த கோப்புகளைப் படிக்கவும் மாற்றவும் prev-இன் வெளிக் கட்டுப்பாட்டைப் பயன்படுத்த { $agent } கேட்கிறது. அமைப்புகளில் வெளிக் கட்டுப்பாட்டை முடக்கலாம்.
 agent-prompt-allow = அனுமதி
 agent-prompt-deny = அனுமதிக்காதே
+settings-ask-before-note = முகவர் இவற்றைச் செய்யும் முன் கேள்:
+settings-ask-reading = கோப்பைப் படித்தல்
+settings-ask-viewing = காட்சியை அல்லது சாளரத்தை மாற்றுதல்
+settings-ask-marking-up = கோப்பில் மார்க்அப் செய்தல்
+settings-ask-editing = கோப்பைத் திருத்துதல்
+settings-ask-signing = கோப்பில் கையொப்பமிடுதல்
+settings-ask-redacting = மறைப்புகளைப் பயன்படுத்துதல்
+settings-ask-exporting = கோப்பை ஏற்றுமதி செய்தல்
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = இந்தக் கோப்பைப் படிக்க { $agent } முகவரை அனுமதிக்கவா?
+agent-ask-view = காட்சியை மாற்ற { $agent } முகவரை அனுமதிக்கவா?
+agent-ask-markup = இந்தக் கோப்பில் மார்க்அப் செய்ய { $agent } முகவரை அனுமதிக்கவா?
+agent-ask-edit = இந்தக் கோப்பைத் திருத்த { $agent } முகவரை அனுமதிக்கவா?
+agent-ask-sign = இந்தக் கோப்பில் கையொப்பமிட { $agent } முகவரை அனுமதிக்கவா?
+agent-ask-redact = மறைப்புகளைப் பயன்படுத்த { $agent } முகவரை அனுமதிக்கவா?
+agent-ask-export = இந்தக் கோப்பை ஏற்றுமதி செய்ய { $agent } முகவரை அனுமதிக்கவா?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = “{ $tool }” என்பதைப் பயன்படுத்த { $agent } கேட்கிறது. prev எவற்றைப் பற்றிக் கேட்கும் என்பதை அமைப்புகளில் தேர்ந்தெடுக்கலாம்.
+agent-ask-final = இதைச் செயல்தவிர்க்க முடியாது.

@@ -745,3 +745,23 @@ agent-prompt-title = Permiți ca { $agent } să controleze prev?
 agent-prompt-body = { $agent } cere să folosească controlul extern al prev, pentru a citi fișierele tale deschise și a le modifica. Poți dezactiva controlul extern în Configurări.
 agent-prompt-allow = Permite
 agent-prompt-deny = Nu permite
+settings-ask-before-note = Întreabă înainte ca un agent să:
+settings-ask-reading = Citească un fișier
+settings-ask-viewing = Schimbe vizualizarea sau o fereastră
+settings-ask-marking-up = Adauge marcaje într-un fișier
+settings-ask-editing = Editeze un fișier
+settings-ask-signing = Semneze un fișier
+settings-ask-redacting = Aplice înnegriri
+settings-ask-exporting = Exporte un fișier
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Permiți ca { $agent } să citească acest fișier?
+agent-ask-view = Permiți ca { $agent } să schimbe vizualizarea?
+agent-ask-markup = Permiți ca { $agent } să adauge marcaje în acest fișier?
+agent-ask-edit = Permiți ca { $agent } să editeze acest fișier?
+agent-ask-sign = Permiți ca { $agent } să semneze acest fișier?
+agent-ask-redact = Permiți ca { $agent } să aplice înnegriri?
+agent-ask-export = Permiți ca { $agent } să exporte acest fișier?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } cere să folosească „{ $tool }”. În Configurări alegi despre ce întreabă prev.
+agent-ask-final = Acest lucru nu poate fi anulat.

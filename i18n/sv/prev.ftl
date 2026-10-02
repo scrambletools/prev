@@ -727,3 +727,23 @@ agent-prompt-title = Vill du låta { $agent } styra prev?
 agent-prompt-body = { $agent } ber om att få använda prevs externa styrning för att läsa dina öppna filer och ändra dem. Du kan stänga av extern styrning i Inställningar.
 agent-prompt-allow = Tillåt
 agent-prompt-deny = Tillåt inte
+settings-ask-before-note = Fråga innan en agent:
+settings-ask-reading = Läser en fil
+settings-ask-viewing = Ändrar visningen eller ett fönster
+settings-ask-marking-up = Lägger till märkning i en fil
+settings-ask-editing = Redigerar en fil
+settings-ask-signing = Signerar en fil
+settings-ask-redacting = Verkställer svärtningar
+settings-ask-exporting = Exporterar en fil
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Vill du låta { $agent } läsa den här filen?
+agent-ask-view = Vill du låta { $agent } ändra visningen?
+agent-ask-markup = Vill du låta { $agent } lägga till märkning i den här filen?
+agent-ask-edit = Vill du låta { $agent } redigera den här filen?
+agent-ask-sign = Vill du låta { $agent } signera den här filen?
+agent-ask-redact = Vill du låta { $agent } verkställa svärtningar?
+agent-ask-export = Vill du låta { $agent } exportera den här filen?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } ber om att få använda ”{ $tool }”. I Inställningar väljer du vad prev frågar om.
+agent-ask-final = Det här kan inte ångras.

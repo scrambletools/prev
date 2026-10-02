@@ -902,3 +902,23 @@ agent-prompt-title = Дозволити агентові { $agent } керува
 agent-prompt-body = { $agent } просить доступ до зовнішнього керування prev, щоб читати ваші відкриті файли та змінювати їх. Зовнішнє керування можна вимкнути в параметрах.
 agent-prompt-allow = Дозволити
 agent-prompt-deny = Не дозволяти
+settings-ask-before-note = Питати, перш ніж агент:
+settings-ask-reading = Прочитає файл
+settings-ask-viewing = Змінить вигляд або вікно
+settings-ask-marking-up = Додасть розмітку до файлу
+settings-ask-editing = Відредагує файл
+settings-ask-signing = Підпише файл
+settings-ask-redacting = Застосує зачорнення
+settings-ask-exporting = Експортує файл
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Дозволити агентові { $agent } прочитати цей файл?
+agent-ask-view = Дозволити агентові { $agent } змінити вигляд?
+agent-ask-markup = Дозволити агентові { $agent } додати розмітку до цього файлу?
+agent-ask-edit = Дозволити агентові { $agent } відредагувати цей файл?
+agent-ask-sign = Дозволити агентові { $agent } підписати цей файл?
+agent-ask-redact = Дозволити агентові { $agent } застосувати зачорнення?
+agent-ask-export = Дозволити агентові { $agent } експортувати цей файл?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } просить використати «{ $tool }». У параметрах можна вибрати, про що питає prev.
+agent-ask-final = Цю дію не можна відмінити.

@@ -755,3 +755,23 @@ agent-prompt-title = Povolit agentovi { $agent } ovládat prev?
 agent-prompt-body = { $agent } žádá o použití vnějšího ovládání prev, aby mohl číst a měnit vaše otevřené soubory. Vnější ovládání můžete vypnout v Nastavení.
 agent-prompt-allow = Povolit
 agent-prompt-deny = Nepovolit
+settings-ask-before-note = Zeptat se, než agent:
+settings-ask-reading = Přečte soubor
+settings-ask-viewing = Změní zobrazení nebo okno
+settings-ask-marking-up = Přidá do souboru anotace
+settings-ask-editing = Upraví soubor
+settings-ask-signing = Podepíše soubor
+settings-ask-redacting = Použije začernění
+settings-ask-exporting = Exportuje soubor
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Povolit agentovi { $agent } přečíst tento soubor?
+agent-ask-view = Povolit agentovi { $agent } změnit zobrazení?
+agent-ask-markup = Povolit agentovi { $agent } přidat do tohoto souboru anotace?
+agent-ask-edit = Povolit agentovi { $agent } upravit tento soubor?
+agent-ask-sign = Povolit agentovi { $agent } podepsat tento soubor?
+agent-ask-redact = Povolit agentovi { $agent } použít začernění?
+agent-ask-export = Povolit agentovi { $agent } exportovat tento soubor?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } žádá o použití nástroje „{ $tool }“. V Nastavení zvolíte, na co se prev ptá.
+agent-ask-final = Tuto akci nelze vrátit zpět.

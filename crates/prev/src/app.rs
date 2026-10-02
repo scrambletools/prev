@@ -282,6 +282,10 @@ pub enum Message {
     AgentAnswered(bool),
     /// A new prompt's buttons now take clicks.
     AgentPromptReady,
+    /// The user allowed the tool call waiting on a window, or not.
+    RunAnswered(window::Id, bool),
+    /// Settings: ask before a tool of this kind runs, or not.
+    AskBeforeToggled(tools::Kind, bool),
     /// A tool that waited on something answers.
     ToolAnswer(tools::Answer, Result<tools::Output, prev::control::Error>),
     /// A color picked for the scheme, as "#RRGGBB".
@@ -810,6 +814,7 @@ impl Prev {
                 Task::none()
             }
             Message::WindowClosed(id) => {
+                self.window_gone(id);
                 let flush = self
                     .windows
                     .remove(&id)
@@ -1089,6 +1094,12 @@ impl Prev {
             }
             Message::AgentAnswered(allow) => self.agent_answered(allow),
             Message::AgentPromptReady => Task::none(),
+            Message::RunAnswered(id, allow) => self.run_answered(id, allow),
+            Message::AskBeforeToggled(kind, asks) => {
+                kind.set_asks(&mut self.settings.ask_before, asks);
+                self.save_settings();
+                Task::none()
+            }
             Message::ToolAnswer(answer, result) => {
                 answer.send(result);
                 Task::none()
@@ -1250,8 +1261,10 @@ impl Prev {
     /// Runs `action` in window `id`, from its shortcut or a menu item: the
     /// window's document takes it first, then the app.
     fn shortcut(&mut self, id: window::Id, action: Action) -> Task<Message> {
-        if action == Action::Escape && self.shows_agent_prompt(id) {
-            return self.agent_answered(false);
+        if action == Action::Escape
+            && let Some(task) = self.answer_prompt(id, false)
+        {
+            return task;
         }
         if action == Action::Escape
             && self
@@ -1715,6 +1728,39 @@ impl Prev {
         rows.into()
     }
 
+    /// The switches that make prev ask before an agent's tool of each
+    /// kind runs.
+    fn ask_before_view(&self) -> Element<'_, Message> {
+        let mut rows = column![ui::aligned(
+            ui::styled(prev::fl!("settings-ask-before-note"), Type::BodyMedium)
+                .style(style::on_surface_variant)
+        )]
+        .spacing(4);
+        for kind in tools::Kind::ALL {
+            let label = match kind {
+                tools::Kind::Read => prev::fl!("settings-ask-reading"),
+                tools::Kind::View => prev::fl!("settings-ask-viewing"),
+                tools::Kind::Markup => prev::fl!("settings-ask-marking-up"),
+                tools::Kind::Edit => prev::fl!("settings-ask-editing"),
+                tools::Kind::Sign => prev::fl!("settings-ask-signing"),
+                tools::Kind::Redact => prev::fl!("settings-ask-redacting"),
+                tools::Kind::Export => prev::fl!("settings-ask-exporting"),
+            };
+            rows = rows.push(
+                row![
+                    container(ui::styled(label, Type::BodyLarge)).width(Fill),
+                    toggler(kind.asks(&self.settings.ask_before))
+                        .on_toggle(move |asks| Message::AskBeforeToggled(kind, asks))
+                        .size(28)
+                        .style(style::switch),
+                ]
+                .spacing(16)
+                .align_y(Center),
+            );
+        }
+        rows.into()
+    }
+
     /// The agents allowed to control prev, which Forget asks about again.
     fn allowed_agents_view(&self) -> Element<'_, Message> {
         if self.settings.allowed_agents.is_empty() {
@@ -1957,6 +2003,7 @@ impl Prev {
             .spacing(16)
             .align_y(Center),
             self.allowed_agents_view(),
+            self.ask_before_view(),
             component::section(prev::fl!("settings-default-app")),
             self.default_app_view(),
             component::section(prev::fl!("settings-storage")),

@@ -841,3 +841,23 @@ agent-prompt-title = { $agent }にprevの操作を許可しますか？
 agent-prompt-body = { $agent }が、開いているファイルの読み取りと変更のために、prevの外部からの操作を使おうとしています。外部からの操作は「設定」でオフにできます。
 agent-prompt-allow = 許可
 agent-prompt-deny = 許可しない
+settings-ask-before-note = エージェントが次の操作を行う前に確認：
+settings-ask-reading = ファイルの読み取り
+settings-ask-viewing = 表示やウインドウの変更
+settings-ask-marking-up = ファイルへのマークアップ
+settings-ask-editing = ファイルの編集
+settings-ask-signing = ファイルへの署名
+settings-ask-redacting = 墨消しの適用
+settings-ask-exporting = ファイルの書き出し
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = { $agent }にこのファイルの読み取りを許可しますか？
+agent-ask-view = { $agent }に表示の変更を許可しますか？
+agent-ask-markup = { $agent }にこのファイルへのマークアップを許可しますか？
+agent-ask-edit = { $agent }にこのファイルの編集を許可しますか？
+agent-ask-sign = { $agent }にこのファイルへの署名を許可しますか？
+agent-ask-redact = { $agent }に墨消しの適用を許可しますか？
+agent-ask-export = { $agent }にこのファイルの書き出しを許可しますか？
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent }が「{ $tool }」を使おうとしています。prevが確認する操作は「設定」で選べます。
+agent-ask-final = この操作は取り消せません。

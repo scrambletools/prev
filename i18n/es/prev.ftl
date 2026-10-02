@@ -871,3 +871,23 @@ agent-prompt-title = ¿Permitir que { $agent } controle prev?
 agent-prompt-body = { $agent } pide usar el control externo de prev para leer tus archivos abiertos y cambiarlos. Puedes desactivar el control externo en Ajustes.
 agent-prompt-allow = Permitir
 agent-prompt-deny = No permitir
+settings-ask-before-note = Preguntar antes de que un agente:
+settings-ask-reading = Lea un archivo
+settings-ask-viewing = Cambie la visualización o una ventana
+settings-ask-marking-up = Añada marcas a un archivo
+settings-ask-editing = Edite un archivo
+settings-ask-signing = Firme un archivo
+settings-ask-redacting = Aplique censuras
+settings-ask-exporting = Exporte un archivo
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = ¿Permitir que { $agent } lea este archivo?
+agent-ask-view = ¿Permitir que { $agent } cambie la visualización?
+agent-ask-markup = ¿Permitir que { $agent } añada marcas a este archivo?
+agent-ask-edit = ¿Permitir que { $agent } edite este archivo?
+agent-ask-sign = ¿Permitir que { $agent } firme este archivo?
+agent-ask-redact = ¿Permitir que { $agent } aplique censuras?
+agent-ask-export = ¿Permitir que { $agent } exporte este archivo?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } pide usar “{ $tool }”. En Ajustes eliges sobre qué pregunta prev.
+agent-ask-final = Esto no se puede deshacer.

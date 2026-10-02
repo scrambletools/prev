@@ -896,3 +896,23 @@ agent-prompt-title = Zezwolić agentowi { $agent } na sterowanie prev?
 agent-prompt-body = { $agent } prosi o użycie sterowania zewnętrznego prev, aby odczytywać i zmieniać Twoje otwarte pliki. Sterowanie zewnętrzne możesz wyłączyć w Ustawieniach.
 agent-prompt-allow = Zezwól
 agent-prompt-deny = Nie zezwalaj
+settings-ask-before-note = Pytaj, zanim agent:
+settings-ask-reading = Odczyta plik
+settings-ask-viewing = Zmieni widok lub okno
+settings-ask-marking-up = Doda oznaczenia do pliku
+settings-ask-editing = Edytuje plik
+settings-ask-signing = Podpisze plik
+settings-ask-redacting = Zastosuje zaczernienia
+settings-ask-exporting = Wyeksportuje plik
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Zezwolić agentowi { $agent } na odczytanie tego pliku?
+agent-ask-view = Zezwolić agentowi { $agent } na zmianę widoku?
+agent-ask-markup = Zezwolić agentowi { $agent } na dodanie oznaczeń do tego pliku?
+agent-ask-edit = Zezwolić agentowi { $agent } na edycję tego pliku?
+agent-ask-sign = Zezwolić agentowi { $agent } na podpisanie tego pliku?
+agent-ask-redact = Zezwolić agentowi { $agent } na zastosowanie zaczernień?
+agent-ask-export = Zezwolić agentowi { $agent } na eksport tego pliku?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } prosi o użycie narzędzia „{ $tool }”. W Ustawieniach wybierzesz, o co pyta prev.
+agent-ask-final = Tego nie można cofnąć.

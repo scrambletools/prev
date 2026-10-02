@@ -10,6 +10,7 @@ use base64::Engine;
 use iced::{Task, window};
 use prev::control::{Call, Error, code};
 use prev::filetype::FileKind;
+use prev_store::settings;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -20,7 +21,7 @@ use super::{Content, Message, Prev};
 /// What a tool does, which decides whether prev asks first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code, reason = "the tools of most kinds come in later steps")]
-pub(super) enum Kind {
+pub(crate) enum Kind {
     Read,
     View,
     Markup,
@@ -28,6 +29,49 @@ pub(super) enum Kind {
     Sign,
     Redact,
     Export,
+}
+
+impl Kind {
+    pub(super) const ALL: [Kind; 7] = [
+        Kind::Read,
+        Kind::View,
+        Kind::Markup,
+        Kind::Edit,
+        Kind::Sign,
+        Kind::Redact,
+        Kind::Export,
+    ];
+
+    /// Its switch in Settings: whether prev asks before a tool of this
+    /// kind runs.
+    pub(super) fn asks(self, ask: &settings::AskBefore) -> bool {
+        match self {
+            Kind::Read => ask.reading,
+            Kind::View => ask.viewing,
+            Kind::Markup => ask.marking_up,
+            Kind::Edit => ask.editing,
+            Kind::Sign => ask.signing,
+            Kind::Redact => ask.redacting,
+            Kind::Export => ask.exporting,
+        }
+    }
+
+    pub(super) fn set_asks(self, ask: &mut settings::AskBefore, asks: bool) {
+        *match self {
+            Kind::Read => &mut ask.reading,
+            Kind::View => &mut ask.viewing,
+            Kind::Markup => &mut ask.marking_up,
+            Kind::Edit => &mut ask.editing,
+            Kind::Sign => &mut ask.signing,
+            Kind::Redact => &mut ask.redacting,
+            Kind::Export => &mut ask.exporting,
+        } = asks;
+    }
+
+    /// Whether Undo cannot take a tool of this kind back.
+    pub(super) fn is_final(self) -> bool {
+        matches!(self, Kind::Sign | Kind::Redact | Kind::Export)
+    }
 }
 
 /// What a tool gives back.
@@ -83,11 +127,18 @@ type Run = Box<dyn Fn(&mut Prev, Value, Answer) -> Task<Message> + Send + Sync>;
 
 pub(super) struct Tool {
     pub(super) name: &'static str,
-    title: &'static str,
+    pub(super) title: &'static str,
     pub(super) kind: Kind,
     description: &'static str,
     schema: fn() -> Value,
     run: Run,
+}
+
+impl Tool {
+    /// Runs the tool on `arguments`; it answers through `answer`.
+    pub(super) fn start(&self, app: &mut Prev, arguments: Value, answer: Answer) -> Task<Message> {
+        (self.run)(app, arguments, answer)
+    }
 }
 
 /// A tool whose input is `I`, read from the call's arguments.
@@ -221,15 +272,24 @@ fn number(id: window::Id) -> u64 {
 }
 
 impl Prev {
-    /// Runs the tool a `tools/call` names, which answers `call`.
-    pub(super) fn run_tool(&mut self, call: Call) -> Task<Message> {
+    /// Runs the tool a `tools/call` names, which answers `call`, once
+    /// the user allows it when its kind asks first. `agent` is the name
+    /// the user knows the agent by.
+    pub(super) fn run_tool(&mut self, call: Call, agent: String) -> Task<Message> {
         let name = call.params["name"].as_str().unwrap_or_default().to_owned();
         let arguments = match &call.params["arguments"] {
             Value::Null => json!({}),
             arguments => arguments.clone(),
         };
         match find(&name) {
-            Some(tool) => (tool.run)(self, arguments, Answer(call)),
+            Some(tool) if tool.kind.asks(&self.settings.ask_before) => {
+                // A window that cannot be found is the tool's to report.
+                match self.tool_window(arguments["window"].as_u64()) {
+                    Ok(id) => self.ask_to_run(id, agent, tool, arguments, Answer(call)),
+                    Err(_) => tool.start(self, arguments, Answer(call)),
+                }
+            }
+            Some(tool) => tool.start(self, arguments, Answer(call)),
             None => {
                 call.reply(Err(Error::new(
                     code::INVALID_PARAMS,
@@ -242,7 +302,7 @@ impl Prev {
 
     /// The window a tool acts on: the one numbered `window`, else the one
     /// in front.
-    fn tool_window(&self, window: Option<u64>) -> Result<window::Id, Error> {
+    pub(super) fn tool_window(&self, window: Option<u64>) -> Result<window::Id, Error> {
         let found = match window {
             Some(wanted) => self
                 .windows

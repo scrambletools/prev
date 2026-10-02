@@ -730,3 +730,23 @@ agent-prompt-title = Να επιτραπεί στο { $agent } να ελέγχε
 agent-prompt-body = Το { $agent } ζητά να χρησιμοποιήσει τον εξωτερικό έλεγχο του prev, για να διαβάζει τα ανοιχτά αρχεία σας και να τα αλλάζει. Μπορείτε να απενεργοποιήσετε τον εξωτερικό έλεγχο στις Ρυθμίσεις.
 agent-prompt-allow = Να επιτραπεί
 agent-prompt-deny = Να μην επιτραπεί
+settings-ask-before-note = Ερώτηση πριν από τις εξής ενέργειες ενός πράκτορα:
+settings-ask-reading = Ανάγνωση αρχείου
+settings-ask-viewing = Αλλαγή προβολής ή παραθύρου
+settings-ask-marking-up = Σήμανση αρχείου
+settings-ask-editing = Επεξεργασία αρχείου
+settings-ask-signing = Υπογραφή αρχείου
+settings-ask-redacting = Εφαρμογή αποκρύψεων
+settings-ask-exporting = Εξαγωγή αρχείου
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Να επιτραπεί στο { $agent } να διαβάσει αυτό το αρχείο;
+agent-ask-view = Να επιτραπεί στο { $agent } να αλλάξει την προβολή;
+agent-ask-markup = Να επιτραπεί στο { $agent } να προσθέσει σήμανση σε αυτό το αρχείο;
+agent-ask-edit = Να επιτραπεί στο { $agent } να επεξεργαστεί αυτό το αρχείο;
+agent-ask-sign = Να επιτραπεί στο { $agent } να υπογράψει αυτό το αρχείο;
+agent-ask-redact = Να επιτραπεί στο { $agent } να εφαρμόσει αποκρύψεις;
+agent-ask-export = Να επιτραπεί στο { $agent } να εξαγάγει αυτό το αρχείο;
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = Το { $agent } ζητά να χρησιμοποιήσει το «{ $tool }». Στις Ρυθμίσεις επιλέγετε για τι ρωτά το prev.
+agent-ask-final = Αυτό δεν μπορεί να αναιρεθεί.

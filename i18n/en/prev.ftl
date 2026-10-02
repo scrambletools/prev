@@ -874,3 +874,23 @@ agent-prompt-title = Allow { $agent } to control prev?
 agent-prompt-body = { $agent } asks to use prev's outside control, to read your open files and change them. You can turn outside control off in Settings.
 agent-prompt-allow = Allow
 agent-prompt-deny = Don't allow
+settings-ask-before-note = Ask before an agent:
+settings-ask-reading = Reads a file
+settings-ask-viewing = Changes the view or a window
+settings-ask-marking-up = Marks up a file
+settings-ask-editing = Edits a file
+settings-ask-signing = Signs a file
+settings-ask-redacting = Applies redactions
+settings-ask-exporting = Exports a file
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Let { $agent } read this file?
+agent-ask-view = Let { $agent } change the view?
+agent-ask-markup = Let { $agent } mark up this file?
+agent-ask-edit = Let { $agent } edit this file?
+agent-ask-sign = Let { $agent } sign this file?
+agent-ask-redact = Let { $agent } apply redactions?
+agent-ask-export = Let { $agent } export this file?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } asks to use “{ $tool }”. Settings chooses what prev asks about.
+agent-ask-final = Undo cannot take this back.

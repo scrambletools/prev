@@ -66,6 +66,9 @@ pub struct Settings {
     /// `macos` tables, which apply only on that system. prev reads it; the
     /// Settings dialog does not show it.
     pub keys: toml::Table,
+    /// The kinds of tool prev asks the user about before an agent's call
+    /// runs.
+    pub ask_before: AskBefore,
 }
 
 impl Default for Settings {
@@ -91,6 +94,35 @@ impl Default for Settings {
             versions: locations.versions,
             bookmarks: locations.bookmarks,
             keys: toml::Table::new(),
+            ask_before: AskBefore::default(),
+        }
+    }
+}
+
+/// Whether prev asks before an agent's tool of each kind runs. Signing
+/// and applying redactions ask at first, as Undo cannot take them back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
+pub struct AskBefore {
+    pub reading: bool,
+    pub viewing: bool,
+    pub marking_up: bool,
+    pub editing: bool,
+    pub signing: bool,
+    pub redacting: bool,
+    pub exporting: bool,
+}
+
+impl Default for AskBefore {
+    fn default() -> Self {
+        Self {
+            reading: false,
+            viewing: false,
+            marking_up: false,
+            editing: false,
+            signing: true,
+            redacting: true,
+            exporting: false,
         }
     }
 }
@@ -250,6 +282,8 @@ mod tests {
         assert!(text.contains("corner-radius = 20"), "{text}");
         assert!(text.contains("animations = false"), "{text}");
         assert!(text.contains("outside-control = true"), "{text}");
+        assert!(text.contains("[ask-before]"), "{text}");
+        assert!(text.contains("signing = true"), "{text}");
         assert!(
             text.contains("allowed-agents = [\"claude-code\"]"),
             "{text}"

@@ -874,3 +874,23 @@ agent-prompt-title = { $agent } toestaan prev te besturen?
 agent-prompt-body = { $agent } vraagt om de besturing van buitenaf van prev te gebruiken, om je geopende bestanden te lezen en te wijzigen. Je kunt besturing van buitenaf uitzetten in Instellingen.
 agent-prompt-allow = Toestaan
 agent-prompt-deny = Niet toestaan
+settings-ask-before-note = Eerst vragen voordat een agent dit doet:
+settings-ask-reading = Bestand lezen
+settings-ask-viewing = Weergave of venster wijzigen
+settings-ask-marking-up = Bestand annoteren
+settings-ask-editing = Bestand bewerken
+settings-ask-signing = Bestand ondertekenen
+settings-ask-redacting = Zwartlakkingen toepassen
+settings-ask-exporting = Bestand exporteren
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = { $agent } toestaan dit bestand te lezen?
+agent-ask-view = { $agent } toestaan de weergave te wijzigen?
+agent-ask-markup = { $agent } toestaan dit bestand te annoteren?
+agent-ask-edit = { $agent } toestaan dit bestand te bewerken?
+agent-ask-sign = { $agent } toestaan dit bestand te ondertekenen?
+agent-ask-redact = { $agent } toestaan zwartlakkingen toe te passen?
+agent-ask-export = { $agent } toestaan dit bestand te exporteren?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } vraagt om ‘{ $tool }’ te gebruiken. In Instellingen kies je waarnaar prev vraagt.
+agent-ask-final = Dit kan niet ongedaan worden gemaakt.

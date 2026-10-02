@@ -735,3 +735,23 @@ agent-prompt-title = Ruhusu { $agent } kudhibiti prev?
 agent-prompt-body = { $agent } anaomba kutumia udhibiti wa nje wa prev, ili kusoma faili zako zilizofunguliwa na kuzibadilisha. Unaweza kuzima udhibiti wa nje katika Mipangilio.
 agent-prompt-allow = Ruhusu
 agent-prompt-deny = Usiruhusu
+settings-ask-before-note = Uliza kwanza wakala anapotaka:
+settings-ask-reading = Kusoma faili
+settings-ask-viewing = Kubadilisha mwonekano au dirisha
+settings-ask-marking-up = Kuweka alama kwenye faili
+settings-ask-editing = Kuhariri faili
+settings-ask-signing = Kuweka sahihi kwenye faili
+settings-ask-redacting = Kutekeleza ufichaji
+settings-ask-exporting = Kuhamisha faili
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = Ruhusu { $agent } kusoma faili hii?
+agent-ask-view = Ruhusu { $agent } kubadilisha mwonekano?
+agent-ask-markup = Ruhusu { $agent } kuweka alama kwenye faili hii?
+agent-ask-edit = Ruhusu { $agent } kuhariri faili hii?
+agent-ask-sign = Ruhusu { $agent } kuweka sahihi kwenye faili hii?
+agent-ask-redact = Ruhusu { $agent } kutekeleza ufichaji?
+agent-ask-export = Ruhusu { $agent } kuhamisha faili hii?
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } anaomba kutumia “{ $tool }”. Katika Mipangilio unachagua mambo ambayo prev huuliza.
+agent-ask-final = Hili haliwezi kutenduliwa.

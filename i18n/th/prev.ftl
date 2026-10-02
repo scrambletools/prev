@@ -718,3 +718,23 @@ agent-prompt-title = อนุญาตให้ { $agent } ควบคุม p
 agent-prompt-body = { $agent } ขอใช้การควบคุมจากภายนอกของ prev เพื่ออ่านและแก้ไขไฟล์ที่คุณเปิดอยู่ คุณปิดการควบคุมจากภายนอกได้ในการตั้งค่า
 agent-prompt-allow = อนุญาต
 agent-prompt-deny = ไม่อนุญาต
+settings-ask-before-note = ถามก่อนเมื่อเอเจนต์จะ:
+settings-ask-reading = อ่านไฟล์
+settings-ask-viewing = เปลี่ยนมุมมองหรือหน้าต่าง
+settings-ask-marking-up = ใส่มาร์กอัปในไฟล์
+settings-ask-editing = แก้ไขไฟล์
+settings-ask-signing = ลงชื่อในไฟล์
+settings-ask-redacting = ใช้การปกปิดข้อมูล
+settings-ask-exporting = ส่งออกไฟล์
+# The prompt before an agent's tool runs; $agent is the agent's name,
+# such as Claude Code.
+agent-ask-read = อนุญาตให้ { $agent } อ่านไฟล์นี้หรือไม่
+agent-ask-view = อนุญาตให้ { $agent } เปลี่ยนมุมมองหรือไม่
+agent-ask-markup = อนุญาตให้ { $agent } ใส่มาร์กอัปในไฟล์นี้หรือไม่
+agent-ask-edit = อนุญาตให้ { $agent } แก้ไขไฟล์นี้หรือไม่
+agent-ask-sign = อนุญาตให้ { $agent } ลงชื่อในไฟล์นี้หรือไม่
+agent-ask-redact = อนุญาตให้ { $agent } ใช้การปกปิดข้อมูลหรือไม่
+agent-ask-export = อนุญาตให้ { $agent } ส่งออกไฟล์นี้หรือไม่
+# $tool is the name of what the agent asks to do, such as Highlight text.
+agent-ask-body = { $agent } ขอใช้ “{ $tool }” คุณเลือกได้ในการตั้งค่าว่าจะให้ prev ถามเรื่องใดบ้าง
+agent-ask-final = เลิกทำสิ่งนี้ไม่ได้
