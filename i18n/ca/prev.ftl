@@ -397,6 +397,7 @@ dialog-choose-bookmarks = Tria el fitxer de marcadors
 
 usage-help =
     Ús: prev [FILE]...
+        prev --mcp
 
     Mostra i edita PDF i imatges. Els fitxers s'obren en finestres del prev
     en execució, que s'inicia si cal.
@@ -404,6 +405,8 @@ usage-help =
     Opcions:
       -h, --help     Mostra aquesta ajuda
       -V, --version  Mostra la versió
+          --mcp      Serveix MCP per stdin i stdout, perquè els agents d'IA controlin
+                     el prev en execució
 
 ## Settings, continued
 
@@ -719,3 +722,17 @@ menu-window = Finestra
 menu-minimize = Minimitza
 menu-zoom = Redimensiona
 menu-bring-all-to-front = Porta-ho tot al davant
+
+## Outside control
+
+settings-outside-control = Control extern
+settings-allow-outside-control = Permet el control extern
+settings-allow-outside-control-note = Els agents d'IA com ara Claude Code poden llegir i canviar els teus fitxers al prev mitjançant prev --mcp. El prev pregunta abans de cada agent nou.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Permesos: { $agents }
+settings-forget-agents = Oblida
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Vols permetre que { $agent } controli el prev?
+agent-prompt-body = { $agent } demana fer servir el control extern del prev per llegir els fitxers oberts i canviar-los. Pots desactivar el control extern a Configuració.
+agent-prompt-allow = Permet
+agent-prompt-deny = No permetis

@@ -30,6 +30,10 @@ pub mod code {
     pub const INTERNAL_ERROR: i64 = -32603;
     /// The app went away, or dropped the call without answering.
     pub const NO_ANSWER: i64 = -32000;
+    /// Outside control is off in Settings.
+    pub const OFF: i64 = -32001;
+    /// The user did not allow the agent to control prev.
+    pub const DECLINED: i64 = -32002;
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

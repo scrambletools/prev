@@ -45,6 +45,12 @@ pub struct Settings {
     /// Interface motion: springs, slides and growing dialogs. Off, or the
     /// system's reduced motion setting, makes changes happen at once.
     pub animations: bool,
+    /// Let programs such as AI agents control prev over its control
+    /// channel, through `prev --mcp`.
+    pub outside_control: bool,
+    /// The agents, by the names they give, that the user allowed to
+    /// control prev. Others are asked about on their first connection.
+    pub allowed_agents: Vec<String>,
     /// Folder of the signature library.
     #[serde(with = "home_path")]
     pub signatures: PathBuf,
@@ -79,6 +85,8 @@ impl Default for Settings {
             corner_radius: DEFAULT_CORNER_RADIUS,
             overlay_transparency: 25.0,
             animations: false,
+            outside_control: true,
+            allowed_agents: Vec::new(),
             signatures: locations.signatures,
             versions: locations.versions,
             bookmarks: locations.bookmarks,
@@ -231,6 +239,7 @@ mod tests {
             system_accent: false,
             auto_hide_toolbar: true,
             signatures: PathBuf::from("/srv/signatures"),
+            allowed_agents: vec!["claude-code".to_owned()],
             ..Settings::default()
         };
         settings.save_to(&path).unwrap();
@@ -240,6 +249,11 @@ mod tests {
         assert!(text.contains("auto-hide-toolbar = true"), "{text}");
         assert!(text.contains("corner-radius = 20"), "{text}");
         assert!(text.contains("animations = false"), "{text}");
+        assert!(text.contains("outside-control = true"), "{text}");
+        assert!(
+            text.contains("allowed-agents = [\"claude-code\"]"),
+            "{text}"
+        );
         assert!(text.contains("overlay-transparency = 25"), "{text}");
         assert!(text.contains("signatures = \"/srv/signatures\""), "{text}");
         assert!(text.contains("versions = "), "{text}");

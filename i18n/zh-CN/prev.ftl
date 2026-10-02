@@ -444,6 +444,7 @@ dialog-choose-bookmarks = 选择书签文件
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     用法：prev [FILE]...
+          prev --mcp
 
     查看和编辑 PDF 与图像。文件会在正在运行的 prev 的窗口中打开，
     如有需要会先启动 prev。
@@ -451,6 +452,8 @@ usage-help =
     选项：
       -h, --help     显示此帮助
       -V, --version  显示版本
+          --mcp      通过 stdin 和 stdout 提供 MCP，让 AI 智能体控制
+                     正在运行的 prev
 
 ## Settings, continued
 
@@ -824,3 +827,17 @@ menu-window = 窗口
 menu-minimize = 最小化
 menu-zoom = 缩放
 menu-bring-all-to-front = 前置全部窗口
+
+## Outside control
+
+settings-outside-control = 外部控制
+settings-allow-outside-control = 允许外部控制
+settings-allow-outside-control-note = Claude Code 等 AI 智能体可以通过 prev --mcp 读取和更改你在 prev 中的文件。每个新智能体接入前，prev 都会先询问。
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = 已允许：{ $agents }
+settings-forget-agents = 忘记
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = 允许 { $agent } 控制 prev？
+agent-prompt-body = { $agent } 请求使用 prev 的外部控制，以读取和更改你打开的文件。你可以在“设置”中关闭外部控制。
+agent-prompt-allow = 允许
+agent-prompt-deny = 不允许

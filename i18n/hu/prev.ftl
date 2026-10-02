@@ -391,6 +391,7 @@ dialog-choose-bookmarks = Válassza ki a könyvjelzőfájlt
 
 usage-help =
     Használat: prev [FILE]...
+               prev --mcp
 
     PDF-ek és képek megtekintése és szerkesztése. A fájlok a futó prev
     ablakaiban nyílnak meg; a prev szükség esetén elindul.
@@ -398,6 +399,8 @@ usage-help =
     Kapcsolók:
       -h, --help     A súgó megjelenítése
       -V, --version  A verzió megjelenítése
+          --mcp      MCP kiszolgálása stdin és stdout útján, hogy MI-ügynökök
+                     vezérelhessék a futó prevet
 
 ## Settings, continued
 
@@ -713,3 +716,17 @@ menu-window = Ablak
 menu-minimize = Kis méret
 menu-zoom = Nagyítás/kicsinyítés
 menu-bring-all-to-front = Az összes előtérbe hozása
+
+## Outside control
+
+settings-outside-control = Külső vezérlés
+settings-allow-outside-control = Külső vezérlés engedélyezése
+settings-allow-outside-control-note = Az MI-ügynökök, például a Claude Code, a prev --mcp segítségével olvashatják és módosíthatják a prevben lévő fájljait. A prev minden új ügynök előtt rákérdez.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Engedélyezve: { $agents }
+settings-forget-agents = Elfelejtés
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Engedélyezi, hogy { $agent } vezérelje a prevet?
+agent-prompt-body = { $agent } szeretné használni a prev külső vezérlését, hogy olvassa és módosítsa a megnyitott fájljait. A külső vezérlést a Beállításokban kapcsolhatja ki.
+agent-prompt-allow = Engedélyezés
+agent-prompt-deny = Tiltás

@@ -388,6 +388,7 @@ dialog-choose-bookmarks = Velg filen for bokmerker
 
 usage-help =
     Bruk: prev [FILE]...
+          prev --mcp
 
     Vis og rediger PDF-er og bilder. Filene åpnes i vinduer i prev-instansen
     som kjører, og prev startes ved behov.
@@ -395,6 +396,8 @@ usage-help =
     Valg:
       -h, --help     Vis denne hjelpen
       -V, --version  Vis versjonen
+          --mcp      Kjør MCP på stdin og stdout, så KI-agenter kan styre prev
+                     som kjører
 
 ## Settings, continued
 
@@ -710,3 +713,17 @@ menu-window = Vindu
 menu-minimize = Minimer
 menu-zoom = Zoom
 menu-bring-all-to-front = Legg alle fremst
+
+## Outside control
+
+settings-outside-control = Ekstern styring
+settings-allow-outside-control = Tillat ekstern styring
+settings-allow-outside-control-note = KI-agenter som Claude Code kan lese og endre filene dine i prev via prev --mcp. prev spør før hver nye agent.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Tillatt: { $agents }
+settings-forget-agents = Glem
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Vil du la { $agent } styre prev?
+agent-prompt-body = { $agent } ber om å bruke prevs eksterne styring til å lese de åpne filene dine og endre dem. Du kan slå av ekstern styring i Innstillinger.
+agent-prompt-allow = Tillat
+agent-prompt-deny = Ikke tillat

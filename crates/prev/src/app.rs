@@ -26,6 +26,8 @@ use raw_window_handle::RawWindowHandle;
 
 use crate::External;
 
+mod agents;
+
 #[cfg(target_os = "linux")]
 pub const APP_ID: &str = if prev_store::paths::PRODUCTION {
     "io.github.scrambletools.prev"
@@ -62,6 +64,9 @@ pub struct Prev {
     keyboard_rtl: Option<bool>,
     /// The window that last had the focus, which menu bar items act on.
     focused: Option<window::Id>,
+    /// Agents waiting to be allowed to control prev, and the ones turned
+    /// away.
+    agents: agents::Agents,
     /// The notices each window showed after the last update, so new ones
     /// get their timer.
     notices_seen: BTreeMap<window::Id, Vec<String>>,
@@ -268,6 +273,14 @@ pub enum Message {
     /// The keyboard layout changed direction.
     KeyboardDirection(Option<bool>),
     SystemAccentToggled(bool),
+    OutsideControlToggled(bool),
+    /// Forget the agents allowed to control prev, so they are asked about
+    /// again.
+    ForgetAgents,
+    /// The user allowed the agent asking to control prev, or not.
+    AgentAnswered(bool),
+    /// A new prompt's buttons now take clicks.
+    AgentPromptReady,
     /// A color picked for the scheme, as "#RRGGBB".
     AccentPicked(String),
     DismissNotice(window::Id),
@@ -326,6 +339,7 @@ impl Prev {
             system_animations: true,
             keyboard_rtl: None,
             focused: None,
+            agents: agents::Agents::default(),
             notices_seen: BTreeMap::new(),
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
@@ -664,10 +678,7 @@ impl Prev {
                 Task::none()
             }
             Message::External(External::OpenPaths(paths)) => self.open_paths(paths),
-            Message::External(External::Control(call)) => {
-                self.control(call);
-                Task::none()
-            }
+            Message::External(External::Control(call)) => self.control(call),
             #[cfg(target_os = "macos")]
             Message::External(External::Menu(action)) => {
                 let target = self
@@ -1060,6 +1071,21 @@ impl Prev {
                 self.refresh_theme();
                 Task::none()
             }
+            Message::OutsideControlToggled(enabled) => {
+                self.settings.outside_control = enabled;
+                if !enabled {
+                    self.outside_control_off();
+                }
+                self.save_settings();
+                Task::none()
+            }
+            Message::ForgetAgents => {
+                self.settings.allowed_agents.clear();
+                self.save_settings();
+                Task::none()
+            }
+            Message::AgentAnswered(allow) => self.agent_answered(allow),
+            Message::AgentPromptReady => Task::none(),
         }
     }
 
@@ -1206,23 +1232,6 @@ impl Prev {
 
     /// Answers a call on the control channel. The tools come in later;
     /// `ping` says which prev answers.
-    fn control(&mut self, call: prev::control::Call) {
-        use prev::control::{Error, code};
-        let answer = match call.method.as_str() {
-            "ping" => Ok(serde_json::json!({
-                "protocol": prev::control::PROTOCOL,
-                "version": env!("CARGO_PKG_VERSION"),
-                "build": env!("PREV_COMMIT"),
-                "development": !prev_store::paths::PRODUCTION,
-            })),
-            method => Err(Error::new(
-                code::METHOD_NOT_FOUND,
-                format!("prev has no method {method}"),
-            )),
-        };
-        call.reply(answer);
-    }
-
     fn open_paths_if_any(&mut self, paths: Vec<PathBuf>) -> Task<Message> {
         if paths.is_empty() {
             Task::none()
@@ -1234,6 +1243,9 @@ impl Prev {
     /// Runs `action` in window `id`, from its shortcut or a menu item: the
     /// window's document takes it first, then the app.
     fn shortcut(&mut self, id: window::Id, action: Action) -> Task<Message> {
+        if action == Action::Escape && self.shows_agent_prompt(id) {
+            return self.agent_answered(false);
+        }
         if action == Action::Escape
             && self
                 .windows
@@ -1452,7 +1464,8 @@ impl Prev {
         } else {
             full()
         };
-        ui::smooth::smooth(stack![body, notice, drop, settings])
+        let prompt = self.agent_prompt(id).unwrap_or_else(full);
+        ui::smooth::smooth(stack![body, notice, drop, settings, prompt])
     }
 
     /// Motion is on only when both the settings and the system allow it.
@@ -1695,6 +1708,31 @@ impl Prev {
         rows.into()
     }
 
+    /// The agents allowed to control prev, which Forget asks about again.
+    fn allowed_agents_view(&self) -> Element<'_, Message> {
+        if self.settings.allowed_agents.is_empty() {
+            return space().into();
+        }
+        row![
+            container(ui::aligned(
+                ui::styled(
+                    prev::fl!(
+                        "settings-allowed-agents",
+                        agents = self.settings.allowed_agents.join(", ")
+                    ),
+                    Type::BodyMedium
+                )
+                .style(style::on_surface_variant)
+            ))
+            .width(Fill),
+            ui::button(Kind::Text, prev::fl!("settings-forget-agents"))
+                .on_press(Message::ForgetAgents),
+        ]
+        .spacing(16)
+        .align_y(Center)
+        .into()
+    }
+
     fn settings_dialog(&self, id: window::Id) -> Element<'_, Message> {
         let appearance = self.settings.appearance;
         let choice = |glyph: Icon, label: String, value: Appearance| {
@@ -1890,6 +1928,28 @@ impl Prev {
             ]
             .spacing(16)
             .align_y(Center),
+            component::section(prev::fl!("settings-outside-control")),
+            row![
+                column![
+                    ui::styled(prev::fl!("settings-allow-outside-control"), Type::BodyLarge),
+                    ui::aligned(
+                        ui::styled(
+                            prev::fl!("settings-allow-outside-control-note"),
+                            Type::BodyMedium
+                        )
+                        .style(style::on_surface_variant)
+                    ),
+                ]
+                .spacing(2)
+                .width(Fill),
+                toggler(self.settings.outside_control)
+                    .on_toggle(Message::OutsideControlToggled)
+                    .size(28)
+                    .style(style::switch),
+            ]
+            .spacing(16)
+            .align_y(Center),
+            self.allowed_agents_view(),
             component::section(prev::fl!("settings-default-app")),
             self.default_app_view(),
             component::section(prev::fl!("settings-storage")),

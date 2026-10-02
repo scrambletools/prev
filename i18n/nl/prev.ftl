@@ -474,6 +474,7 @@ dialog-choose-bookmarks = Kies het bestand voor bladwijzers
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Gebruik: prev [FILE]...
+             prev --mcp
 
     Bekijk en bewerk PDF's en afbeeldingen. Bestanden openen in vensters van
     prev als dat al draait; anders wordt prev eerst gestart.
@@ -481,6 +482,8 @@ usage-help =
     Opties:
       -h, --help     Deze hulp tonen
       -V, --version  De versie tonen
+          --mcp      MCP aanbieden via stdin en stdout, zodat AI-agents de draaiende
+                     prev kunnen besturen
 
 ## Settings, continued
 
@@ -857,3 +860,17 @@ menu-window = Venster
 menu-minimize = Minimaliseer
 menu-zoom = Zoom
 menu-bring-all-to-front = Breng alles naar voren
+
+## Outside control
+
+settings-outside-control = Besturing van buitenaf
+settings-allow-outside-control = Besturing van buitenaf toestaan
+settings-allow-outside-control-note = AI-agents zoals Claude Code kunnen via prev --mcp je bestanden in prev lezen en wijzigen. prev vraagt het eerst bij elke nieuwe agent.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Toegestaan: { $agents }
+settings-forget-agents = Vergeten
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent } toestaan prev te besturen?
+agent-prompt-body = { $agent } vraagt om de besturing van buitenaf van prev te gebruiken, om je geopende bestanden te lezen en te wijzigen. Je kunt besturing van buitenaf uitzetten in Instellingen.
+agent-prompt-allow = Toestaan
+agent-prompt-deny = Niet toestaan

@@ -471,6 +471,7 @@ dialog-choose-bookmarks = Lesezeichendatei auswählen
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Aufruf: prev [FILE]...
+            prev --mcp
 
     PDFs und Bilder ansehen und bearbeiten. Dateien werden in Fenstern des
     laufenden prev geöffnet; läuft prev noch nicht, wird es gestartet.
@@ -478,6 +479,8 @@ usage-help =
     Optionen:
       -h, --help     Diese Hilfe anzeigen
       -V, --version  Die Version anzeigen
+          --mcp      MCP über stdin und stdout bereitstellen, damit KI-Agenten das
+                     laufende prev steuern können
 
 ## Settings, continued
 
@@ -854,3 +857,17 @@ menu-window = Fenster
 menu-minimize = Im Dock ablegen
 menu-zoom = Zoomen
 menu-bring-all-to-front = Alle nach vorne bringen
+
+## Outside control
+
+settings-outside-control = Steuerung von außen
+settings-allow-outside-control = Steuerung von außen erlauben
+settings-allow-outside-control-note = KI-Agenten wie Claude Code können über prev --mcp Ihre Dateien in prev lesen und ändern. prev fragt vor jedem neuen Agenten nach.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Erlaubt: { $agents }
+settings-forget-agents = Vergessen
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent } erlauben, prev zu steuern?
+agent-prompt-body = { $agent } möchte die Steuerung von außen in prev nutzen, um Ihre geöffneten Dateien zu lesen und zu ändern. Sie können die Steuerung von außen in den Einstellungen ausschalten.
+agent-prompt-allow = Erlauben
+agent-prompt-deny = Nicht erlauben

@@ -479,6 +479,7 @@ dialog-choose-bookmarks = बुकमार्क फ़ाइल चुने�
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     उपयोग: prev [FILE]...
+           prev --mcp
 
     PDF और छवियाँ देखें और संपादित करें। फ़ाइलें चल रहे prev की विंडो में
     खुलती हैं, जो ज़रूरत पड़ने पर शुरू हो जाता है।
@@ -486,6 +487,8 @@ usage-help =
     विकल्प:
       -h, --help     यह सहायता दिखाएँ
       -V, --version  संस्करण दिखाएँ
+          --mcp      stdin और stdout पर MCP चलाएँ, ताकि AI एजेंट चल रहे prev को
+                     नियंत्रित कर सकें
 
 ## Settings, continued
 
@@ -862,3 +865,17 @@ menu-window = विंडो
 menu-minimize = छोटा करें
 menu-zoom = ज़ूम करें
 menu-bring-all-to-front = सभी को सामने लाएँ
+
+## Outside control
+
+settings-outside-control = बाहरी नियंत्रण
+settings-allow-outside-control = बाहरी नियंत्रण की अनुमति दें
+settings-allow-outside-control-note = Claude Code जैसे AI एजेंट prev --mcp के ज़रिए prev में आपकी फ़ाइलें पढ़ और बदल सकते हैं। हर नए एजेंट से पहले prev पूछता है।
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = अनुमति प्राप्त: { $agents }
+settings-forget-agents = भूल जाएँ
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent } को prev नियंत्रित करने की अनुमति दें?
+agent-prompt-body = { $agent } आपकी खुली फ़ाइलें पढ़ने और बदलने के लिए prev के बाहरी नियंत्रण का उपयोग करना चाहता है। आप सेटिंग्स में बाहरी नियंत्रण बंद कर सकते हैं।
+agent-prompt-allow = अनुमति दें
+agent-prompt-deny = अनुमति न दें

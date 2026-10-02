@@ -463,6 +463,7 @@ dialog-choose-bookmarks = 책갈피 파일 선택
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     사용법: prev [FILE]...
+            prev --mcp
 
     PDF와 이미지를 보고 편집합니다. 파일은 실행 중인 prev의 창에서 열리며,
     필요하면 prev가 시작됩니다.
@@ -470,6 +471,8 @@ usage-help =
     옵션:
       -h, --help     이 도움말 보기
       -V, --version  버전 보기
+          --mcp      stdin과 stdout으로 MCP를 제공하여 AI 에이전트가 실행 중인
+                     prev를 제어하게 합니다
 
 ## Settings, continued
 
@@ -845,3 +848,17 @@ menu-window = 윈도우
 menu-minimize = 최소화
 menu-zoom = 확대/축소
 menu-bring-all-to-front = 모두 앞으로 가져오기
+
+## Outside control
+
+settings-outside-control = 외부 제어
+settings-allow-outside-control = 외부 제어 허용
+settings-allow-outside-control-note = Claude Code 같은 AI 에이전트가 prev --mcp를 통해 prev에서 파일을 읽고 변경할 수 있습니다. 새 에이전트마다 prev가 먼저 묻습니다.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = 허용됨: { $agents }
+settings-forget-agents = 지우기
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent }이(가) prev를 제어하도록 허용하시겠습니까?
+agent-prompt-body = { $agent }이(가) 열려 있는 파일을 읽고 변경하기 위해 prev의 외부 제어를 사용하려고 합니다. 외부 제어는 설정에서 끌 수 있습니다.
+agent-prompt-allow = 허용
+agent-prompt-deny = 허용 안 함

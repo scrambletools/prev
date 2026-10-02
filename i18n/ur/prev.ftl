@@ -394,6 +394,7 @@ dialog-choose-bookmarks = بک مارکس کی فائل منتخب کریں
 
 usage-help =
     استعمال: prev [FILE]...
+             prev --mcp
 
     PDF اور تصاویر دیکھیں اور ان میں ترمیم کریں۔ فائلیں چلتے ہوئے prev کی
     ونڈوز میں کھلتی ہیں، جو ضرورت ہو تو شروع ہو جاتا ہے۔
@@ -401,6 +402,8 @@ usage-help =
     اختیارات:
       -h, --help     یہ مدد دکھائیں
       -V, --version  ورژن دکھائیں
+          --mcp      stdin اور stdout پر MCP فراہم کریں، تاکہ AI ایجنٹ چلتے ہوئے
+                     prev کو کنٹرول کر سکیں
 
 ## Settings, continued
 
@@ -716,3 +719,17 @@ menu-window = ونڈو
 menu-minimize = چھوٹا کریں
 menu-zoom = زوم
 menu-bring-all-to-front = سب کو سامنے لائیں
+
+## Outside control
+
+settings-outside-control = بیرونی کنٹرول
+settings-allow-outside-control = بیرونی کنٹرول کی اجازت دیں
+settings-allow-outside-control-note = Claude Code جیسے AI ایجنٹ prev --mcp کے ذریعے prev میں آپ کی فائلیں پڑھ اور بدل سکتے ہیں۔ ہر نئے ایجنٹ سے پہلے prev پوچھتا ہے۔
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = اجازت یافتہ: { $agents }
+settings-forget-agents = بھول جائیں
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = کیا { $agent } کو prev کنٹرول کرنے کی اجازت دیں؟
+agent-prompt-body = { $agent } آپ کی کھلی فائلیں پڑھنے اور بدلنے کے لیے prev کا بیرونی کنٹرول استعمال کرنا چاہتا ہے۔ آپ بیرونی کنٹرول کو ترتیبات میں بند کر سکتے ہیں۔
+agent-prompt-allow = اجازت دیں
+agent-prompt-deny = اجازت نہ دیں

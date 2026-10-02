@@ -507,6 +507,7 @@ dialog-choose-bookmarks = اختر ملف الإشارات المرجعية
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     الاستخدام: prev [FILE]...
+               prev --mcp
 
     عرض ملفات PDF والصور وتحريرها. تُفتح الملفات في نوافذ prev قيد التشغيل،
     والذي يبدأ عند الحاجة.
@@ -514,6 +515,8 @@ usage-help =
     الخيارات:
       -h, --help     عرض هذه المساعدة
       -V, --version  عرض الإصدار
+          --mcp      تقديم MCP عبر stdin وstdout، ليتحكم وكلاء الذكاء الاصطناعي
+                     في prev قيد التشغيل
 
 ## Settings, continued
 
@@ -894,3 +897,17 @@ menu-window = نافذة
 menu-minimize = تصغير
 menu-zoom = تكبير/تصغير
 menu-bring-all-to-front = إحضار الكل إلى الأمام
+
+## Outside control
+
+settings-outside-control = التحكم الخارجي
+settings-allow-outside-control = السماح بالتحكم الخارجي
+settings-allow-outside-control-note = يمكن لوكلاء الذكاء الاصطناعي مثل Claude Code قراءة ملفاتك في prev وتغييرها، عبر prev --mcp. يسأل prev قبل كل وكيل جديد.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = المسموح لهم: { $agents }
+settings-forget-agents = نسيان
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = هل تسمح لـ { $agent } بالتحكم في prev؟
+agent-prompt-body = يطلب { $agent } استخدام التحكم الخارجي في prev، لقراءة ملفاتك المفتوحة وتغييرها. يمكنك إيقاف التحكم الخارجي من الإعدادات.
+agent-prompt-allow = سماح
+agent-prompt-deny = عدم السماح

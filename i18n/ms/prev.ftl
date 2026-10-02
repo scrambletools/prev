@@ -381,6 +381,7 @@ dialog-choose-bookmarks = Pilih fail penanda buku
 
 usage-help =
     Penggunaan: prev [FILE]...
+                prev --mcp
 
     Lihat dan edit PDF dan imej. Fail dibuka dalam tetingkap prev yang sedang
     berjalan, yang akan dimulakan jika perlu.
@@ -388,6 +389,8 @@ usage-help =
     Pilihan:
       -h, --help     Tunjukkan bantuan ini
       -V, --version  Tunjukkan versi
+          --mcp      Sajikan MCP pada stdin dan stdout, supaya ejen AI dapat mengawal
+                     prev yang sedang berjalan
 
 ## Settings, continued
 
@@ -702,3 +705,17 @@ menu-window = Tetingkap
 menu-minimize = Minimumkan
 menu-zoom = Zum
 menu-bring-all-to-front = Bawa Semua ke Hadapan
+
+## Outside control
+
+settings-outside-control = Kawalan luar
+settings-allow-outside-control = Benarkan kawalan luar
+settings-allow-outside-control-note = Ejen AI seperti Claude Code boleh membaca dan mengubah fail anda dalam prev melalui prev --mcp. prev akan bertanya sebelum setiap ejen baharu.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Dibenarkan: { $agents }
+settings-forget-agents = Lupakan
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Benarkan { $agent } mengawal prev?
+agent-prompt-body = { $agent } meminta untuk menggunakan kawalan luar prev, untuk membaca dan mengubah fail anda yang terbuka. Anda boleh mematikan kawalan luar dalam Tetapan.
+agent-prompt-allow = Benarkan
+agent-prompt-deny = Jangan benarkan

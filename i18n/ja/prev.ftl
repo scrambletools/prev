@@ -444,6 +444,7 @@ dialog-choose-bookmarks = ブックマークファイルを選択
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     使い方：prev [FILE]...
+            prev --mcp
 
     PDFと画像を表示・編集します。ファイルは実行中のprevのウインドウで
     開きます。prevが起動していない場合は起動します。
@@ -451,6 +452,8 @@ usage-help =
     オプション：
       -h, --help     このヘルプを表示
       -V, --version  バージョンを表示
+          --mcp      stdinとstdoutでMCPを提供し、AIエージェントが実行中のprevを
+                     操作できるようにします
 
 ## Settings, continued
 
@@ -824,3 +827,17 @@ menu-window = ウインドウ
 menu-minimize = しまう
 menu-zoom = 拡大／縮小
 menu-bring-all-to-front = すべてを手前に移動
+
+## Outside control
+
+settings-outside-control = 外部からの操作
+settings-allow-outside-control = 外部からの操作を許可
+settings-allow-outside-control-note = Claude CodeなどのAIエージェントが、prev --mcpを通じてprevでファイルを読み取り、変更できるようになります。新しいエージェントごとにprevが確認します。
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = 許可済み：{ $agents }
+settings-forget-agents = 削除
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent }にprevの操作を許可しますか？
+agent-prompt-body = { $agent }が、開いているファイルの読み取りと変更のために、prevの外部からの操作を使おうとしています。外部からの操作は「設定」でオフにできます。
+agent-prompt-allow = 許可
+agent-prompt-deny = 許可しない

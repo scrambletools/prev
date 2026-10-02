@@ -444,6 +444,7 @@ dialog-choose-bookmarks = 選擇書籤檔案
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     用法：prev [FILE]...
+          prev --mcp
 
     檢視和編輯 PDF 與影像。檔案會在執行中的 prev 視窗內開啟，
     必要時會先啟動 prev。
@@ -451,6 +452,8 @@ usage-help =
     選項：
       -h, --help     顯示此說明
       -V, --version  顯示版本
+          --mcp      透過 stdin 和 stdout 提供 MCP，讓 AI 代理程式控制
+                     執行中的 prev
 
 ## Settings, continued
 
@@ -824,3 +827,17 @@ menu-window = 視窗
 menu-minimize = 縮到最小
 menu-zoom = 縮放
 menu-bring-all-to-front = 將此程式所有視窗移至最前
+
+## Outside control
+
+settings-outside-control = 外部控制
+settings-allow-outside-control = 允許外部控制
+settings-allow-outside-control-note = Claude Code 等 AI 代理程式可以透過 prev --mcp 讀取和變更你在 prev 中的檔案。每個新的代理程式接入前，prev 都會先詢問。
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = 已允許：{ $agents }
+settings-forget-agents = 忘記
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = 要允許 { $agent } 控制 prev 嗎？
+agent-prompt-body = { $agent } 要求使用 prev 的外部控制，以讀取和變更你開啟的檔案。你可以在「設定」中關閉外部控制。
+agent-prompt-allow = 允許
+agent-prompt-deny = 不允許

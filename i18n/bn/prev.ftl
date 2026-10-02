@@ -392,6 +392,7 @@ dialog-choose-bookmarks = বুকমার্ক ফাইল বেছে ন
 
 usage-help =
     ব্যবহার: prev [FILE]...
+            prev --mcp
 
     PDF ও ছবি দেখুন এবং সম্পাদনা করুন। ফাইলগুলো চালু থাকা prev-এর উইন্ডোতে
     খোলে, যা প্রয়োজনে নিজেই চালু হয়।
@@ -399,6 +400,8 @@ usage-help =
     বিকল্প:
       -h, --help     এই সহায়তা দেখান
       -V, --version  সংস্করণ দেখান
+          --mcp      stdin ও stdout-এ MCP চালান, যাতে AI এজেন্ট চালু থাকা prev
+                     নিয়ন্ত্রণ করতে পারে
 
 ## Settings, continued
 
@@ -714,3 +717,17 @@ menu-window = উইন্ডো
 menu-minimize = ছোট করুন
 menu-zoom = জুম
 menu-bring-all-to-front = সব সামনে আনুন
+
+## Outside control
+
+settings-outside-control = বাইরের নিয়ন্ত্রণ
+settings-allow-outside-control = বাইরের নিয়ন্ত্রণের অনুমতি দিন
+settings-allow-outside-control-note = Claude Code-এর মতো AI এজেন্ট prev --mcp ব্যবহার করে prev-এ আপনার ফাইল পড়তে ও পরিবর্তন করতে পারে। প্রতিটি নতুন এজেন্টের আগে prev জিজ্ঞাসা করে।
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = অনুমোদিত: { $agents }
+settings-forget-agents = ভুলে যান
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent }-কে prev নিয়ন্ত্রণ করার অনুমতি দেবেন?
+agent-prompt-body = { $agent } prev-এর বাইরের নিয়ন্ত্রণ ব্যবহার করে আপনার খোলা ফাইল পড়তে ও পরিবর্তন করতে চায়। সেটিংসে গিয়ে বাইরের নিয়ন্ত্রণ বন্ধ করতে পারেন।
+agent-prompt-allow = অনুমতি দিন
+agent-prompt-deny = অনুমতি দেবেন না

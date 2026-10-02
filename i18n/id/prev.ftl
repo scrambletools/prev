@@ -381,6 +381,7 @@ dialog-choose-bookmarks = Pilih berkas penanda
 
 usage-help =
     Penggunaan: prev [FILE]...
+                prev --mcp
 
     Lihat dan edit PDF dan gambar. Berkas dibuka di jendela prev yang sedang
     berjalan, yang akan dijalankan bila perlu.
@@ -388,6 +389,8 @@ usage-help =
     Opsi:
       -h, --help     Tampilkan bantuan ini
       -V, --version  Tampilkan versi
+          --mcp      Sajikan MCP di stdin dan stdout, agar agen AI dapat mengendalikan
+                     prev yang sedang berjalan
 
 ## Settings, continued
 
@@ -702,3 +705,17 @@ menu-window = Jendela
 menu-minimize = Minimalkan
 menu-zoom = Maksimalkan
 menu-bring-all-to-front = Bawa Semua ke Depan
+
+## Outside control
+
+settings-outside-control = Kendali luar
+settings-allow-outside-control = Izinkan kendali luar
+settings-allow-outside-control-note = Agen AI seperti Claude Code dapat membaca dan mengubah berkas Anda di prev melalui prev --mcp. prev akan bertanya sebelum setiap agen baru.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Diizinkan: { $agents }
+settings-forget-agents = Lupakan
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Izinkan { $agent } mengendalikan prev?
+agent-prompt-body = { $agent } meminta untuk memakai kendali luar prev, untuk membaca dan mengubah berkas Anda yang terbuka. Anda dapat menonaktifkan kendali luar di Pengaturan.
+agent-prompt-allow = Izinkan
+agent-prompt-deny = Jangan izinkan

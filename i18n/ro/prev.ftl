@@ -406,6 +406,7 @@ dialog-choose-bookmarks = Alege fișierul de semne de carte
 
 usage-help =
     Utilizare: prev [FILE]...
+               prev --mcp
 
     Vizualizează și editează PDF-uri și imagini. Fișierele se deschid în ferestre
     ale instanței prev care rulează, pornită la nevoie.
@@ -413,6 +414,8 @@ usage-help =
     Opțiuni:
       -h, --help     Afișează acest ajutor
       -V, --version  Afișează versiunea
+          --mcp      Servește MCP pe stdin și stdout, ca agenții AI să controleze
+                     instanța prev care rulează
 
 ## Settings, continued
 
@@ -728,3 +731,17 @@ menu-window = Fereastră
 menu-minimize = Minimizează
 menu-zoom = Redimensionează
 menu-bring-all-to-front = Adu-le pe toate în față
+
+## Outside control
+
+settings-outside-control = Control extern
+settings-allow-outside-control = Permite controlul extern
+settings-allow-outside-control-note = Agenții AI precum Claude Code pot citi și modifica fișierele tale din prev, prin prev --mcp. prev întreabă înaintea fiecărui agent nou.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Permiși: { $agents }
+settings-forget-agents = Uită
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Permiți ca { $agent } să controleze prev?
+agent-prompt-body = { $agent } cere să folosească controlul extern al prev, pentru a citi fișierele tale deschise și a le modifica. Poți dezactiva controlul extern în Configurări.
+agent-prompt-allow = Permite
+agent-prompt-deny = Nu permite

@@ -474,6 +474,7 @@ dialog-choose-bookmarks = Choisir le fichier des signets
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Utilisation : prev [FILE]...
+                  prev --mcp
 
     Affiche et modifie des PDF et des images. Les fichiers s’ouvrent dans les
     fenêtres de prev s’il est déjà lancé ; sinon, prev démarre.
@@ -481,6 +482,8 @@ usage-help =
     Options :
       -h, --help     Afficher cette aide
       -V, --version  Afficher la version
+          --mcp      Servir MCP sur stdin et stdout, pour que des agents IA pilotent
+                     le prev en cours
 
 ## Settings, continued
 
@@ -857,3 +860,17 @@ menu-window = Fenêtre
 menu-minimize = Placer dans le Dock
 menu-zoom = Réduire/agrandir
 menu-bring-all-to-front = Tout ramener au premier plan
+
+## Outside control
+
+settings-outside-control = Contrôle externe
+settings-allow-outside-control = Autoriser le contrôle externe
+settings-allow-outside-control-note = Les agents IA comme Claude Code peuvent lire et modifier vos fichiers dans prev, via prev --mcp. prev demande avant chaque nouvel agent.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Autorisés : { $agents }
+settings-forget-agents = Oublier
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Autoriser { $agent } à contrôler prev ?
+agent-prompt-body = { $agent } demande à utiliser le contrôle externe de prev, pour lire vos fichiers ouverts et les modifier. Vous pouvez désactiver le contrôle externe dans les Réglages.
+agent-prompt-allow = Autoriser
+agent-prompt-deny = Ne pas autoriser

@@ -414,6 +414,7 @@ dialog-choose-bookmarks = Vyberte soubor záložek
 
 usage-help =
     Použití: prev [FILE]...
+             prev --mcp
 
     Zobrazení a úpravy souborů PDF a obrázků. Soubory se otevírají v oknech
     spuštěné aplikace prev, která se v případě potřeby spustí.
@@ -421,6 +422,8 @@ usage-help =
     Možnosti:
       -h, --help     Zobrazí tuto nápovědu
       -V, --version  Zobrazí verzi
+          --mcp      Poskytuje MCP přes stdin a stdout, aby agenti AI mohli ovládat
+                     spuštěnou aplikaci prev
 
 ## Settings, continued
 
@@ -738,3 +741,17 @@ menu-window = Okno
 menu-minimize = Minimalizovat
 menu-zoom = Zvětšit/zmenšit
 menu-bring-all-to-front = Přenést vše do popředí
+
+## Outside control
+
+settings-outside-control = Vnější ovládání
+settings-allow-outside-control = Povolit vnější ovládání
+settings-allow-outside-control-note = Agenti AI, například Claude Code, mohou přes prev --mcp číst a měnit vaše soubory v prev. Před každým novým agentem se prev zeptá.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Povoleno: { $agents }
+settings-forget-agents = Zapomenout
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Povolit agentovi { $agent } ovládat prev?
+agent-prompt-body = { $agent } žádá o použití vnějšího ovládání prev, aby mohl číst a měnit vaše otevřené soubory. Vnější ovládání můžete vypnout v Nastavení.
+agent-prompt-allow = Povolit
+agent-prompt-deny = Nepovolit

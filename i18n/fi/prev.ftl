@@ -389,6 +389,7 @@ dialog-choose-bookmarks = Valitse kirjanmerkkitiedosto
 
 usage-help =
     Käyttö: prev [FILE]...
+            prev --mcp
 
     Katsele ja muokkaa PDF-tiedostoja ja kuvia. Tiedostot avautuvat käynnissä
     olevan previn ikkunoihin, ja prev käynnistyy tarvittaessa.
@@ -396,6 +397,8 @@ usage-help =
     Valitsimet:
       -h, --help     Näytä tämä ohje
       -V, --version  Näytä versio
+          --mcp      Tarjoa MCP stdinissä ja stdoutissa, jotta tekoälyagentit voivat
+                     ohjata käynnissä olevaa previä
 
 ## Settings, continued
 
@@ -711,3 +714,17 @@ menu-window = Ikkuna
 menu-minimize = Pienennä
 menu-zoom = Zoomaa
 menu-bring-all-to-front = Tuo kaikki eteen
+
+## Outside control
+
+settings-outside-control = Ulkoinen ohjaus
+settings-allow-outside-control = Salli ulkoinen ohjaus
+settings-allow-outside-control-note = Tekoälyagentit, kuten Claude Code, voivat lukea ja muuttaa tiedostojasi previssä komennon prev --mcp kautta. prev kysyy ennen jokaista uutta agenttia.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Sallitut: { $agents }
+settings-forget-agents = Unohda
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Saako { $agent } ohjata previä?
+agent-prompt-body = { $agent } pyytää käyttää previn ulkoista ohjausta avoimien tiedostojesi lukemiseen ja muuttamiseen. Voit poistaa ulkoisen ohjauksen käytöstä Asetuksissa.
+agent-prompt-allow = Salli
+agent-prompt-deny = Älä salli

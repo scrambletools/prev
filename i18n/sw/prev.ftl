@@ -396,6 +396,7 @@ dialog-choose-bookmarks = Chagua faili ya alamisho
 
 usage-help =
     Matumizi: prev [FILE]...
+              prev --mcp
 
     Tazama na uhariri PDF na picha. Faili hufunguka katika madirisha ya prev
     inayoendeshwa, ambayo huanza ikihitajika.
@@ -403,6 +404,8 @@ usage-help =
     Chaguo:
       -h, --help     Onyesha msaada huu
       -V, --version  Onyesha toleo
+          --mcp      Toa MCP kupitia stdin na stdout, ili mawakala wa AI waidhibiti
+                     prev inayoendeshwa
 
 ## Settings, continued
 
@@ -718,3 +721,17 @@ menu-window = Dirisha
 menu-minimize = Punguza Dirisha
 menu-zoom = Kuza
 menu-bring-all-to-front = Leta Zote Mbele
+
+## Outside control
+
+settings-outside-control = Udhibiti wa nje
+settings-allow-outside-control = Ruhusu udhibiti wa nje
+settings-allow-outside-control-note = Mawakala wa AI kama Claude Code wanaweza kusoma na kubadilisha faili zako katika prev, kupitia prev --mcp. prev huuliza kabla ya kila wakala mpya.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Wanaoruhusiwa: { $agents }
+settings-forget-agents = Sahau
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Ruhusu { $agent } kudhibiti prev?
+agent-prompt-body = { $agent } anaomba kutumia udhibiti wa nje wa prev, ili kusoma faili zako zilizofunguliwa na kuzibadilisha. Unaweza kuzima udhibiti wa nje katika Mipangilio.
+agent-prompt-allow = Ruhusu
+agent-prompt-deny = Usiruhusu

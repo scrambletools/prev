@@ -393,6 +393,7 @@ dialog-choose-bookmarks = புத்தகக்குறிக் கோப�
 
 usage-help =
     பயன்பாடு: prev [FILE]...
+             prev --mcp
 
     PDFகளையும் படங்களையும் பார்க்கவும் திருத்தவும். கோப்புகள் இயங்கும் prev-இன்
     சாளரங்களில் திறக்கும்; தேவைப்பட்டால் prev தானாகத் தொடங்கும்.
@@ -400,6 +401,8 @@ usage-help =
     விருப்பங்கள்:
       -h, --help     இந்த உதவியைக் காட்டு
       -V, --version  பதிப்பைக் காட்டு
+          --mcp      stdin, stdout வழியாக MCP-ஐ வழங்கும், இதனால் AI முகவர்கள்
+                     இயங்கும் prev-ஐக் கட்டுப்படுத்தலாம்
 
 ## Settings, continued
 
@@ -715,3 +718,17 @@ menu-window = சாளரம்
 menu-minimize = குறுக்கு
 menu-zoom = சாளரத்தைப் பெரிதாக்கு
 menu-bring-all-to-front = அனைத்தையும் முன்னால் கொண்டுவா
+
+## Outside control
+
+settings-outside-control = வெளிக் கட்டுப்பாடு
+settings-allow-outside-control = வெளிக் கட்டுப்பாட்டை அனுமதி
+settings-allow-outside-control-note = Claude Code போன்ற AI முகவர்கள் prev --mcp மூலம் prev-இல் உங்கள் கோப்புகளைப் படிக்கவும் மாற்றவும் முடியும். ஒவ்வொரு புதிய முகவருக்கும் முன் prev கேட்கும்.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = அனுமதிக்கப்பட்டவை: { $agents }
+settings-forget-agents = மறந்துவிடு
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = prev-ஐக் கட்டுப்படுத்த { $agent } முகவரை அனுமதிக்கவா?
+agent-prompt-body = உங்கள் திறந்த கோப்புகளைப் படிக்கவும் மாற்றவும் prev-இன் வெளிக் கட்டுப்பாட்டைப் பயன்படுத்த { $agent } கேட்கிறது. அமைப்புகளில் வெளிக் கட்டுப்பாட்டை முடக்கலாம்.
+agent-prompt-allow = அனுமதி
+agent-prompt-deny = அனுமதிக்காதே

@@ -395,6 +395,7 @@ dialog-choose-bookmarks = בחירת קובץ הסימניות
 
 usage-help =
     שימוש: prev [FILE]...
+           prev --mcp
 
     הצגה ועריכה של קובצי PDF ותמונות. הקבצים נפתחים בחלונות של prev
     שכבר פועל, והוא מופעל אם צריך.
@@ -402,6 +403,8 @@ usage-help =
     אפשרויות:
       -h, --help     הצגת העזרה הזו
       -V, --version  הצגת הגרסה
+          --mcp      הגשת MCP דרך stdin ו-stdout, כדי שסוכני AI ישלטו
+                     ב-prev שכבר פועל
 
 ## Settings, continued
 
@@ -717,3 +720,17 @@ menu-window = חלון
 menu-minimize = מזעור
 menu-zoom = הגדלת החלון
 menu-bring-all-to-front = הבאת הכול לחזית
+
+## Outside control
+
+settings-outside-control = שליטה מבחוץ
+settings-allow-outside-control = התרת שליטה מבחוץ
+settings-allow-outside-control-note = סוכני AI כמו Claude Code יכולים לקרוא ולשנות קבצים ב-prev, דרך prev --mcp. prev שואל לפני כל סוכן חדש.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = מורשים: { $agents }
+settings-forget-agents = הסרה
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = לאפשר ל-{ $agent } לשלוט ב-prev?
+agent-prompt-body = { $agent } מבקש להשתמש בשליטה מבחוץ של prev, כדי לקרוא את הקבצים הפתוחים ולשנות אותם. אפשר לכבות את השליטה מבחוץ בהגדרות.
+agent-prompt-allow = אישור
+agent-prompt-deny = דחייה

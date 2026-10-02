@@ -473,6 +473,7 @@ dialog-choose-bookmarks = Choose the bookmarks file
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Usage: prev [FILE]...
+           prev --mcp
 
     View and edit PDFs and images. Files open in windows of the running prev,
     which starts if needed.
@@ -480,6 +481,8 @@ usage-help =
     Options:
       -h, --help     Show this help
       -V, --version  Show the version
+          --mcp      Serve MCP on stdin and stdout, for AI agents to control
+                     the running prev
 
 ## Settings, continued
 
@@ -857,3 +860,17 @@ menu-window = Window
 menu-minimize = Minimize
 menu-zoom = Zoom
 menu-bring-all-to-front = Bring All to Front
+
+## Outside control
+
+settings-outside-control = Outside control
+settings-allow-outside-control = Allow outside control
+settings-allow-outside-control-note = AI agents such as Claude Code can read and change your files in prev, through prev --mcp. prev asks before each new agent.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Allowed: { $agents }
+settings-forget-agents = Forget
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Allow { $agent } to control prev?
+agent-prompt-body = { $agent } asks to use prev's outside control, to read your open files and change them. You can turn outside control off in Settings.
+agent-prompt-allow = Allow
+agent-prompt-deny = Don't allow

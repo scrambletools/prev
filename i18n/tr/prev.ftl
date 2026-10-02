@@ -471,6 +471,7 @@ dialog-choose-bookmarks = Yer işaretleri dosyasını seçin
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Kullanım: prev [FILE]...
+              prev --mcp
 
     PDF'leri ve resimleri görüntüleyin ve düzenleyin. Dosyalar, çalışan prev'in
     pencerelerinde açılır; prev gerekirse başlatılır.
@@ -478,6 +479,8 @@ usage-help =
     Seçenekler:
       -h, --help     Bu yardımı göster
       -V, --version  Sürümü göster
+          --mcp      MCP'yi stdin ve stdout üzerinden sun; yapay zekâ ajanları
+                     çalışan prev'i denetleyebilsin
 
 ## Settings, continued
 
@@ -854,3 +857,17 @@ menu-window = Pencere
 menu-minimize = Simge Durumuna Küçült
 menu-zoom = Büyüt/Küçült
 menu-bring-all-to-front = Tümünü Öne Getir
+
+## Outside control
+
+settings-outside-control = Dışarıdan denetim
+settings-allow-outside-control = Dışarıdan denetime izin ver
+settings-allow-outside-control-note = Claude Code gibi yapay zekâ ajanları, prev --mcp aracılığıyla prev'deki dosyalarınızı okuyup değiştirebilir. prev her yeni ajandan önce sorar.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = İzin verilenler: { $agents }
+settings-forget-agents = Unut
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = { $agent } prev'i denetleyebilsin mi?
+agent-prompt-body = { $agent }, açık dosyalarınızı okuyup değiştirmek için prev'in dışarıdan denetimini kullanmak istiyor. Dışarıdan denetimi Ayarlar'dan kapatabilirsiniz.
+agent-prompt-allow = İzin ver
+agent-prompt-deny = İzin verme

@@ -391,6 +391,7 @@ dialog-choose-bookmarks = Επιλέξτε το αρχείο σελιδοδει�
 
 usage-help =
     Χρήση: prev [FILE]...
+           prev --mcp
 
     Προβολή και επεξεργασία PDF και εικόνων. Τα αρχεία ανοίγουν σε παράθυρα
     του prev που εκτελείται, το οποίο ξεκινά αν χρειάζεται.
@@ -398,6 +399,8 @@ usage-help =
     Επιλογές:
       -h, --help     Εμφάνιση αυτής της βοήθειας
       -V, --version  Εμφάνιση της έκδοσης
+          --mcp      Εξυπηρέτηση MCP μέσω stdin και stdout, ώστε πράκτορες AI
+                     να ελέγχουν το prev που εκτελείται
 
 ## Settings, continued
 
@@ -713,3 +716,17 @@ menu-window = Παράθυρο
 menu-minimize = Ελαχιστοποίηση
 menu-zoom = Ζουμ
 menu-bring-all-to-front = Μεταφορά όλων μπροστά
+
+## Outside control
+
+settings-outside-control = Εξωτερικός έλεγχος
+settings-allow-outside-control = Να επιτρέπεται ο εξωτερικός έλεγχος
+settings-allow-outside-control-note = Πράκτορες AI όπως το Claude Code μπορούν να διαβάζουν και να αλλάζουν τα αρχεία σας στο prev, μέσω του prev --mcp. Το prev ρωτά πριν από κάθε νέο πράκτορα.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Επιτρέπονται: { $agents }
+settings-forget-agents = Διαγραφή
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Να επιτραπεί στο { $agent } να ελέγχει το prev;
+agent-prompt-body = Το { $agent } ζητά να χρησιμοποιήσει τον εξωτερικό έλεγχο του prev, για να διαβάζει τα ανοιχτά αρχεία σας και να τα αλλάζει. Μπορείτε να απενεργοποιήσετε τον εξωτερικό έλεγχο στις Ρυθμίσεις.
+agent-prompt-allow = Να επιτραπεί
+agent-prompt-deny = Να μην επιτραπεί

@@ -57,6 +57,13 @@ fn main() -> iced::Result {
                     println!("prev {}{build}", env!("CARGO_PKG_VERSION"));
                     return Ok(());
                 }
+                Some("--mcp") => {
+                    if let Err(error) = prev::mcp::run() {
+                        eprintln!("prev: {error}");
+                        std::process::exit(1);
+                    }
+                    return Ok(());
+                }
                 Some("--") => {
                     options_done = true;
                     continue;

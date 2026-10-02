@@ -471,6 +471,7 @@ dialog-choose-bookmarks = Elige el archivo de marcadores
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Uso: prev [FILE]...
+         prev --mcp
 
     Ver y editar archivos PDF e imágenes. Los archivos se abren en ventanas
     de prev en ejecución, que se inicia si hace falta.
@@ -478,6 +479,8 @@ usage-help =
     Opciones:
       -h, --help     Mostrar esta ayuda
       -V, --version  Mostrar la versión
+          --mcp      Servir MCP por stdin y stdout, para que agentes de IA controlen
+                     prev en ejecución
 
 ## Settings, continued
 
@@ -854,3 +857,17 @@ menu-window = Ventana
 menu-minimize = Minimizar
 menu-zoom = Zoom
 menu-bring-all-to-front = Traer todo al frente
+
+## Outside control
+
+settings-outside-control = Control externo
+settings-allow-outside-control = Permitir el control externo
+settings-allow-outside-control-note = Los agentes de IA como Claude Code pueden leer y cambiar tus archivos en prev mediante prev --mcp. prev pregunta antes de cada agente nuevo.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Permitidos: { $agents }
+settings-forget-agents = Olvidar
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = ¿Permitir que { $agent } controle prev?
+agent-prompt-body = { $agent } pide usar el control externo de prev para leer tus archivos abiertos y cambiarlos. Puedes desactivar el control externo en Ajustes.
+agent-prompt-allow = Permitir
+agent-prompt-deny = No permitir

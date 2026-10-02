@@ -380,6 +380,7 @@ dialog-choose-bookmarks = เลือกไฟล์บุ๊กมาร์ก
 
 usage-help =
     วิธีใช้: prev [FILE]...
+          prev --mcp
 
     ดูและแก้ไข PDF และรูปภาพ ไฟล์จะเปิดในหน้าต่างของ prev ที่กำลังทำงานอยู่
     ซึ่งจะเริ่มทำงานเองหากจำเป็น
@@ -387,6 +388,8 @@ usage-help =
     ตัวเลือก:
       -h, --help     แสดงวิธีใช้นี้
       -V, --version  แสดงเวอร์ชัน
+          --mcp      ให้บริการ MCP ผ่าน stdin และ stdout เพื่อให้เอเจนต์ AI
+                     ควบคุม prev ที่กำลังทำงานอยู่
 
 ## Settings, continued
 
@@ -701,3 +704,17 @@ menu-window = หน้าต่าง
 menu-minimize = ย่อ
 menu-zoom = ซูม
 menu-bring-all-to-front = นำทั้งหมดมาไว้ด้านหน้า
+
+## Outside control
+
+settings-outside-control = การควบคุมจากภายนอก
+settings-allow-outside-control = อนุญาตการควบคุมจากภายนอก
+settings-allow-outside-control-note = เอเจนต์ AI เช่น Claude Code สามารถอ่านและแก้ไขไฟล์ของคุณใน prev ได้ผ่าน prev --mcp โดย prev จะถามก่อนทุกครั้งที่มีเอเจนต์ใหม่
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = อนุญาตแล้ว: { $agents }
+settings-forget-agents = ลืม
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = อนุญาตให้ { $agent } ควบคุม prev หรือไม่
+agent-prompt-body = { $agent } ขอใช้การควบคุมจากภายนอกของ prev เพื่ออ่านและแก้ไขไฟล์ที่คุณเปิดอยู่ คุณปิดการควบคุมจากภายนอกได้ในการตั้งค่า
+agent-prompt-allow = อนุญาต
+agent-prompt-deny = ไม่อนุญาต

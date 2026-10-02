@@ -381,6 +381,7 @@ dialog-choose-bookmarks = Chọn tệp dấu trang
 
 usage-help =
     Cách dùng: prev [FILE]...
+               prev --mcp
 
     Xem và chỉnh sửa PDF và hình ảnh. Tệp được mở trong cửa sổ của prev đang
     chạy, và prev sẽ khởi động nếu cần.
@@ -388,6 +389,8 @@ usage-help =
     Tùy chọn:
       -h, --help     Hiển thị trợ giúp này
       -V, --version  Hiển thị phiên bản
+          --mcp      Cung cấp MCP qua stdin và stdout để các tác nhân AI điều khiển
+                     prev đang chạy
 
 ## Settings, continued
 
@@ -702,3 +705,17 @@ menu-window = Cửa sổ
 menu-minimize = Thu nhỏ cửa sổ
 menu-zoom = Thu phóng
 menu-bring-all-to-front = Đưa tất cả ra trước
+
+## Outside control
+
+settings-outside-control = Điều khiển từ bên ngoài
+settings-allow-outside-control = Cho phép điều khiển từ bên ngoài
+settings-allow-outside-control-note = Các tác nhân AI như Claude Code có thể đọc và thay đổi tệp của bạn trong prev, thông qua prev --mcp. prev sẽ hỏi trước mỗi tác nhân mới.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Đã cho phép: { $agents }
+settings-forget-agents = Quên
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Cho phép { $agent } điều khiển prev?
+agent-prompt-body = { $agent } yêu cầu dùng tính năng điều khiển từ bên ngoài của prev để đọc và thay đổi các tệp bạn đang mở. Bạn có thể tắt điều khiển từ bên ngoài trong Cài đặt.
+agent-prompt-allow = Cho phép
+agent-prompt-deny = Không cho phép

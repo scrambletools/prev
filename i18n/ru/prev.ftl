@@ -499,6 +499,7 @@ dialog-choose-bookmarks = Выберите файл закладок
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Использование: prev [FILE]...
+                   prev --mcp
 
     Просмотр и редактирование PDF и изображений. Файлы открываются в окнах
     запущенного prev; если он не запущен, он запустится.
@@ -506,6 +507,8 @@ usage-help =
     Параметры:
       -h, --help     Показать эту справку
       -V, --version  Показать версию
+          --mcp      Предоставить MCP через stdin и stdout, чтобы ИИ-агенты
+                     управляли запущенным prev
 
 ## Settings, continued
 
@@ -885,3 +888,17 @@ menu-window = Окно
 menu-minimize = Свернуть
 menu-zoom = Изменить масштаб
 menu-bring-all-to-front = Все окна — на передний план
+
+## Outside control
+
+settings-outside-control = Внешнее управление
+settings-allow-outside-control = Разрешить внешнее управление
+settings-allow-outside-control-note = ИИ-агенты, например Claude Code, могут читать и изменять ваши файлы в prev через prev --mcp. prev спрашивает перед каждым новым агентом.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Разрешено: { $agents }
+settings-forget-agents = Забыть
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Разрешить агенту { $agent } управлять prev?
+agent-prompt-body = { $agent } просит доступ к внешнему управлению prev, чтобы читать ваши открытые файлы и изменять их. Внешнее управление можно отключить в настройках.
+agent-prompt-allow = Разрешить
+agent-prompt-deny = Не разрешать

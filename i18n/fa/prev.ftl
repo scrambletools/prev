@@ -471,6 +471,7 @@ dialog-choose-bookmarks = پروندهٔ نشانک‌ها را انتخاب ک�
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     کاربرد: prev [FILE]...
+            prev --mcp
 
     مشاهده و ویرایش PDFها و تصویرها. پرونده‌ها در پنجره‌های prev در حال اجرا
     باز می‌شوند و اگر prev در حال اجرا نباشد، اجرا می‌شود.
@@ -478,6 +479,8 @@ usage-help =
     گزینه‌ها:
       -h, --help     نمایش این راهنما
       -V, --version  نمایش نسخه
+          --mcp      ارائهٔ MCP روی stdin و stdout تا عامل‌های هوش مصنوعی prev
+                     در حال اجرا را کنترل کنند
 
 ## Settings, continued
 
@@ -854,3 +857,17 @@ menu-window = پنجره
 menu-minimize = کمینه کردن
 menu-zoom = بزرگ/کوچک کردن
 menu-bring-all-to-front = آوردن همه به جلو
+
+## Outside control
+
+settings-outside-control = کنترل از بیرون
+settings-allow-outside-control = اجازهٔ کنترل از بیرون
+settings-allow-outside-control-note = عامل‌های هوش مصنوعی مانند Claude Code می‌توانند از راه prev --mcp فایل‌های شما را در prev بخوانند و تغییر دهند. prev پیش از هر عامل تازه می‌پرسد.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = مجاز: { $agents }
+settings-forget-agents = فراموش کردن
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = به { $agent } اجازهٔ کنترل prev داده شود؟
+agent-prompt-body = { $agent } می‌خواهد از کنترل از بیرون prev استفاده کند تا فایل‌های باز شما را بخواند و تغییر دهد. می‌توانید کنترل از بیرون را در تنظیمات خاموش کنید.
+agent-prompt-allow = اجازه دادن
+agent-prompt-deny = اجازه ندادن

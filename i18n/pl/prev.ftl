@@ -494,6 +494,7 @@ dialog-choose-bookmarks = Wybierz plik zakładek
 # --version) and "prev [FILE]..." as they are; reflow the rest freely.
 usage-help =
     Użycie: prev [FILE]...
+            prev --mcp
 
     Przeglądanie i edycja plików PDF i obrazów. Pliki otwierają się w oknach
     działającej aplikacji prev, która w razie potrzeby się uruchomi.
@@ -501,6 +502,8 @@ usage-help =
     Opcje:
       -h, --help     Pokaż tę pomoc
       -V, --version  Pokaż wersję
+          --mcp      Udostępnia MCP przez stdin i stdout, aby agenci AI mogli
+                     sterować działającą aplikacją prev
 
 ## Settings, continued
 
@@ -879,3 +882,17 @@ menu-window = Okno
 menu-minimize = Minimalizuj
 menu-zoom = Zmień rozmiar
 menu-bring-all-to-front = Przenieś wszystko na wierzch
+
+## Outside control
+
+settings-outside-control = Sterowanie zewnętrzne
+settings-allow-outside-control = Zezwalaj na sterowanie zewnętrzne
+settings-allow-outside-control-note = Agenci AI, tacy jak Claude Code, mogą przez prev --mcp odczytywać i zmieniać Twoje pliki w prev. prev pyta przed każdym nowym agentem.
+# $agents is a list of agent names, such as claude-code.
+settings-allowed-agents = Dozwolone: { $agents }
+settings-forget-agents = Zapomnij
+# $agent is the agent's name, such as Claude Code.
+agent-prompt-title = Zezwolić agentowi { $agent } na sterowanie prev?
+agent-prompt-body = { $agent } prosi o użycie sterowania zewnętrznego prev, aby odczytywać i zmieniać Twoje otwarte pliki. Sterowanie zewnętrzne możesz wyłączyć w Ustawieniach.
+agent-prompt-allow = Zezwól
+agent-prompt-deny = Nie zezwalaj
