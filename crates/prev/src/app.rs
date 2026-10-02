@@ -288,6 +288,14 @@ pub enum Message {
     AskBeforeToggled(tools::Kind, bool),
     /// A tool that waited on something answers.
     ToolAnswer(tools::Answer, Result<tools::Output, prev::control::Error>),
+    /// A markup tool found the edits to make in a window, then answers.
+    ToolMarkup(
+        window::Id,
+        tools::Route,
+        tools::Answer,
+        Vec<prev::pdf::viewer::editing::AgentEdit>,
+        tools::Output,
+    ),
     /// A color picked for the scheme, as "#RRGGBB".
     AccentPicked(String),
     DismissNotice(window::Id),
@@ -1103,6 +1111,9 @@ impl Prev {
             Message::ToolAnswer(answer, result) => {
                 answer.send(result);
                 Task::none()
+            }
+            Message::ToolMarkup(id, route, answer, edits, output) => {
+                self.agent_markup(id, route, &answer, edits, output)
             }
         }
     }

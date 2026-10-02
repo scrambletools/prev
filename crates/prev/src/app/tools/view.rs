@@ -69,8 +69,8 @@ pub(super) fn tools() -> Vec<Tool> {
             Kind::View,
             "Opens a panel. PDF: thumbnails, contents, notes and bookmarks in the sidebar, \
              inspector, markup_bar, and search, which can take a query. Image: images in the \
-             sidebar, adjust_color, adjust_size, inspector. Markdown: inspector, and search \
-             with a query.",
+             sidebar, adjust_color, adjust_size, inspector, and markup_bar, which the markup \
+             tools need first. Markdown: inspector, and search with a query.",
             show_panel,
         ),
         tool(
@@ -281,6 +281,7 @@ impl Prev {
                 count: images.paths().count(),
                 panel: images.panel(),
                 sidebar: images.sidebar_shown(),
+                markup: images.markup_shown(),
             },
             Shown::Markdown(markdown) => Target::Markdown {
                 inspector: markdown.inspector_shown(),
@@ -307,6 +308,7 @@ enum Target {
         count: usize,
         panel: Option<Panel>,
         sidebar: bool,
+        markup: bool,
     },
     Markdown {
         inspector: bool,
@@ -601,6 +603,7 @@ fn set_panel(
             Target::Image {
                 panel: open,
                 sidebar,
+                markup,
                 ..
             } => {
                 let wanted = match panel {
@@ -614,6 +617,11 @@ fn set_panel(
                         app.send_images(id, image_window::Message::ToggleSidebar)
                     }
                     (PanelName::Images | PanelName::Sidebar, _) => Task::none(),
+                    // Marking up an image starts with its markup bar.
+                    (PanelName::MarkupBar, _) if *markup != show => {
+                        app.send_images(id, image_window::Message::ToggleMarkup)
+                    }
+                    (PanelName::MarkupBar, _) => Task::none(),
                     (_, Some(wanted)) if (*open == Some(wanted)) != show => {
                         app.send_images(id, image_window::Message::TogglePanel(wanted))
                     }

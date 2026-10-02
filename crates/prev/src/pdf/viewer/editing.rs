@@ -251,6 +251,27 @@ pub enum EditMessage {
     /// Those images, now on the GPU, so the first frame that shows them
     /// draws them both.
     LiftUploaded(String, Option<(Allocation, Allocation)>),
+    /// A change an agent asks for, made as the markup tools make it, so
+    /// it is one step of Undo.
+    Agent(Box<AgentEdit>),
+}
+
+/// A change to an annotation that an agent asks for.
+#[derive(Debug, Clone)]
+pub enum AgentEdit {
+    Add {
+        page: usize,
+        annotation: Annotation,
+    },
+    Change {
+        page: usize,
+        before: Box<Annotation>,
+        after: Box<Annotation>,
+    },
+    Remove {
+        page: usize,
+        annotation: Annotation,
+    },
 }
 
 /// A loupe's magnified image, ready to add or replace.
@@ -1408,6 +1429,15 @@ impl PdfViewer {
 
     pub(super) fn editing(&mut self, message: EditMessage) -> Task<PdfMessage> {
         match message {
+            EditMessage::Agent(edit) => match *edit {
+                AgentEdit::Add { page, annotation } => self.add(page, annotation, None, false),
+                AgentEdit::Change {
+                    page,
+                    before,
+                    after,
+                } => self.change(page, *before, *after, None, None),
+                AgentEdit::Remove { page, annotation } => self.remove(page, annotation),
+            },
             EditMessage::SetTool(tool) => {
                 self.edit.drag = None;
                 let commit = self.commit_text();
@@ -1654,7 +1684,7 @@ impl PdfViewer {
 
 impl Editing {
     /// Underlines and strikethroughs read better in a darker color.
-    fn markup_color_for_lines(&self) -> Rgb {
+    pub fn markup_color_for_lines(&self) -> Rgb {
         if self.markup_color == HIGHLIGHT_YELLOW {
             RED
         } else {
@@ -1665,7 +1695,7 @@ impl Editing {
 
 /// A redaction mark over `rect`, in the colors other viewers use for
 /// marks not yet applied.
-fn redaction(rect: Rect) -> Annotation {
+pub fn redaction(rect: Rect) -> Annotation {
     let mut annotation = Annotation::new(new_id(), Kind::Redact, rect);
     annotation.style.color = Some(Rgb::new(0.85, 0.1, 0.1));
     annotation.style.line_width = 1.0;

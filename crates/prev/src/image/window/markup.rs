@@ -34,6 +34,24 @@ impl ImageWindow {
         self.items.get(self.current)?.markup.as_ref()
     }
 
+    /// The current image's markup, for agents: its index, viewer once
+    /// open, and image pixels per page point.
+    pub fn agent_markup(&self) -> Option<(usize, Option<&crate::pdf::viewer::PdfViewer>, f32)> {
+        let markup = self.markup()?;
+        Some((self.current, markup.window.viewer(), markup.scale))
+    }
+
+    /// Whether the current image's markup bar shows, or will once open.
+    pub fn markup_shown(&self) -> bool {
+        self.items.get(self.current).is_some_and(|item| {
+            item.markup_starting
+                || item
+                    .markup
+                    .as_ref()
+                    .is_some_and(|markup| markup.window.markup_bar_shown())
+        })
+    }
+
     /// Whether the current image is shown with its markup, or will be.
     pub(super) fn marked(&self) -> bool {
         self.items

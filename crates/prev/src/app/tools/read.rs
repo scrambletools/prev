@@ -112,16 +112,17 @@ pub(super) fn tools() -> Vec<Tool> {
             "render_image",
             "Picture of the image",
             Kind::Read,
-            "Draws the image a window shows, with the edits made so far, as a PNG scaled down \
-             to fit, for looking at it.",
+            "Draws the image a window shows, with the edits and markup made so far, as a PNG \
+             scaled down to fit, for looking at it.",
             render_image,
         ),
         tool(
             "get_image",
             "Get the image",
             Kind::Read,
-            "Gives the image a window shows at full size, with the edits made so far, as a \
-             PNG, for changing it on the agent's side and handing it back with replace_image.",
+            "Gives the image a window shows at full size, with the edits made so far but not \
+             its markup, which joins the pixels on export, as a PNG, for changing it on the \
+             agent's side and handing it back with replace_image.",
             get_image,
         ),
     ]
@@ -191,11 +192,11 @@ pub(super) enum Shown<'a> {
     Markdown(&'a MarkdownWindow),
 }
 
-fn invalid(message: impl Into<String>) -> Error {
+pub(super) fn invalid(message: impl Into<String>) -> Error {
     Error::new(code::INVALID_PARAMS, message)
 }
 
-fn failed(message: impl std::fmt::Display) -> Error {
+pub(super) fn failed(message: impl std::fmt::Display) -> Error {
     Error::new(code::INTERNAL_ERROR, message.to_string())
 }
 
@@ -238,7 +239,7 @@ impl Prev {
     }
 
     /// The PDF window `window` shows, for a tool that reads PDFs only.
-    fn shown_pdf(&self, window: Option<u64>, tool: &str) -> Result<&PdfViewer, Error> {
+    pub(super) fn shown_pdf(&self, window: Option<u64>, tool: &str) -> Result<&PdfViewer, Error> {
         match self.shown(window)? {
             (_, Shown::Pdf(viewer)) => Ok(viewer),
             (id, shown) => Err(not_for(id, shown.what(), tool)),
@@ -309,7 +310,9 @@ fn hex(color: annotation::Rgb) -> String {
 }
 
 /// Waits for what the document thread sends back.
-async fn answered<T>(receiver: oneshot::Receiver<prev_pdf::engine::Result<T>>) -> Result<T, Error> {
+pub(super) async fn answered<T>(
+    receiver: oneshot::Receiver<prev_pdf::engine::Result<T>>,
+) -> Result<T, Error> {
     receiver
         .await
         .map_err(|_| failed("the document closed"))?
@@ -317,12 +320,15 @@ async fn answered<T>(receiver: oneshot::Receiver<prev_pdf::engine::Result<T>>) -
 }
 
 /// Page `page`'s display list, for its text, searches and pictures.
-async fn display(handle: &DocumentHandle, page: usize) -> Result<Arc<dyn PageDisplay>, Error> {
+pub(super) async fn display(
+    handle: &DocumentHandle,
+    page: usize,
+) -> Result<Arc<dyn PageDisplay>, Error> {
     answered(handle.display(page)).await
 }
 
 /// Runs `work` off the interface thread.
-async fn off_thread<T: Send + 'static>(
+pub(super) async fn off_thread<T: Send + 'static>(
     work: impl FnOnce() -> T + Send + 'static,
 ) -> Result<T, Error> {
     spawn(work).await.map_err(|_| failed("the work stopped"))
@@ -698,6 +704,10 @@ fn annotation_json(page: usize, annotation: &Annotation) -> Value {
     if let Some(fill) = annotation.style.fill {
         entry["fill"] = json!(hex(fill));
     }
+    if annotation.kind == annotation::Kind::FreeText {
+        entry["text_color"] = json!(hex(annotation.style.text_color));
+        entry["font_size"] = json!(tenth(annotation.style.font_size));
+    }
     if !annotation.contents.is_empty() {
         entry["text"] = json!(annotation.contents);
     }
@@ -878,7 +888,13 @@ fn picture(
     answer: &Answer,
 ) -> Task<Message> {
     let image = match app.shown(window) {
-        Ok((_, Shown::Image(images))) => images.shown_image(),
+        Ok((_, Shown::Image(images))) => {
+            // A picture shows the markup too, drawn from its page.
+            if let (Some(side), Some((_, Some(viewer), _))) = (max_side, images.agent_markup()) {
+                return markup_picture(viewer, side, answer);
+            }
+            images.shown_image()
+        }
         Ok((id, shown)) => return reply(answer, Err(not_for(id, shown.what(), tool))),
         Err(error) => return reply(answer, Err(error)),
     };
@@ -913,6 +929,39 @@ fn picture(
                     "The image, {width} by {height} pixels, drawn {drawn_width} by \
                      {drawn_height}."
                 ),
+            ))
+        },
+        |result| result,
+    ))
+}
+
+/// A picture of an image's markup page: the image with its markup.
+fn markup_picture(viewer: &PdfViewer, side: u32, answer: &Answer) -> Task<Message> {
+    let handle = viewer.handle.clone();
+    let size = viewer.info.page_sizes[0];
+    answer.clone().later(Task::perform(
+        async move {
+            let display = display(&handle, 0).await?;
+            let scale = side as f32 / size.width.max(size.height);
+            let (wide, high) = page_pixels(size, scale);
+            let png = off_thread(move || {
+                let bitmap = display.render(
+                    scale,
+                    prev_pdf::geometry::PixelRect {
+                        x: 0,
+                        y: 0,
+                        width: wide,
+                        height: high,
+                    },
+                )?;
+                Ok::<_, prev_pdf::engine::Error>(prev::drag::png(&bitmap))
+            })
+            .await?
+            .map_err(failed)?
+            .ok_or_else(|| failed("the markup could not be made into a PNG"))?;
+            Ok(Output::Png(
+                png,
+                format!("The image with its markup, drawn {wide} by {high}."),
             ))
         },
         |result| result,
