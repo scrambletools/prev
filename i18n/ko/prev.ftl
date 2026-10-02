@@ -48,8 +48,8 @@ settings-default-app-no-entry = prev의 데스크톱 항목이 설치되어 있�
 settings-default-app-no-bundle = prev를 기본으로 설정하려면 prev.app에서 여세요.
 settings-default-app-failed = prev를 기본으로 설정할 수 없습니다: { $error }
 settings-storage = 저장 위치
-settings-version = prev { $version }
-settings-version-development = prev { $version } (개발 빌드)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (개발 빌드, { $build })
 
 ## Markup toolbar
 
@@ -490,7 +490,8 @@ settings-system-accent = 시스템 강조 색상 사용
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = “{ $theme }”의 강조 색상으로 색상을 만듭니다.
 settings-system-accent-note = 시스템 강조 색상으로 색상을 만듭니다.
-settings-system-accent-none = 시스템에 강조 색상이 없어 prev 자체 색상을 사용합니다.
+settings-system-accent-none = 시스템에 강조 색상이 없어 prev는 아래에서 선택한 색상을 사용합니다.
+settings-accent-chosen-note = 아래에서 선택한 색상으로 색상을 만듭니다.
 settings-auto-hide = 포인터가 벗어나면 도구 막대 숨기기
 settings-auto-hide-note = 도구 막대가 문서 위에 떠 있으며, 포인터가 창 밖에 있는 동안에는 밀려나듯 사라집니다.
 settings-animations = 애니메이션

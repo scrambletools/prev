@@ -38,8 +38,8 @@ settings-default-app-no-entry = Intrarea de desktop a prev nu este instalată, a
 settings-default-app-no-bundle = Deschide prev din prev.app pentru a-l face implicit.
 settings-default-app-failed = prev nu a putut fi setat ca implicit: { $error }
 settings-storage = Stocare
-settings-version = prev { $version }
-settings-version-development = prev { $version } (versiune de dezvoltare)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (versiune de dezvoltare, { $build })
 
 ## Markup toolbar
 
@@ -428,7 +428,8 @@ settings-appearance-dark = Întunecat
 settings-system-accent = Folosește culoarea de accent a sistemului
 settings-omarchy-note = Culorile sunt create din culoarea de accent a temei „{ $theme }”.
 settings-system-accent-note = Culorile sunt create din culoarea de accent a sistemului.
-settings-system-accent-none = Sistemul nu are o culoare de accent, așa că prev o folosește pe a sa.
+settings-system-accent-none = Sistemul nu are o culoare de accent, așa că prev o folosește pe cea aleasă mai jos.
+settings-accent-chosen-note = Culorile sunt create din culoarea aleasă mai jos.
 settings-auto-hide = Ascunde bara de instrumente când indicatorul iese din fereastră
 settings-auto-hide-note = Bara de instrumente plutește deasupra documentului și se retrage cât timp indicatorul este în afara ferestrei.
 settings-animations = Animații

@@ -32,6 +32,9 @@ pub struct Settings {
     /// files call it `omarchy-palette`.
     #[serde(alias = "omarchy-palette")]
     pub system_accent: bool,
+    /// The color picked for the scheme, as "#RRGGBB", used when the system
+    /// accent is off or the system has none; prev's blue when unset.
+    pub accent_color: Option<String>,
     /// Float the toolbar over the document and hide it while the pointer
     /// is outside the window.
     pub auto_hide_toolbar: bool,
@@ -71,6 +74,7 @@ impl Default for Settings {
             language: SYSTEM_LANGUAGE.to_owned(),
             input_language: SYSTEM_LANGUAGE.to_owned(),
             system_accent: true,
+            accent_color: None,
             auto_hide_toolbar: false,
             corner_radius: DEFAULT_CORNER_RADIUS,
             overlay_transparency: 25.0,
@@ -316,6 +320,23 @@ mod tests {
         assert_eq!(loaded.appearance, Appearance::Light);
         assert!(loaded.system_accent);
         assert!(!loaded.auto_hide_toolbar);
+    }
+
+    #[test]
+    fn accent_color_round_trips_and_may_be_absent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.toml");
+        Settings::default().save_to(&path).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("accent-color"), "{text}");
+        let settings = Settings {
+            accent_color: Some("#E53935".into()),
+            ..Settings::default()
+        };
+        settings.save_to(&path).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("accent-color = \"#E53935\""), "{text}");
+        assert_eq!(Settings::load_from(&path).unwrap(), settings);
     }
 
     #[test]

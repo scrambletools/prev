@@ -36,8 +36,8 @@ settings-default-app-no-entry = רשומת שולחן העבודה של prev ל�
 settings-default-app-no-bundle = כדי להגדיר את prev כברירת מחדל, יש לפתוח אותה מ-prev.app.
 settings-default-app-failed = לא ניתן להגדיר את prev כברירת מחדל: { $error }
 settings-storage = אחסון
-settings-version = prev { $version }
-settings-version-development = prev { $version } (גרסת פיתוח)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (גרסת פיתוח, { $build })
 
 ## Markup toolbar
 
@@ -417,7 +417,8 @@ settings-appearance-dark = כהה
 settings-system-accent = שימוש בצבע ההדגשה של המערכת
 settings-omarchy-note = הצבעים נבנים מצבע ההדגשה של "{ $theme }".
 settings-system-accent-note = הצבעים נבנים מצבע ההדגשה של המערכת.
-settings-system-accent-none = למערכת אין צבע הדגשה, ולכן prev משתמש בצבע משלו.
+settings-system-accent-none = למערכת אין צבע הדגשה, ולכן prev משתמש בצבע שנבחר למטה.
+settings-accent-chosen-note = הצבעים נבנים מהצבע שנבחר למטה.
 settings-auto-hide = הסתרת סרגל הכלים כשהסמן יוצא
 settings-auto-hide-note = סרגל הכלים צף מעל המסמך ומחליק הצידה כשהסמן מחוץ לחלון.
 settings-animations = אנימציות

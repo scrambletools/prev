@@ -42,7 +42,8 @@ settings-omarchy-note = Colours are built from the accent of “{ $theme }”.
 
 settings-system-accent-note = Colours are built from the system's accent colour.
 
-settings-system-accent-none = The system has no accent colour, so prev uses its own.
+settings-system-accent-none = The system has no accent colour, so prev uses the one chosen below.
+settings-accent-chosen-note = Colours are built from the colour chosen below.
 
 settings-animations-note = Sliding bars and panels, growing dialogues and springy buttons.
 

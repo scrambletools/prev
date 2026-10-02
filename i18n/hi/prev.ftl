@@ -47,8 +47,8 @@ settings-default-app-no-entry = prev की डेस्कटॉप एंट�
 settings-default-app-no-bundle = prev को डिफ़ॉल्ट बनाने के लिए इसे prev.app से खोलें।
 settings-default-app-failed = prev को डिफ़ॉल्ट नहीं बनाया जा सका: { $error }
 settings-storage = स्टोरेज
-settings-version = prev { $version }
-settings-version-development = prev { $version } (डेवलपमेंट बिल्ड)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (डेवलपमेंट बिल्ड, { $build })
 
 ## Markup toolbar
 
@@ -506,7 +506,8 @@ settings-system-accent = सिस्टम के एक्सेंट रं�
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = रंग “{ $theme }” के एक्सेंट से बनाए जाते हैं।
 settings-system-accent-note = रंग सिस्टम के एक्सेंट रंग से बनाए जाते हैं।
-settings-system-accent-none = सिस्टम में कोई एक्सेंट रंग नहीं है, इसलिए prev अपने रंग का उपयोग करता है।
+settings-system-accent-none = सिस्टम में कोई एक्सेंट रंग नहीं है, इसलिए prev नीचे चुने गए रंग का उपयोग करता है।
+settings-accent-chosen-note = रंग नीचे चुने गए रंग से बनाए जाते हैं।
 settings-auto-hide = पॉइंटर हटने पर टूलबार छिपाएँ
 settings-auto-hide-note = टूलबार दस्तावेज़ के ऊपर तैरता है और पॉइंटर के विंडो से बाहर रहने पर खिसककर हट जाता है।
 settings-animations = एनिमेशन

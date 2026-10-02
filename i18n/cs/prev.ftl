@@ -38,8 +38,8 @@ settings-default-app-no-entry = Soubor .desktop aplikace prev není nainstalovan
 settings-default-app-no-bundle = Chcete-li prev nastavit jako výchozí, spusťte jej z prev.app.
 settings-default-app-failed = prev se nepodařilo nastavit jako výchozí: { $error }
 settings-storage = Úložiště
-settings-version = prev { $version }
-settings-version-development = prev { $version } (vývojové sestavení)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (vývojové sestavení, { $build })
 
 ## Markup toolbar
 
@@ -436,7 +436,8 @@ settings-appearance-dark = Tmavý
 settings-system-accent = Použít zvýrazňující barvu systému
 settings-omarchy-note = Barvy vycházejí ze zvýrazňující barvy motivu „{ $theme }“.
 settings-system-accent-note = Barvy vycházejí ze zvýrazňující barvy systému.
-settings-system-accent-none = Systém nemá žádnou zvýrazňující barvu, proto prev používá vlastní.
+settings-system-accent-none = Systém nemá žádnou zvýrazňující barvu, proto prev používá barvu vybranou níže.
+settings-accent-chosen-note = Barvy vycházejí z barvy vybrané níže.
 settings-auto-hide = Skrýt panel nástrojů, když ukazatel opustí okno
 settings-auto-hide-note = Panel nástrojů se vznáší nad dokumentem a zasune se, když je ukazatel mimo okno.
 settings-animations = Animace

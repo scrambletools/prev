@@ -41,9 +41,15 @@ fn main() -> iced::Result {
                 }
                 Some("-V" | "--version") => {
                     let build = if prev_store::paths::PRODUCTION {
-                        ""
+                        concat!(" (", env!("PREV_COMMIT"), ")")
                     } else {
-                        " (development build)"
+                        concat!(
+                            " (dev build, ",
+                            env!("PREV_COMMIT"),
+                            ", ",
+                            env!("PREV_BUILT"),
+                            " UTC)"
+                        )
                     };
                     println!("prev {}{build}", env!("CARGO_PKG_VERSION"));
                     return Ok(());

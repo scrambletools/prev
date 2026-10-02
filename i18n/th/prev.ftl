@@ -38,8 +38,8 @@ settings-default-app-no-entry = ไม่ได้ติดตั้งราย
 settings-default-app-no-bundle = เปิด prev จาก prev.app เพื่อตั้งเป็นค่าเริ่มต้น
 settings-default-app-failed = ไม่สามารถตั้ง prev เป็นค่าเริ่มต้นได้: { $error }
 settings-storage = ที่จัดเก็บ
-settings-version = prev { $version }
-settings-version-development = prev { $version } (บิลด์สำหรับการพัฒนา)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (บิลด์สำหรับการพัฒนา, { $build })
 
 ## Markup toolbar
 
@@ -402,7 +402,8 @@ settings-appearance-dark = มืด
 settings-system-accent = ใช้สีเน้นของระบบ
 settings-omarchy-note = สีสร้างจากสีเน้นของ “{ $theme }”
 settings-system-accent-note = สีสร้างจากสีเน้นของระบบ
-settings-system-accent-none = ระบบไม่มีสีเน้น prev จึงใช้สีของตัวเอง
+settings-system-accent-none = ระบบไม่มีสีเน้น prev จึงใช้สีที่เลือกไว้ด้านล่าง
+settings-accent-chosen-note = สีสร้างจากสีที่เลือกไว้ด้านล่าง
 settings-auto-hide = ซ่อนแถบเครื่องมือเมื่อตัวชี้ออกไป
 settings-auto-hide-note = แถบเครื่องมือจะลอยอยู่เหนือเอกสารและเลื่อนหายไปเมื่อตัวชี้อยู่นอกหน้าต่าง
 settings-animations = ภาพเคลื่อนไหว

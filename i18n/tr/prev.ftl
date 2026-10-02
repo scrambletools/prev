@@ -39,8 +39,8 @@ settings-default-app-no-entry = prev'in masaüstü girdisi yüklü değil, bu y�
 settings-default-app-no-bundle = prev'i varsayılan yapmak için prev.app'ten açın.
 settings-default-app-failed = prev varsayılan yapılamadı: { $error }
 settings-storage = Depolama
-settings-version = prev { $version }
-settings-version-development = prev { $version } (geliştirme sürümü)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (geliştirme sürümü, { $build })
 
 ## Markup toolbar
 
@@ -498,7 +498,8 @@ settings-system-accent = Sistem vurgu rengini kullan
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Renkler “{ $theme }” temasının vurgu renginden oluşturulur.
 settings-system-accent-note = Renkler sistemin vurgu renginden oluşturulur.
-settings-system-accent-none = Sistemin vurgu rengi yok, bu yüzden prev kendi rengini kullanıyor.
+settings-system-accent-none = Sistemin vurgu rengi yok, bu yüzden prev aşağıda seçilen rengi kullanıyor.
+settings-accent-chosen-note = Renkler aşağıda seçilen renkten oluşturulur.
 settings-auto-hide = İşaretçi ayrılınca araç çubuğunu gizle
 settings-auto-hide-note = Araç çubuğu belgenin üzerinde durur ve işaretçi pencerenin dışındayken kayarak gizlenir.
 settings-animations = Animasyonlar

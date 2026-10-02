@@ -43,8 +43,8 @@ settings-default-app-no-bundle = Open prev from prev.app to make it the default.
 settings-default-app-failed = Could not make prev the default: { $error }
 settings-storage = Storage
 # The version at the foot of Settings.
-settings-version = prev { $version }
-settings-version-development = prev { $version } (development build)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (dev build, { $build })
 
 ## Markup toolbar
 
@@ -500,7 +500,8 @@ settings-system-accent = Use the system accent color
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Colors are built from the accent of “{ $theme }”.
 settings-system-accent-note = Colors are built from the system's accent color.
-settings-system-accent-none = The system has no accent color, so prev uses its own.
+settings-system-accent-none = The system has no accent color, so prev uses the one chosen below.
+settings-accent-chosen-note = Colors are built from the color chosen below.
 settings-auto-hide = Hide the toolbar when the pointer leaves
 settings-auto-hide-note = The toolbar floats over the document and slides away while the pointer is outside the window.
 settings-animations = Animations

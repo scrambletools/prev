@@ -40,8 +40,8 @@ settings-default-app-no-entry = Kiingizo cha eneo-kazi cha prev hakijasakinishwa
 settings-default-app-no-bundle = Fungua prev kutoka prev.app ili uifanye kuwa chaguomsingi.
 settings-default-app-failed = Imeshindwa kufanya prev kuwa chaguomsingi: { $error }
 settings-storage = Hifadhi ya faili
-settings-version = prev { $version }
-settings-version-development = prev { $version } (toleo la usanidi)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (toleo la usanidi, { $build })
 
 ## Markup toolbar
 
@@ -418,7 +418,8 @@ settings-appearance-dark = Giza
 settings-system-accent = Tumia rangi ya msisitizo ya mfumo
 settings-omarchy-note = Rangi zinatokana na rangi ya msisitizo ya “{ $theme }”.
 settings-system-accent-note = Rangi zinatokana na rangi ya msisitizo ya mfumo.
-settings-system-accent-none = Mfumo hauna rangi ya msisitizo, kwa hivyo prev inatumia rangi yake yenyewe.
+settings-system-accent-none = Mfumo hauna rangi ya msisitizo, kwa hivyo prev inatumia rangi iliyochaguliwa hapa chini.
+settings-accent-chosen-note = Rangi zinatokana na rangi iliyochaguliwa hapa chini.
 settings-auto-hide = Ficha upau wa zana kielekezi kinapoondoka
 settings-auto-hide-note = Upau wa zana huelea juu ya hati na huteleza mbali wakati kielekezi kiko nje ya dirisha.
 settings-animations = Uhuishaji

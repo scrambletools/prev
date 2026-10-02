@@ -39,8 +39,8 @@ settings-default-app-no-entry = prevs skrivebordsfil er ikke installeret, så sy
 settings-default-app-no-bundle = Åbn prev fra prev.app for at gøre den til standard.
 settings-default-app-failed = prev kunne ikke gøres til standard: { $error }
 settings-storage = Lagring
-settings-version = prev { $version }
-settings-version-development = prev { $version } (udviklingsversion)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (udviklingsversion, { $build })
 
 ## Markup toolbar
 
@@ -498,7 +498,8 @@ settings-system-accent = Brug systemets accentfarve
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Farverne er dannet ud fra accentfarven i “{ $theme }”.
 settings-system-accent-note = Farverne er dannet ud fra systemets accentfarve.
-settings-system-accent-none = Systemet har ingen accentfarve, så prev bruger sin egen.
+settings-system-accent-none = Systemet har ingen accentfarve, så prev bruger den, der er valgt nedenfor.
+settings-accent-chosen-note = Farverne er dannet ud fra den farve, der er valgt nedenfor.
 settings-auto-hide = Skjul værktøjslinjen, når markøren forlader vinduet
 settings-auto-hide-note = Værktøjslinjen svæver over dokumentet og glider væk, mens markøren er uden for vinduet.
 settings-animations = Animationer

@@ -38,8 +38,8 @@ settings-default-app-no-entry = L'entrada d'escriptori del prev no està instal�
 settings-default-app-no-bundle = Obre el prev des de prev.app per establir-lo per defecte.
 settings-default-app-failed = No s'ha pogut establir el prev per defecte: { $error }
 settings-storage = Emmagatzematge
-settings-version = prev { $version }
-settings-version-development = prev { $version } (versió de desenvolupament)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (versió de desenvolupament, { $build })
 
 ## Markup toolbar
 
@@ -419,7 +419,8 @@ settings-appearance-dark = Fosc
 settings-system-accent = Utilitza el color d'accent del sistema
 settings-omarchy-note = Els colors es creen a partir de l'accent de «{ $theme }».
 settings-system-accent-note = Els colors es creen a partir del color d'accent del sistema.
-settings-system-accent-none = El sistema no té cap color d'accent, de manera que el prev utilitza el seu propi.
+settings-system-accent-none = El sistema no té cap color d'accent, de manera que el prev utilitza el que s'ha triat a continuació.
+settings-accent-chosen-note = Els colors es creen a partir del color triat a continuació.
 settings-auto-hide = Amaga la barra d'eines quan el punter surt
 settings-auto-hide-note = La barra d'eines sura sobre el document i s'amaga mentre el punter és fora de la finestra.
 settings-animations = Animacions

@@ -38,8 +38,8 @@ settings-default-app-no-entry = prev کا ڈیسک ٹاپ اندراج انسٹ�
 settings-default-app-no-bundle = prev کو ڈیفالٹ بنانے کے لیے اسے prev.app سے کھولیں۔
 settings-default-app-failed = prev کو ڈیفالٹ نہیں بنایا جا سکا: { $error }
 settings-storage = اسٹوریج
-settings-version = prev { $version }
-settings-version-development = prev { $version } (ڈیولپمنٹ بلڈ)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (ڈیولپمنٹ بلڈ، { $build })
 
 ## Markup toolbar
 
@@ -416,7 +416,8 @@ settings-appearance-dark = تاریک
 settings-system-accent = سسٹم کا ایکسنٹ رنگ استعمال کریں
 settings-omarchy-note = رنگ “{ $theme }” کے ایکسنٹ رنگ سے بنائے جاتے ہیں۔
 settings-system-accent-note = رنگ سسٹم کے ایکسنٹ رنگ سے بنائے جاتے ہیں۔
-settings-system-accent-none = سسٹم میں کوئی ایکسنٹ رنگ نہیں ہے، اس لیے prev اپنا رنگ استعمال کرتا ہے۔
+settings-system-accent-none = سسٹم میں کوئی ایکسنٹ رنگ نہیں ہے، اس لیے prev نیچے منتخب کیا گیا رنگ استعمال کرتا ہے۔
+settings-accent-chosen-note = رنگ نیچے منتخب کیے گئے رنگ سے بنائے جاتے ہیں۔
 settings-auto-hide = پوائنٹر ہٹنے پر ٹول بار چھپائیں
 settings-auto-hide-note = ٹول بار دستاویز کے اوپر تیرتا ہے اور جب پوائنٹر ونڈو سے باہر ہو تو کھسک کر ہٹ جاتا ہے۔
 settings-animations = اینیمیشنز

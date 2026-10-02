@@ -39,8 +39,8 @@ settings-default-app-no-entry = ورودی میزکار prev نصب نشده ا�
 settings-default-app-no-bundle = برای پیش‌فرض کردن prev، آن را از prev.app باز کنید.
 settings-default-app-failed = نمی‌توان prev را پیش‌فرض کرد: { $error }
 settings-storage = ذخیره‌سازی
-settings-version = prev { $version }
-settings-version-development = prev { $version } (نسخهٔ توسعه)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (نسخهٔ توسعه، { $build })
 
 ## Markup toolbar
 
@@ -498,7 +498,8 @@ settings-system-accent = استفاده از رنگ تأکیدی سیستم
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = رنگ‌ها از رنگ تأکیدی پوستهٔ «{ $theme }» ساخته می‌شوند.
 settings-system-accent-note = رنگ‌ها از رنگ تأکیدی سیستم ساخته می‌شوند.
-settings-system-accent-none = سیستم رنگ تأکیدی ندارد، پس prev از رنگ خودش استفاده می‌کند.
+settings-system-accent-none = سیستم رنگ تأکیدی ندارد، پس prev از رنگ انتخاب‌شده در پایین استفاده می‌کند.
+settings-accent-chosen-note = رنگ‌ها از رنگ انتخاب‌شده در پایین ساخته می‌شوند.
 settings-auto-hide = پنهان کردن نوار ابزار هنگام خروج نشانگر
 settings-auto-hide-note = نوار ابزار روی سند شناور است و وقتی نشانگر بیرون از پنجره باشد، کنار می‌رود.
 settings-animations = پویانمایی‌ها

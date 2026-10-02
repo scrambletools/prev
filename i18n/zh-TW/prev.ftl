@@ -39,8 +39,8 @@ settings-default-app-no-entry = prev 的桌面項目尚未安裝，因此系統�
 settings-default-app-no-bundle = 請從 prev.app 開啟 prev，才能將其設為預設。
 settings-default-app-failed = 無法將 prev 設為預設：{ $error }
 settings-storage = 儲存位置
-settings-version = prev { $version }
-settings-version-development = prev { $version }（開發版）
+settings-version = prev { $version }（{ $build }）
+settings-version-development = prev { $version }（開發版，{ $build }）
 
 ## Markup toolbar
 
@@ -471,7 +471,8 @@ settings-system-accent = 使用系統強調色
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = 顏色是根據「{ $theme }」的強調色產生。
 settings-system-accent-note = 顏色是根據系統的強調色產生。
-settings-system-accent-none = 系統沒有強調色，因此 prev 會使用自己的顏色。
+settings-system-accent-none = 系統沒有強調色，因此 prev 會使用下方選擇的顏色。
+settings-accent-chosen-note = 顏色是根據下方選擇的顏色產生。
 settings-auto-hide = 指標離開時隱藏工具列
 settings-auto-hide-note = 工具列會浮在文件上方，指標移到視窗外時會滑出隱藏。
 settings-animations = 動畫

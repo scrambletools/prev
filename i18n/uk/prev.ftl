@@ -39,8 +39,8 @@ settings-default-app-no-entry = Ярлик робочого столу prev не
 settings-default-app-no-bundle = Відкрийте prev з prev.app, щоб зробити його застосунком за замовчуванням.
 settings-default-app-failed = Не вдалося зробити prev застосунком за замовчуванням: { $error }
 settings-storage = Зберігання
-settings-version = prev { $version }
-settings-version-development = prev { $version } (збірка для розробки)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (збірка для розробки, { $build })
 
 ## Markup toolbar
 
@@ -526,7 +526,8 @@ settings-system-accent = Використовувати акцентний ко�
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Кольори побудовано на основі акцентного кольору теми «{ $theme }».
 settings-system-accent-note = Кольори побудовано на основі акцентного кольору системи.
-settings-system-accent-none = У системі немає акцентного кольору, тому prev використовує власний.
+settings-system-accent-none = У системі немає акцентного кольору, тому prev використовує колір, вибраний нижче.
+settings-accent-chosen-note = Кольори побудовано на основі кольору, вибраного нижче.
 settings-auto-hide = Ховати панель інструментів, коли вказівник поза вікном
 settings-auto-hide-note = Панель інструментів розташовується над документом і ховається, поки вказівник поза вікном.
 settings-animations = Анімація

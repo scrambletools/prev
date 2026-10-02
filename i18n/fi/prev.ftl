@@ -36,8 +36,8 @@ settings-default-app-no-entry = Järjestelmä ei voi avata tiedostoja previllä,
 settings-default-app-no-bundle = Avaa prev kohteesta prev.app, jotta voit asettaa sen oletukseksi.
 settings-default-app-failed = previn asettaminen oletukseksi epäonnistui: { $error }
 settings-storage = Tallennus
-settings-version = prev { $version }
-settings-version-development = prev { $version } (kehitysversio)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (kehitysversio, { $build })
 
 ## Markup toolbar
 
@@ -411,7 +411,8 @@ settings-appearance-dark = Tumma
 settings-system-accent = Käytä järjestelmän korostusväriä
 settings-omarchy-note = Värit muodostetaan teeman ”{ $theme }” korostusväristä.
 settings-system-accent-note = Värit muodostetaan järjestelmän korostusväristä.
-settings-system-accent-none = Järjestelmässä ei ole korostusväriä, joten prev käyttää omaansa.
+settings-system-accent-none = Järjestelmässä ei ole korostusväriä, joten prev käyttää alla valittua.
+settings-accent-chosen-note = Värit muodostetaan alla valitusta väristä.
 settings-auto-hide = Piilota työkalupalkki, kun osoitin poistuu ikkunasta
 settings-auto-hide-note = Työkalupalkki kelluu asiakirjan päällä ja liukuu pois, kun osoitin on ikkunan ulkopuolella.
 settings-animations = Animaatiot

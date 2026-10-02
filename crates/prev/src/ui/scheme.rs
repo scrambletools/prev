@@ -65,7 +65,16 @@ fn argb(color: Color) -> Argb {
 
 impl Scheme {
     pub fn new(seed: Color, dark: bool) -> Self {
-        let scheme = DynamicScheme::by_variant(argb(seed), &Variant::TonalSpot, dark, None);
+        // A grey seed has no hue to build a tonal scheme from; it gets a
+        // monochrome one rather than an arbitrary tint.
+        let [red, green, blue, _] = seed.into_rgba8();
+        let grey = red.max(green).max(blue) - red.min(green).min(blue) <= 8;
+        let variant = if grey {
+            Variant::Monochrome
+        } else {
+            Variant::TonalSpot
+        };
+        let scheme = DynamicScheme::by_variant(argb(seed), &variant, dark, None);
         Self {
             dark,
             primary: color(scheme.primary()),

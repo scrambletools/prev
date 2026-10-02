@@ -40,8 +40,8 @@ settings-default-app-no-entry = prev-இன் டெஸ்க்டாப் �
 settings-default-app-no-bundle = prev-ஐ இயல்புநிலையாக்க, அதை prev.app-இலிருந்து திறக்கவும்.
 settings-default-app-failed = prev-ஐ இயல்புநிலையாக்க முடியவில்லை: { $error }
 settings-storage = சேமிப்பிடம்
-settings-version = prev { $version }
-settings-version-development = prev { $version } (மேம்பாட்டுப் பதிப்பு)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (மேம்பாட்டுப் பதிப்பு, { $build })
 
 ## Markup toolbar
 
@@ -415,7 +415,8 @@ settings-appearance-dark = அடர்
 settings-system-accent = கணினியின் அக்சென்ட் வண்ணத்தைப் பயன்படுத்து
 settings-omarchy-note = வண்ணங்கள் “{ $theme }” இன் அக்சென்ட்டிலிருந்து உருவாக்கப்படுகின்றன.
 settings-system-accent-note = வண்ணங்கள் கணினியின் அக்சென்ட் வண்ணத்திலிருந்து உருவாக்கப்படுகின்றன.
-settings-system-accent-none = கணினியில் அக்சென்ட் வண்ணம் இல்லை, எனவே prev தனது சொந்த வண்ணத்தைப் பயன்படுத்துகிறது.
+settings-system-accent-none = கணினியில் அக்சென்ட் வண்ணம் இல்லை, எனவே prev கீழே தேர்ந்தெடுக்கப்பட்ட வண்ணத்தைப் பயன்படுத்துகிறது.
+settings-accent-chosen-note = வண்ணங்கள் கீழே தேர்ந்தெடுக்கப்பட்ட வண்ணத்திலிருந்து உருவாக்கப்படுகின்றன.
 settings-auto-hide = சுட்டி வெளியேறும்போது கருவிப்பட்டியை மறை
 settings-auto-hide-note = கருவிப்பட்டி ஆவணத்தின் மேல் மிதக்கும், சுட்டி சாளரத்திற்கு வெளியே இருக்கும்போது நகர்ந்து மறையும்.
 settings-animations = அனிமேஷன்கள்

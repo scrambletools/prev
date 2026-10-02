@@ -38,8 +38,8 @@ settings-default-app-no-entry = Η καταχώριση επιφάνειας ε�
 settings-default-app-no-bundle = Ανοίξτε το prev από το prev.app για να το ορίσετε ως προεπιλογή.
 settings-default-app-failed = Δεν ήταν δυνατός ο ορισμός του prev ως προεπιλογής: { $error }
 settings-storage = Χώρος αποθήκευσης
-settings-version = prev { $version }
-settings-version-development = prev { $version } (έκδοση ανάπτυξης)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (έκδοση ανάπτυξης, { $build })
 
 ## Markup toolbar
 
@@ -413,7 +413,8 @@ settings-appearance-dark = Σκούρα
 settings-system-accent = Χρήση του χρώματος έμφασης του συστήματος
 settings-omarchy-note = Τα χρώματα προκύπτουν από το χρώμα έμφασης του θέματος «{ $theme }».
 settings-system-accent-note = Τα χρώματα προκύπτουν από το χρώμα έμφασης του συστήματος.
-settings-system-accent-none = Το σύστημα δεν έχει χρώμα έμφασης, οπότε το prev χρησιμοποιεί το δικό του.
+settings-system-accent-none = Το σύστημα δεν έχει χρώμα έμφασης, οπότε το prev χρησιμοποιεί αυτό που έχει επιλεγεί παρακάτω.
+settings-accent-chosen-note = Τα χρώματα προκύπτουν από το χρώμα που έχει επιλεγεί παρακάτω.
 settings-auto-hide = Απόκρυψη της γραμμής εργαλείων όταν ο δείκτης βγαίνει από το παράθυρο
 settings-auto-hide-note = Η γραμμή εργαλείων αιωρείται πάνω από το έγγραφο και αποσύρεται όσο ο δείκτης βρίσκεται έξω από το παράθυρο.
 settings-animations = Κινούμενα εφέ

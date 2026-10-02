@@ -39,8 +39,8 @@ settings-default-app-no-entry = Entri desktop prev belum terpasang, sehingga sis
 settings-default-app-no-bundle = Buka prev dari prev.app untuk menjadikannya aplikasi bawaan.
 settings-default-app-failed = Tidak dapat menjadikan prev sebagai aplikasi bawaan: { $error }
 settings-storage = Penyimpanan
-settings-version = prev { $version }
-settings-version-development = prev { $version } (versi pengembangan)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (versi pengembangan, { $build })
 
 ## Markup toolbar
 
@@ -403,7 +403,8 @@ settings-appearance-dark = Gelap
 settings-system-accent = Gunakan warna aksen sistem
 settings-omarchy-note = Warna dibuat dari aksen “{ $theme }”.
 settings-system-accent-note = Warna dibuat dari warna aksen sistem.
-settings-system-accent-none = Sistem tidak memiliki warna aksen, sehingga prev memakai warnanya sendiri.
+settings-system-accent-none = Sistem tidak memiliki warna aksen, sehingga prev memakai warna yang dipilih di bawah.
+settings-accent-chosen-note = Warna dibuat dari warna yang dipilih di bawah.
 settings-auto-hide = Sembunyikan bilah alat saat penunjuk keluar
 settings-auto-hide-note = Bilah alat melayang di atas dokumen dan bergeser menyingkir saat penunjuk berada di luar jendela.
 settings-animations = Animasi

@@ -39,8 +39,8 @@ settings-default-app-no-entry = إدخال سطح المكتب الخاص بـ p
 settings-default-app-no-bundle = افتح prev من prev.app لجعله التطبيق الافتراضي.
 settings-default-app-failed = تعذّر جعل prev التطبيق الافتراضي: { $error }
 settings-storage = التخزين
-settings-version = prev { $version }
-settings-version-development = prev { $version } (إصدار تطويري)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (إصدار تطويري، { $build })
 
 ## Markup toolbar
 
@@ -534,7 +534,8 @@ settings-system-accent = استخدام لون التمييز في النظام
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = الألوان مبنية على لون التمييز في سمة “{ $theme }”.
 settings-system-accent-note = الألوان مبنية على لون التمييز في النظام.
-settings-system-accent-none = لا يوجد لون تمييز في النظام، لذا يستخدم prev لونه الخاص.
+settings-system-accent-none = لا يوجد لون تمييز في النظام، لذا يستخدم prev اللون المختار أدناه.
+settings-accent-chosen-note = الألوان مبنية على اللون المختار أدناه.
 settings-auto-hide = إخفاء شريط الأدوات عند مغادرة المؤشر
 settings-auto-hide-note = يطفو شريط الأدوات فوق المستند وينزلق بعيدًا عندما يكون المؤشر خارج النافذة.
 settings-animations = الحركات

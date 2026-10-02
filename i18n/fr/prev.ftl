@@ -39,8 +39,8 @@ settings-default-app-no-entry = L’entrée de bureau de prev n’est pas instal
 settings-default-app-no-bundle = Ouvrez prev depuis prev.app pour le définir par défaut.
 settings-default-app-failed = Impossible de définir prev par défaut : { $error }
 settings-storage = Stockage
-settings-version = prev { $version }
-settings-version-development = prev { $version } (version de développement)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (version de développement, { $build })
 
 ## Markup toolbar
 
@@ -501,7 +501,8 @@ settings-system-accent = Utiliser la couleur d’accentuation du système
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Les couleurs sont dérivées de la couleur d’accentuation de « { $theme } ».
 settings-system-accent-note = Les couleurs sont dérivées de la couleur d’accentuation du système.
-settings-system-accent-none = Le système n’a pas de couleur d’accentuation, prev utilise donc la sienne.
+settings-system-accent-none = Le système n’a pas de couleur d’accentuation, prev utilise donc celle choisie ci-dessous.
+settings-accent-chosen-note = Les couleurs sont dérivées de la couleur choisie ci-dessous.
 settings-auto-hide = Masquer la barre d’outils quand le pointeur quitte la fenêtre
 settings-auto-hide-note = La barre d’outils flotte au-dessus du document et s’escamote tant que le pointeur est hors de la fenêtre.
 settings-animations = Animations

@@ -39,8 +39,8 @@ settings-default-app-no-entry = Der Desktop-Eintrag von prev ist nicht installie
 settings-default-app-no-bundle = Öffnen Sie prev aus prev.app, um es als Standard festzulegen.
 settings-default-app-failed = prev konnte nicht als Standard festgelegt werden: { $error }
 settings-storage = Speicherort
-settings-version = prev { $version }
-settings-version-development = prev { $version } (Entwicklungsversion)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (Entwicklungsversion, { $build })
 
 ## Markup toolbar
 
@@ -498,7 +498,8 @@ settings-system-accent = Akzentfarbe des Systems verwenden
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = Die Farben werden aus der Akzentfarbe von „{ $theme }“ abgeleitet.
 settings-system-accent-note = Die Farben werden aus der Akzentfarbe des Systems abgeleitet.
-settings-system-accent-none = Das System hat keine Akzentfarbe, daher verwendet prev seine eigene.
+settings-system-accent-none = Das System hat keine Akzentfarbe, daher verwendet prev die unten gewählte.
+settings-accent-chosen-note = Die Farben werden aus der unten gewählten Farbe abgeleitet.
 settings-auto-hide = Symbolleiste ausblenden, wenn der Zeiger das Fenster verlässt
 settings-auto-hide-note = Die Symbolleiste schwebt über dem Dokument und gleitet weg, solange der Zeiger außerhalb des Fensters ist.
 settings-animations = Animationen

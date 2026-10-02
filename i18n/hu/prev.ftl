@@ -38,8 +38,8 @@ settings-default-app-no-entry = A prev asztali bejegyzése (desktop entry) nincs
 settings-default-app-no-bundle = Ahhoz, hogy a prev alapértelmezett legyen, a prev.app-ból indítsa el.
 settings-default-app-failed = Nem sikerült a prevet alapértelmezetté tenni: { $error }
 settings-storage = Tárolás
-settings-version = prev { $version }
-settings-version-development = prev { $version } (fejlesztői változat)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (fejlesztői változat, { $build })
 
 ## Markup toolbar
 
@@ -413,7 +413,8 @@ settings-appearance-dark = Sötét
 settings-system-accent = A rendszer kiemelőszínének használata
 settings-omarchy-note = A színek az Omarchy-téma („{ $theme }”) kiemelőszínéből készülnek.
 settings-system-accent-note = A színek a rendszer kiemelőszínéből készülnek.
-settings-system-accent-none = A rendszernek nincs kiemelőszíne, ezért a prev a sajátját használja.
+settings-system-accent-none = A rendszernek nincs kiemelőszíne, ezért a prev az alább kiválasztott színt használja.
+settings-accent-chosen-note = A színek az alább kiválasztott színből készülnek.
 settings-auto-hide = Az eszköztár elrejtése, amikor a mutató elhagyja az ablakot
 settings-auto-hide-note = Az eszköztár a dokumentum fölött lebeg, és eltűnik, amíg a mutató az ablakon kívül van.
 settings-animations = Animációk

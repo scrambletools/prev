@@ -39,8 +39,8 @@ settings-default-app-no-entry = A entrada de ambiente de trabalho do prev não e
 settings-default-app-no-bundle = Abra o prev a partir de prev.app para o tornar predefinido.
 settings-default-app-failed = Não foi possível tornar o prev predefinido: { $error }
 settings-storage = Armazenamento
-settings-version = prev { $version }
-settings-version-development = prev { $version } (versão de desenvolvimento)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (versão de desenvolvimento, { $build })
 
 ## Markup toolbar
 
@@ -420,7 +420,8 @@ settings-appearance-dark = Escuro
 settings-system-accent = Utilizar a cor de destaque do sistema
 settings-omarchy-note = As cores são criadas a partir da cor de destaque de «{ $theme }».
 settings-system-accent-note = As cores são criadas a partir da cor de destaque do sistema.
-settings-system-accent-none = O sistema não tem cor de destaque, pelo que o prev utiliza a sua própria.
+settings-system-accent-none = O sistema não tem cor de destaque, pelo que o prev utiliza a cor escolhida abaixo.
+settings-accent-chosen-note = As cores são criadas a partir da cor escolhida abaixo.
 settings-auto-hide = Ocultar a barra de ferramentas quando o ponteiro sai
 settings-auto-hide-note = A barra de ferramentas flutua sobre o documento e recolhe-se enquanto o ponteiro está fora da janela.
 settings-animations = Animações

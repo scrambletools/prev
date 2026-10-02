@@ -39,8 +39,8 @@ settings-default-app-no-entry = prevのデスクトップエントリがイン�
 settings-default-app-no-bundle = prevをデフォルトにするには、prev.appから開いてください。
 settings-default-app-failed = prevをデフォルトにできませんでした: { $error }
 settings-storage = 保存場所
-settings-version = prev { $version }
-settings-version-development = prev { $version }（開発版）
+settings-version = prev { $version }（{ $build }）
+settings-version-development = prev { $version }（開発版，{ $build }）
 
 ## Markup toolbar
 
@@ -471,7 +471,8 @@ settings-system-accent = システムのアクセントカラーを使用
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = 「{ $theme }」のアクセントからカラーを作成しています。
 settings-system-accent-note = システムのアクセントカラーからカラーを作成しています。
-settings-system-accent-none = システムにアクセントカラーがないため、prev独自のカラーを使用しています。
+settings-system-accent-none = システムにアクセントカラーがないため、prevは下で選択したカラーを使用しています。
+settings-accent-chosen-note = 下で選択したカラーからカラーを作成しています。
 settings-auto-hide = ポインタが離れたらツールバーを隠す
 settings-auto-hide-note = ツールバーは書類の上に浮かび、ポインタがウインドウの外にあるあいだはスライドして隠れます。
 settings-animations = アニメーション

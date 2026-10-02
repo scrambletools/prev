@@ -268,6 +268,8 @@ pub enum Message {
     /// The keyboard layout changed direction.
     KeyboardDirection(Option<bool>),
     SystemAccentToggled(bool),
+    /// A color picked for the scheme, as "#RRGGBB".
+    AccentPicked(String),
     DismissNotice(window::Id),
     AnimationsEnabled(Option<bool>),
     SystemAccent(Option<(u8, u8, u8)>),
@@ -1042,6 +1044,12 @@ impl Prev {
                 }
                 Task::none()
             }
+            Message::AccentPicked(hex) => {
+                self.settings.accent_color = Some(hex);
+                self.save_settings();
+                self.refresh_theme();
+                Task::none()
+            }
             Message::SystemAccentToggled(enabled) => {
                 self.settings.system_accent = enabled;
                 self.save_settings();
@@ -1671,11 +1679,30 @@ impl Prev {
                 .selected(appearance == value)
                 .on_press(Message::AppearanceSelected(value))
         };
-        let accent_note = match (&self.omarchy, self.system_accent) {
-            (Some(palette), _) => prev::fl!("settings-omarchy-note", theme = palette.name.as_str()),
-            (None, Some(_)) => prev::fl!("settings-system-accent-note"),
-            (None, None) => prev::fl!("settings-system-accent-none"),
+        let accent_note = match (
+            self.settings.system_accent,
+            &self.omarchy,
+            self.system_accent,
+        ) {
+            (false, _, _) => prev::fl!("settings-accent-chosen-note"),
+            (true, Some(palette), _) => {
+                prev::fl!("settings-omarchy-note", theme = palette.name.as_str())
+            }
+            (true, None, Some(_)) => prev::fl!("settings-system-accent-note"),
+            (true, None, None) => prev::fl!("settings-system-accent-none"),
         };
+        // The picked color is in use when the system accent is off or the
+        // system has none.
+        let picking = !self.settings.system_accent
+            || (self.omarchy.is_none() && self.system_accent.is_none());
+        let chosen = chosen_accent(&self.settings);
+        let swatches = picking.then(|| {
+            row(ACCENT_SWATCHES
+                .iter()
+                .map(|&swatch| accent_swatch(swatch, color_to_hex(swatch) == color_to_hex(chosen))))
+            .spacing(4)
+            .wrap()
+        });
         // The title and close button stay put while the settings scroll.
         let header = row![
             ui::aligned(ui::styled(prev::fl!("settings-title"), Type::HeadlineSmall)),
@@ -1729,6 +1756,7 @@ impl Prev {
             ]
             .spacing(16)
             .align_y(Center),
+            swatches.map_or_else(|| Element::from(space()), Element::from),
             component::section(prev::fl!("settings-windows")),
             row![
                 column![
@@ -1852,9 +1880,18 @@ impl Prev {
         }
         let version = env!("CARGO_PKG_VERSION");
         let build = if prev_store::paths::PRODUCTION {
-            prev::fl!("settings-version", version = version)
+            prev::fl!(
+                "settings-version",
+                version = version,
+                build = env!("PREV_COMMIT")
+            )
         } else {
-            prev::fl!("settings-version-development", version = version)
+            let build = concat!(env!("PREV_COMMIT"), ", ", env!("PREV_BUILT"), " UTC");
+            prev::fl!(
+                "settings-version-development",
+                version = version,
+                build = build
+            )
         };
         content = content.push(
             container(ui::styled(build, Type::BodySmall).style(style::on_surface_variant))
@@ -1977,6 +2014,78 @@ fn quit<T>() -> Task<T> {
     iced::exit()
 }
 
+/// Colors offered for the scheme when the system accent is not used,
+/// prev's blue first.
+const ACCENT_SWATCHES: [Color; 11] = [
+    ui::scheme::PREV_SEED,
+    Color::from_rgb8(0x00, 0x89, 0x7b),
+    Color::from_rgb8(0x43, 0xa0, 0x47),
+    Color::from_rgb8(0xf9, 0xa8, 0x25),
+    Color::from_rgb8(0xf5, 0x7c, 0x00),
+    Color::from_rgb8(0xe5, 0x39, 0x35),
+    Color::from_rgb8(0xd8, 0x1b, 0x60),
+    Color::from_rgb8(0x8e, 0x24, 0xaa),
+    Color::from_rgb8(0x39, 0x49, 0xab),
+    Color::from_rgb8(0x6d, 0x4c, 0x41),
+    Color::from_rgb8(0x75, 0x75, 0x75),
+];
+
+/// The color picked in the settings, or prev's blue.
+fn chosen_accent(settings: &Settings) -> Color {
+    settings
+        .accent_color
+        .as_deref()
+        .and_then(hex_to_color)
+        .unwrap_or(ui::scheme::PREV_SEED)
+}
+
+/// "#RRGGBB" (or "RRGGBB") as a color.
+fn hex_to_color(hex: &str) -> Option<Color> {
+    let hex = hex.trim().trim_start_matches('#');
+    if hex.len() != 6 {
+        return None;
+    }
+    let value = u32::from_str_radix(hex, 16).ok()?;
+    Some(Color::from_rgb8(
+        (value >> 16) as u8,
+        (value >> 8) as u8,
+        value as u8,
+    ))
+}
+
+fn color_to_hex(color: Color) -> String {
+    let [red, green, blue, _] = color.into_rgba8();
+    format!("#{red:02X}{green:02X}{blue:02X}")
+}
+
+/// A round button that picks `color` for the scheme, ringed when chosen.
+fn accent_swatch<'a>(color: Color, selected: bool) -> Element<'a, Message> {
+    let dot = container(space().width(24).height(24)).style(move |theme: &Theme| {
+        let scheme = ui::Scheme::of(theme);
+        iced::widget::container::Style {
+            background: Some(color.into()),
+            border: iced::Border {
+                color: if selected {
+                    scheme.on_surface
+                } else {
+                    scheme.outline_variant
+                },
+                width: if selected { 3.0 } else { 1.0 },
+                radius: ui::shape::FULL.into(),
+            },
+            ..Default::default()
+        }
+    });
+    let hex = color_to_hex(color);
+    component::tip(
+        button::custom(Kind::Standard, dot)
+            .size(button::Size::ExtraSmall)
+            .width(36)
+            .on_press(Message::AccentPicked(hex.clone())),
+        hex,
+    )
+}
+
 /// Reads the system's accent color, for the scheme's seed.
 fn read_system_accent() -> Task<Message> {
     Task::perform(portal::accent_color(), Message::SystemAccent)
@@ -2006,7 +2115,7 @@ fn theme_choice(
         }
         None => system_accent
             .filter(|_| settings.system_accent)
-            .unwrap_or(ui::scheme::PREV_SEED),
+            .unwrap_or_else(|| chosen_accent(settings)),
     };
     (seed, dark)
 }
@@ -2215,6 +2324,33 @@ mod tests {
             Color::from_rgb8(0x82, 0xfb, 0x9c),
             "the Omarchy accent comes first"
         );
+    }
+
+    #[test]
+    fn picked_color_seeds_the_scheme_without_the_system_accent() {
+        let red = Color::from_rgb8(0xe5, 0x39, 0x35);
+        let settings = |system_accent: bool| Settings {
+            system_accent,
+            accent_color: Some("#E53935".into()),
+            ..Settings::default()
+        };
+        let blue = Color::from_rgb8(0x00, 0x78, 0xd4);
+        assert_eq!(
+            theme_choice(&settings(false), None, Some(blue), false).0,
+            red
+        );
+        assert_eq!(
+            theme_choice(&settings(true), None, None, false).0,
+            red,
+            "no system accent"
+        );
+        assert_eq!(
+            theme_choice(&settings(true), None, Some(blue), false).0,
+            blue
+        );
+        assert_eq!(hex_to_color("#e53935"), Some(red));
+        assert_eq!(color_to_hex(red), "#E53935");
+        assert_eq!(hex_to_color("nope"), None);
     }
 
     #[test]

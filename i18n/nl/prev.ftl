@@ -39,8 +39,8 @@ settings-default-app-no-entry = Het bureaubladbestand van prev is niet geïnstal
 settings-default-app-no-bundle = Open prev vanuit prev.app om het als standaard in te stellen.
 settings-default-app-failed = Kan prev niet als standaard instellen: { $error }
 settings-storage = Opslag
-settings-version = prev { $version }
-settings-version-development = prev { $version } (ontwikkelversie)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (ontwikkelversie, { $build })
 
 ## Markup toolbar
 
@@ -501,7 +501,8 @@ settings-system-accent = Accentkleur van het systeem gebruiken
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = De kleuren zijn afgeleid van het accent van ‘{ $theme }’.
 settings-system-accent-note = De kleuren zijn afgeleid van de accentkleur van het systeem.
-settings-system-accent-none = Het systeem heeft geen accentkleur, dus prev gebruikt zijn eigen.
+settings-system-accent-none = Het systeem heeft geen accentkleur, dus prev gebruikt de hieronder gekozen kleur.
+settings-accent-chosen-note = De kleuren zijn afgeleid van de hieronder gekozen kleur.
 settings-auto-hide = Knoppenbalk verbergen als de aanwijzer het venster verlaat
 settings-auto-hide-note = De knoppenbalk zweeft boven het document en schuift weg zolang de aanwijzer buiten het venster is.
 settings-animations = Animaties

@@ -39,8 +39,8 @@ settings-default-app-no-entry = Tệp .desktop của prev chưa được cài đ
 settings-default-app-no-bundle = Mở prev từ prev.app để đặt làm mặc định.
 settings-default-app-failed = Không thể đặt prev làm mặc định: { $error }
 settings-storage = Lưu trữ
-settings-version = prev { $version }
-settings-version-development = prev { $version } (bản phát triển)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (bản phát triển, { $build })
 
 ## Markup toolbar
 
@@ -403,7 +403,8 @@ settings-appearance-dark = Tối
 settings-system-accent = Dùng màu nhấn của hệ thống
 settings-omarchy-note = Màu sắc được tạo từ màu nhấn của “{ $theme }”.
 settings-system-accent-note = Màu sắc được tạo từ màu nhấn của hệ thống.
-settings-system-accent-none = Hệ thống không có màu nhấn nên prev dùng màu riêng của mình.
+settings-system-accent-none = Hệ thống không có màu nhấn nên prev dùng màu được chọn bên dưới.
+settings-accent-chosen-note = Màu sắc được tạo từ màu được chọn bên dưới.
 settings-auto-hide = Ẩn thanh công cụ khi con trỏ rời đi
 settings-auto-hide-note = Thanh công cụ nổi phía trên tài liệu và trượt đi khi con trỏ ở ngoài cửa sổ.
 settings-animations = Hiệu ứng động

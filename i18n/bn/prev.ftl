@@ -39,8 +39,8 @@ settings-default-app-no-entry = prev-এর ডেস্কটপ এন্ট�
 settings-default-app-no-bundle = prev-কে ডিফল্ট করতে এটি prev.app থেকে খুলুন।
 settings-default-app-failed = prev-কে ডিফল্ট করা যায়নি: { $error }
 settings-storage = স্টোরেজ
-settings-version = prev { $version }
-settings-version-development = prev { $version } (ডেভেলপমেন্ট বিল্ড)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (ডেভেলপমেন্ট বিল্ড, { $build })
 
 ## Markup toolbar
 
@@ -414,7 +414,8 @@ settings-appearance-dark = গাঢ়
 settings-system-accent = সিস্টেমের অ্যাকসেন্ট রং ব্যবহার করুন
 settings-omarchy-note = রংগুলো “{ $theme }”-এর অ্যাকসেন্ট থেকে তৈরি।
 settings-system-accent-note = রংগুলো সিস্টেমের অ্যাকসেন্ট রং থেকে তৈরি।
-settings-system-accent-none = সিস্টেমে কোনো অ্যাকসেন্ট রং নেই, তাই prev নিজের রং ব্যবহার করে।
+settings-system-accent-none = সিস্টেমে কোনো অ্যাকসেন্ট রং নেই, তাই prev নিচে বেছে নেওয়া রং ব্যবহার করে।
+settings-accent-chosen-note = রংগুলো নিচে বেছে নেওয়া রং থেকে তৈরি।
 settings-auto-hide = পয়েন্টার সরে গেলে টুলবার লুকান
 settings-auto-hide-note = টুলবার নথির উপরে ভেসে থাকে এবং পয়েন্টার উইন্ডোর বাইরে থাকলে সরে যায়।
 settings-animations = অ্যানিমেশন

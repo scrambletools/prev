@@ -35,8 +35,8 @@ settings-default-app-no-entry = prevs skrivebordsfil er ikke installert, så sys
 settings-default-app-no-bundle = Åpne prev fra prev.app for å gjøre den til standard.
 settings-default-app-failed = Kunne ikke gjøre prev til standard: { $error }
 settings-storage = Lagring
-settings-version = prev { $version }
-settings-version-development = prev { $version } (utviklerversjon)
+settings-version = prev { $version } ({ $build })
+settings-version-development = prev { $version } (utviklerversjon, { $build })
 
 ## Markup toolbar
 
@@ -410,7 +410,8 @@ settings-appearance-dark = Mørk
 settings-system-accent = Bruk aksentfargen fra systemet
 settings-omarchy-note = Fargene bygger på aksentfargen i «{ $theme }».
 settings-system-accent-note = Fargene bygger på systemets aksentfarge.
-settings-system-accent-none = Systemet har ingen aksentfarge, så prev bruker sin egen.
+settings-system-accent-none = Systemet har ingen aksentfarge, så prev bruker den som er valgt nedenfor.
+settings-accent-chosen-note = Fargene bygger på fargen som er valgt nedenfor.
 settings-auto-hide = Skjul verktøylinjen når pekeren forlater vinduet
 settings-auto-hide-note = Verktøylinjen svever over dokumentet og glir bort mens pekeren er utenfor vinduet.
 settings-animations = Animasjoner

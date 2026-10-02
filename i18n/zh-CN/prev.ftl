@@ -39,8 +39,8 @@ settings-default-app-no-entry = prev 的桌面条目未安装，因此系统无�
 settings-default-app-no-bundle = 请从 prev.app 打开 prev，才能将其设为默认。
 settings-default-app-failed = 无法将 prev 设为默认：{ $error }
 settings-storage = 存储位置
-settings-version = prev { $version }
-settings-version-development = prev { $version }（开发版）
+settings-version = prev { $version }（{ $build }）
+settings-version-development = prev { $version }（开发版，{ $build }）
 
 ## Markup toolbar
 
@@ -471,7 +471,8 @@ settings-system-accent = 使用系统强调色
 # $theme is the Omarchy theme's name.
 settings-omarchy-note = 颜色根据“{ $theme }”的强调色生成。
 settings-system-accent-note = 颜色根据系统的强调色生成。
-settings-system-accent-none = 系统没有强调色，因此 prev 使用自己的颜色。
+settings-system-accent-none = 系统没有强调色，因此 prev 使用下方选择的颜色。
+settings-accent-chosen-note = 颜色根据下方选择的颜色生成。
 settings-auto-hide = 指针离开时隐藏工具栏
 settings-auto-hide-note = 工具栏浮在文档上方，指针位于窗口外时会滑出隐藏。
 settings-animations = 动画
