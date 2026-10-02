@@ -47,8 +47,9 @@ impl<'a, Message> PageCanvas<'a, Message> {
 #[derive(Default)]
 struct State {
     pressed: bool,
-    /// Where a pan by dragging with the command key last had the pointer,
-    /// in window coordinates.
+    /// Where a pan last had the pointer, in window coordinates; set by the
+    /// first move, as the cursor the press comes with is offset by the
+    /// scroll position. Whether a pan is under way is the viewer's.
     pan_from: Option<iced::Point>,
     last_click: Option<Click>,
     modifiers: Modifiers,
@@ -65,14 +66,19 @@ fn visible_area(bounds: Rectangle, viewport: &Rectangle) -> Area {
     }
 }
 
+/// Pixels of scrolling that make one zoom step. macOS reports most mice,
+/// not only touchpads, as moving by pixels, a few at a time, so a notch
+/// there is only a handful of them.
+const PIXELS_PER_ZOOM_STEP: f32 = if cfg!(target_os = "macos") { 3.0 } else { 40.0 };
+
 /// How many zoom steps a wheel event makes. A mouse wheel moves by whole
-/// lines, but macOS reports a slow notch as a fraction of one, so each
-/// line event counts for at least a step; touchpads move by pixels.
+/// lines, and a slow notch reported as a fraction of one still counts for
+/// a step; touchpads, and on macOS most mice, move by pixels.
 pub fn wheel_steps(delta: &ScrollDelta) -> f32 {
     match *delta {
         ScrollDelta::Lines { y, .. } if y != 0.0 => y.signum() * y.abs().max(1.0),
         ScrollDelta::Lines { .. } => 0.0,
-        ScrollDelta::Pixels { y, .. } => y / 40.0,
+        ScrollDelta::Pixels { y, .. } => y / PIXELS_PER_ZOOM_STEP,
     }
 }
 
@@ -190,24 +196,28 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 if modifiers.shift() != self.viewer.shift() {
                     shell.publish((self.on_message)(PdfMessage::Shift(modifiers.shift())));
                 }
+                // The pointer turns into a hand with the command key.
+                if modifiers.command() != self.viewer.command() {
+                    shell.publish((self.on_message)(PdfMessage::Command(modifiers.command())));
+                }
                 state.modifiers = *modifiers
             }
             // With the command key (Ctrl, ⌘ on macOS), dragging moves the
             // view around whatever tool is chosen. The middle button
             // scrolls as in a browser, which the scrollable does.
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                if state.modifiers.command() =>
+                if self.viewer.command() =>
             {
-                if let Some(position) = cursor.position_over(*viewport) {
-                    state.pan_from = cursor.position().or(Some(position));
+                if cursor.position_over(*viewport).is_some() {
+                    state.pan_from = None;
+                    shell.publish((self.on_message)(PdfMessage::Panning(true)));
                     shell.capture_event();
                 }
             }
-            Event::Mouse(mouse::Event::CursorMoved { position }) if state.pan_from.is_some() => {
-                if let Some(from) = state.pan_from {
+            Event::Mouse(mouse::Event::CursorMoved { position }) if self.viewer.panning() => {
+                if let Some(from) = state.pan_from.replace(*position) {
                     // The content moves under the pointer, so scroll against it.
                     let (dx, dy) = (from.x - position.x, from.y - position.y);
-                    state.pan_from = Some(*position);
                     if dx != 0.0 || dy != 0.0 {
                         shell.publish((self.on_message)(PdfMessage::Pan { dx, dy }));
                     }
@@ -215,9 +225,10 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 }
             }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
-                if state.pan_from.is_some() =>
+                if self.viewer.panning() =>
             {
                 state.pan_from = None;
+                shell.publish((self.on_message)(PdfMessage::Panning(false)));
                 shell.capture_event();
             }
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
@@ -277,14 +288,18 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
 
     fn mouse_interaction(
         &self,
-        tree: &Tree,
+        _tree: &Tree,
         layout: Layout<'_>,
         cursor: Cursor,
         viewport: &Rectangle,
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
-        if tree.state.downcast_ref::<State>().pan_from.is_some() {
+        if self.viewer.panning() {
             return mouse::Interaction::Grabbing;
+        }
+        // With the command key held, a drag pans: show it before it starts.
+        if self.viewer.command() && cursor.is_over(*viewport) {
+            return mouse::Interaction::Grab;
         }
         let Some(position) = cursor.position_over(*viewport) else {
             return mouse::Interaction::None;

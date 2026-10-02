@@ -124,6 +124,10 @@ pub enum PdfMessage {
     },
     /// Shift held during a press or drag.
     Shift(bool),
+    /// The command key (Ctrl, ⌘ on macOS) is held, so a drag pans.
+    Command(bool),
+    /// A pan by dragging started or ended.
+    Panning(bool),
     MarkupReady(usize, Option<PageMarkup>),
     Edited(editing::Sent, Result<Edited, String>),
     Editing(editing::EditMessage),
@@ -208,6 +212,10 @@ pub struct PdfViewer {
     generations: HashMap<usize, u32>,
     pub edit: Editing,
     shift: bool,
+    /// Kept here rather than in the canvas, whose state is made anew when
+    /// the layout around it changes, as a redraw can.
+    command: bool,
+    panning: bool,
     /// Bumped whenever page numbers change.
     epoch: u64,
     /// Pages chosen in the sidebar, for page edits.
@@ -273,6 +281,8 @@ impl PdfViewer {
             generations: HashMap::new(),
             edit: Editing::default(),
             shift: false,
+            command: false,
+            panning: false,
             epoch: 0,
             selected_pages: std::collections::BTreeSet::new(),
         }
@@ -293,6 +303,14 @@ impl PdfViewer {
 
     pub fn shift(&self) -> bool {
         self.shift
+    }
+
+    pub fn command(&self) -> bool {
+        self.command
+    }
+
+    pub fn panning(&self) -> bool {
+        self.panning
     }
 
     pub fn page_count(&self) -> usize {
@@ -491,6 +509,14 @@ impl PdfViewer {
             PdfMessage::Release { x, y } => self.release(x, y),
             PdfMessage::Shift(shift) => {
                 self.shift = shift;
+                Task::none()
+            }
+            PdfMessage::Command(command) => {
+                self.command = command;
+                Task::none()
+            }
+            PdfMessage::Panning(panning) => {
+                self.panning = panning;
                 Task::none()
             }
             PdfMessage::MarkupReady(page, markup) => {

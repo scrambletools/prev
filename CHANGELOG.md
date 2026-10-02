@@ -35,7 +35,7 @@ All notable changes to prev. Versions follow
   colors in Settings picks the one prev's colors are built from; grey
   gives a neutral scheme. It is saved as `accent-color`.
 - Ctrl+drag (⌘+drag on macOS) pans a zoomed-in document, whatever tool
-  is chosen.
+  is chosen; the pointer turns into a hand as soon as the key is held.
 - The version in Settings and `prev --version` names the commit it was
   built from, and the time for development builds.
 - New settings default to no animations, a 20 px corner radius and 25%

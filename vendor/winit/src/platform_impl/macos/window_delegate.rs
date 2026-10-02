@@ -1147,8 +1147,19 @@ impl WindowDelegate {
             return;
         }
 
-        view.set_cursor_icon(cursor);
+        view.set_cursor_icon(cursor.clone());
         self.window().invalidateCursorRectsForView(&view);
+        // AppKit applies cursor rects only when the mouse moves, and not at
+        // all while a button is held, so a cursor changed by a key or a
+        // press would wait; set it now when the pointer is over the view.
+        if view.cursor_visible() {
+            let mouse = unsafe { self.window().mouseLocationOutsideOfEventStream() };
+            let point = view.convertPoint_fromView(mouse, None);
+            let size = view.bounds().size;
+            if (0.0..=size.width).contains(&point.x) && (0.0..=size.height).contains(&point.y) {
+                unsafe { cursor.set() };
+            }
+        }
     }
 
     #[inline]

@@ -139,6 +139,12 @@ keeps to itself:
   the Command key press, the one that chose the item or, when it was
   chosen with the mouse, one made for it; without this, the menu's key
   equivalents would keep those keys from prev's text fields.
+- `src/platform_impl/macos/window_delegate.rs` and `view.rs`: a new
+  cursor is also set straight away when the pointer is over the view.
+  winit sets it through cursor rects alone, which AppKit applies only
+  when the mouse moves and not while a button is held, so the hand prev
+  shows when ⌘ is pressed, or the closed hand when a pan starts, waited
+  for the pointer to move.
 
 The full diff is `winit.patch` (`diff -ruN` of `src/` and `Cargo.toml`
 against the crates.io release).

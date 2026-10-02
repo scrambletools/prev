@@ -1,5 +1,5 @@
---- a/Cargo.toml	2026-09-30 12:16:21.353082401 -0700
-+++ b/Cargo.toml	2026-09-30 12:16:21.373840165 -0700
+--- a/Cargo.toml	2026-10-01 18:06:53.967147598 -0700
++++ b/Cargo.toml	2026-10-01 18:06:53.973431575 -0700
 @@ -509,6 +509,7 @@
      "NSRunLoop",
      "NSString",
@@ -10,7 +10,7 @@
  
 diff -ruN a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
 --- a/src/platform/drag_drop.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/drag_drop.rs	2026-09-30 12:16:21.357182375 -0700
++++ b/src/platform/drag_drop.rs	2026-10-01 18:06:53.969303000 -0700
 @@ -0,0 +1,37 @@
 +//! prev: drags over a window, for the application to handle itself.
 +//!
@@ -51,7 +51,7 @@ diff -ruN a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
 +}
 diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 --- a/src/platform/keyboard_layout.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/keyboard_layout.rs	2026-09-30 12:16:21.356493559 -0700
++++ b/src/platform/keyboard_layout.rs	2026-10-01 18:06:53.968937629 -0700
 @@ -0,0 +1,20 @@
 +//! prev: the keyboard layout the user is typing with.
 +//!
@@ -74,8 +74,8 @@ diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 +    *LETTERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(letters);
 +}
 diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
---- a/src/platform/mod.rs	2026-09-30 12:16:21.335484589 -0700
-+++ b/src/platform/mod.rs	2026-09-30 12:16:21.356653969 -0700
+--- a/src/platform/mod.rs	2026-10-01 18:06:53.962286727 -0700
++++ b/src/platform/mod.rs	2026-10-01 18:06:53.968992180 -0700
 @@ -11,6 +11,12 @@
  #[cfg(any(orbital_platform, docsrs))]
  pub mod orbital;
@@ -91,7 +91,7 @@ diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
  pub mod wayland;
 diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 --- a/src/platform/open_files.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/open_files.rs	2026-09-30 12:16:21.356699774 -0700
++++ b/src/platform/open_files.rs	2026-10-01 18:06:53.969036814 -0700
 @@ -0,0 +1,35 @@
 +//! prev: files macOS asks the application to open.
 +//!
@@ -129,8 +129,8 @@ diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 +    }
 +}
 diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
---- a/src/platform_impl/linux/common/xkb/state.rs	2026-09-30 12:16:21.338623468 -0700
-+++ b/src/platform_impl/linux/common/xkb/state.rs	2026-09-30 12:16:21.359209338 -0700
+--- a/src/platform_impl/linux/common/xkb/state.rs	2026-10-01 18:06:53.963025095 -0700
++++ b/src/platform_impl/linux/common/xkb/state.rs	2026-10-01 18:06:53.969822921 -0700
 @@ -7,7 +7,8 @@
  #[cfg(x11_platform)]
  use x11_dl::xlib_xcb::xcb_connection_t;
@@ -220,8 +220,8 @@ diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linu
  
      /// Reload the modifiers.
 diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
---- a/src/platform_impl/macos/app_state.rs	2026-09-30 12:16:21.345180816 -0700
-+++ b/src/platform_impl/macos/app_state.rs	2026-09-30 12:16:21.365100293 -0700
+--- a/src/platform_impl/macos/app_state.rs	2026-10-01 18:06:53.964917146 -0700
++++ b/src/platform_impl/macos/app_state.rs	2026-10-01 18:06:53.971269310 -0700
 @@ -8,7 +8,9 @@
  use objc2_app_kit::{
      NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
@@ -265,8 +265,8 @@ diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_s
              // overriding of the default menu even if it's created
              menu::initialize(&app);
 diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
---- a/src/platform_impl/macos/view.rs	2026-09-30 12:16:21.346476564 -0700
-+++ b/src/platform_impl/macos/view.rs	2026-09-30 12:16:21.366658932 -0700
+--- a/src/platform_impl/macos/view.rs	2026-10-01 18:06:53.965201206 -0700
++++ b/src/platform_impl/macos/view.rs	2026-10-01 18:06:53.971530026 -0700
 @@ -524,6 +524,29 @@
              self.update_modifiers(event, true);
          }
@@ -348,9 +348,20 @@ diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
      pub(super) fn new(
          app_delegate: &ApplicationDelegate,
          window: &WinitWindow,
+@@ -859,6 +926,10 @@
+         self.ivars().cursor_state.borrow().cursor.clone()
+     }
+ 
++    pub(super) fn cursor_visible(&self) -> bool {
++        self.ivars().cursor_state.borrow().visible
++    }
++
+     pub(super) fn set_cursor_icon(&self, icon: Retained<NSCursor>) {
+         let mut cursor_state = self.ivars().cursor_state.borrow_mut();
+         cursor_state.cursor = icon;
 diff -ruN a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos/window_delegate.rs
---- a/src/platform_impl/macos/window_delegate.rs	2026-09-30 12:16:21.346771475 -0700
-+++ b/src/platform_impl/macos/window_delegate.rs	2026-09-30 12:16:21.366783625 -0700
+--- a/src/platform_impl/macos/window_delegate.rs	2026-10-01 18:06:53.965290633 -0700
++++ b/src/platform_impl/macos/window_delegate.rs	2026-10-01 18:06:53.971601179 -0700
 @@ -367,15 +367,19 @@
      unsafe impl NSDraggingDestination for WindowDelegate {
          /// Invoked when the dragged image enters destination bounds or frame
@@ -434,3 +445,24 @@ diff -ruN a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos
      pub(super) fn new(
          app_delegate: &ApplicationDelegate,
          attrs: WindowAttributes,
+@@ -1115,8 +1147,19 @@
+             return;
+         }
+ 
+-        view.set_cursor_icon(cursor);
++        view.set_cursor_icon(cursor.clone());
+         self.window().invalidateCursorRectsForView(&view);
++        // AppKit applies cursor rects only when the mouse moves, and not at
++        // all while a button is held, so a cursor changed by a key or a
++        // press would wait; set it now when the pointer is over the view.
++        if view.cursor_visible() {
++            let mouse = unsafe { self.window().mouseLocationOutsideOfEventStream() };
++            let point = view.convertPoint_fromView(mouse, None);
++            let size = view.bounds().size;
++            if (0.0..=size.width).contains(&point.x) && (0.0..=size.height).contains(&point.y) {
++                unsafe { cursor.set() };
++            }
++        }
+     }
+ 
+     #[inline]

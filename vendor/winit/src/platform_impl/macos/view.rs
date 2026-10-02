@@ -926,6 +926,10 @@ impl WinitView {
         self.ivars().cursor_state.borrow().cursor.clone()
     }
 
+    pub(super) fn cursor_visible(&self) -> bool {
+        self.ivars().cursor_state.borrow().visible
+    }
+
     pub(super) fn set_cursor_icon(&self, icon: Retained<NSCursor>) {
         let mut cursor_state = self.ivars().cursor_state.borrow_mut();
         cursor_state.cursor = icon;
