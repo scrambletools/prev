@@ -16,6 +16,9 @@ use serde_json::{Value, json};
 use super::tools::{self, Answer, Tool};
 use super::{Message, Prev};
 
+/// The notification a call sends while it waits for the user.
+pub(super) const WAITING: &str = "prev/waiting";
+
 /// What agents hear while outside control is off.
 const OFF_MESSAGE: &str = "Outside control is off in prev's Settings.";
 
@@ -35,6 +38,8 @@ pub(super) struct Agents {
     /// Tool calls waiting for the user to allow them, the first for each
     /// window shown over it first.
     approvals: Vec<Approval>,
+    /// Image exports agents asked for, by window, answered once done.
+    pub(super) exports: Vec<(window::Id, Answer)>,
 }
 
 /// A tool call waiting for the user to allow it to run.
@@ -82,7 +87,7 @@ impl Prev {
             })),
             // Listing does nothing, so agents see the tools while outside
             // control is off, and hear why at their first call.
-            "tools/list" => Ok(json!({ "tools": super::tools::list() })),
+            "tools/list" => Ok(json!({ "tools": super::tools::list(&self.settings.ask_before) })),
             _ if !self.settings.outside_control => Err(Error::new(code::OFF, OFF_MESSAGE)),
             // An agent connected: ask the user now, not at its first call.
             "agent/hello" => {
@@ -117,6 +122,17 @@ impl Prev {
                 return self.control(call);
             }
             return Task::none();
+        }
+        if let Some(call) = &call {
+            call.note(
+                WAITING,
+                json!({
+                    "message": format!(
+                        "Waiting for the user to allow {shown} to control prev; prev asks in \
+                         its window."
+                    ),
+                }),
+            );
         }
         if let Some(prompt) = self
             .agents
@@ -165,6 +181,13 @@ impl Prev {
         answer: Answer,
     ) -> Task<Message> {
         let first = !self.agents.approvals.iter().any(|asked| asked.window == id);
+        answer.note(&format!(
+            "Waiting for the user to allow {} in prev's window {}, \"{}\". Tell them prev \
+             is asking.",
+            tool.name,
+            tools::number(id),
+            self.base_title(id),
+        ));
         self.agents.approvals.push(Approval {
             window: id,
             agent,
@@ -217,6 +240,12 @@ impl Prev {
 
     /// Window `id` closed: the calls waiting on it hear so.
     pub(super) fn window_gone(&mut self, id: window::Id) {
+        self.agents.exports.retain(|(window, answer)| {
+            if *window == id {
+                answer.send(Err(Error::new(code::INVALID_PARAMS, "The window closed.")));
+            }
+            *window != id
+        });
         self.agents.approvals.retain(|asked| {
             if asked.window == id {
                 asked.answer.send(Err(Error::new(

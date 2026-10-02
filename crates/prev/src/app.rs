@@ -288,6 +288,12 @@ pub enum Message {
     AskBeforeToggled(tools::Kind, bool),
     /// A tool that waited on something answers.
     ToolAnswer(tools::Answer, Result<tools::Output, prev::control::Error>),
+    /// apply_redactions counted the marks to apply, or found none.
+    ToolRedact(
+        window::Id,
+        tools::Answer,
+        Result<usize, prev::control::Error>,
+    ),
     /// replace_image saved the new image, or could not.
     ToolReplaced(
         window::Id,
@@ -781,7 +787,15 @@ impl Prev {
                 self.perform(id, Action::Settings)
             }
             Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
-            Message::Image(id, message) => self.with_images(id, |images| images.update(message)),
+            Message::Image(id, message) => {
+                // An export with markup finishes as MarkupExported.
+                if let image_window::Message::Exported(result)
+                | image_window::Message::MarkupExported(_, _, result) = &message
+                {
+                    self.image_exported(id, result);
+                }
+                self.with_images(id, |images| images.update(message))
+            }
             Message::Markdown(id, message) => {
                 let Some(document) = self.markdown_mut(id) else {
                     return Task::none();
@@ -1119,6 +1133,7 @@ impl Prev {
                 Task::none()
             }
             Message::ToolReplaced(id, answer, result) => self.image_replaced(id, &answer, result),
+            Message::ToolRedact(id, answer, marks) => self.redact(id, &answer, marks),
             Message::ToolMarkup(id, route, answer, edits, output) => {
                 self.agent_markup(id, route, &answer, edits, output)
             }

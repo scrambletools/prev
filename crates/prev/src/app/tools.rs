@@ -119,6 +119,12 @@ impl Answer {
         self.0.reply(result.map(Output::into_result));
     }
 
+    /// Tells the agent what the call is waiting for, before its answer.
+    pub(super) fn note(&self, message: &str) {
+        self.0
+            .note(super::agents::WAITING, json!({ "message": message }));
+    }
+
     /// Answers with what `task` gives, once it finishes.
     pub(super) fn later(self, task: Task<Result<Output, Error>>) -> Task<Message> {
         task.map(move |result| Message::ToolAnswer(self.clone(), result))
@@ -182,6 +188,7 @@ fn tool<I: DeserializeOwned + JsonSchema + 'static>(
 }
 
 mod edit;
+mod finish;
 mod markup;
 pub(crate) use markup::Route;
 mod read;
@@ -228,6 +235,7 @@ static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
     tools.extend(view::tools());
     tools.extend(markup::tools());
     tools.extend(edit::tools());
+    tools.extend(finish::tools());
     tools
 });
 
@@ -250,15 +258,25 @@ fn reply(answer: &Answer, result: Result<Output, Error>) -> Task<Message> {
     Task::none()
 }
 
-/// The tools as MCP lists them.
-pub(super) fn list() -> Value {
+/// The tools as MCP lists them; those whose kind `ask` makes prev ask
+/// about say so, so agents know a call may wait for the user.
+pub(super) fn list(ask: &settings::AskBefore) -> Value {
     TOOLS
         .iter()
         .map(|tool| {
+            let description = if tool.kind.asks(ask) {
+                format!(
+                    "{} prev asks the user to allow it first, in the window it acts on, so the \
+                     call waits for their answer: tell them to look at prev.",
+                    tool.description
+                )
+            } else {
+                tool.description.to_owned()
+            };
             json!({
                 "name": tool.name,
                 "title": tool.title,
-                "description": tool.description,
+                "description": description,
                 "inputSchema": (tool.schema)(),
                 "annotations": annotations(tool.kind),
             })
@@ -440,13 +458,26 @@ mod tests {
 
     #[test]
     fn list_has_what_mcp_needs() {
-        let list = list();
+        let list = list(&settings::AskBefore::default());
         for tool in list.as_array().unwrap() {
             for field in ["name", "title", "description", "inputSchema", "annotations"] {
                 assert!(tool.get(field).is_some(), "{field} in {tool}");
             }
         }
         assert_eq!(list[0]["annotations"]["readOnlyHint"], true);
+        // Signing asks at first, so its description says the call waits.
+        let described = |name: &str| {
+            list.as_array()
+                .unwrap()
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .unwrap()["description"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        assert!(described("place_signature").contains("asks the user"));
+        assert!(!described("list_windows").contains("asks the user"));
     }
 
     #[test]

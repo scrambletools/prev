@@ -298,6 +298,9 @@ pub enum Message {
     FitToWindow,
     /// A zoom, where 1.0 is actual size.
     ZoomTo(f32),
+    /// Export the current image to a file, as an agent asks: the path,
+    /// format, format choice and, for SVG drawings, scale.
+    Exporting(PathBuf, SaveFormat, String, Option<f32>),
     Edit(Edit),
     PreviewRendered(usize, u64, Handle),
     PreviewAllocated(usize, u64, Option<Allocation>),
@@ -635,6 +638,24 @@ impl ImageWindow {
             .or_else(|| self.shown_image().map(|image| (image.width, image.height)))
     }
 
+    /// Exports the current image, with its edits and any markup, to
+    /// `path` in `format`; an SVG drawing is drawn at `scale` pixels a
+    /// point. The window answers with [`Message::Exported`].
+    pub fn export_to(
+        &mut self,
+        path: PathBuf,
+        format: SaveFormat,
+        choice: &str,
+        scale: Option<f32>,
+    ) -> Task<Message> {
+        self.run_export(PendingExport {
+            path,
+            format,
+            format_choice: choice.to_owned(),
+            scale,
+        })
+    }
+
     /// The colour adjustments of the current image, as its sliders show.
     pub fn color(&self) -> ColorAdjust {
         self.color
@@ -806,6 +827,9 @@ impl ImageWindow {
             Message::ZoomOut => self.zoom_to(self.zoom() / ZOOM_STEP, None),
             Message::ActualSize => self.zoom_to(1.0, None),
             Message::ZoomTo(zoom) => self.zoom_to(zoom, None),
+            Message::Exporting(path, format, choice, scale) => {
+                self.export_to(path, format, &choice, scale)
+            }
             Message::FitToWindow => {
                 self.fit = Fit::Fit;
                 self.schedule()

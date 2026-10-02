@@ -10,11 +10,12 @@ use std::time::{Duration, Instant};
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
     InitializeRequestParams, InitializeResult, ListToolsResult, PaginatedRequestParams,
-    ServerCapabilities, ServerConfig,
+    ProgressNotificationParam, ServerCapabilities, ServerConfig,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt};
 use serde_json::{Value, json};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::control::{self, Client};
 
@@ -128,12 +129,27 @@ impl Relay {
         method: &'static str,
         params: Value,
     ) -> Result<Result<Value, control::Error>, ErrorData> {
+        self.call_noting(method, params, None).await
+    }
+
+    /// Calls as [`Relay::call`] does, passing what prev says while the
+    /// call waits, such as for the user's answer, to `notes`.
+    async fn call_noting(
+        &self,
+        method: &'static str,
+        params: Value,
+        notes: Option<UnboundedSender<String>>,
+    ) -> Result<Result<Value, control::Error>, ErrorData> {
         let client = self.client.clone();
         let answer = tokio::task::spawn_blocking(move || {
             client
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .call(method, params)
+                .call_noting(method, params, &mut |_, note| {
+                    if let (Some(notes), Some(message)) = (&notes, note["message"].as_str()) {
+                        let _ = notes.send(message.to_owned());
+                    }
+                })
         })
         .await
         .map_err(|error| ErrorData::internal_error(error.to_string(), None))?;
@@ -193,19 +209,43 @@ impl ServerHandler for Relay {
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
+        // What prev says while the call waits, such as that the user must
+        // allow it, goes to the agent as progress, if it asked for that.
+        let (notes, mut noted) = tokio::sync::mpsc::unbounded_channel::<String>();
+        let peer = context.peer.clone();
+        let token = context.meta.get_progress_token();
+        let forward = tokio::spawn(async move {
+            let mut progress = 0.0;
+            while let Some(message) = noted.recv().await {
+                progress += 1.0;
+                if let Some(token) = &token {
+                    let _ = peer
+                        .notify_progress(
+                            ProgressNotificationParam::new(token.clone(), progress)
+                                .with_message(message),
+                        )
+                        .await;
+                }
+            }
+        });
         let agent = self
             .agent
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         let answer = self
-            .call(
+            .call_noting(
                 "tools/call",
                 json!({ "agent": agent, "name": request.name, "arguments": request.arguments }),
+                Some(notes),
             )
-            .await?;
+            .await;
+        // The notes end with the call; send the last of them before the
+        // answer.
+        let _ = forward.await;
+        let answer = answer?;
         // prev's refusals go to the agent as the tool's failure, which it
         // reads, rather than as a broken request.
         let result = match answer {

@@ -81,6 +81,16 @@ impl Call {
     pub fn reply(&self, result: Result<Value, Error>) {
         self.reply.send(result);
     }
+
+    /// Tells the client something about the call before its answer, as a
+    /// JSON-RPC notification on the call's connection.
+    pub fn note(&self, method: &str, params: Value) {
+        self.reply.note(serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+        }));
+    }
 }
 
 /// Where a call's answer goes. Clonable, as the app's messages are; the
@@ -89,7 +99,14 @@ impl Call {
 struct Reply(Arc<Mutex<Option<Answer>>>);
 
 /// The connection's end of a call, waiting for its answer.
-type Answer = mpsc::Sender<Result<Value, Error>>;
+type Answer = mpsc::Sender<Event>;
+
+/// What the connection hears about a call.
+enum Event {
+    /// A notification to pass on before the answer.
+    Note(Value),
+    Done(Result<Value, Error>),
+}
 
 impl Reply {
     fn send(&self, result: Result<Value, Error>) {
@@ -99,7 +116,18 @@ impl Reply {
             .unwrap_or_else(|poison| poison.into_inner())
             .take()
         {
-            let _ = sender.send(result);
+            let _ = sender.send(Event::Done(result));
+        }
+    }
+
+    fn note(&self, note: Value) {
+        if let Some(sender) = self
+            .0
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .as_ref()
+        {
+            let _ = sender.send(Event::Note(note));
         }
     }
 }
@@ -224,7 +252,12 @@ fn serve_connection(stream: Stream, on_call: &dyn Fn(Call)) -> io::Result<()> {
         if line.iter().all(u8::is_ascii_whitespace) {
             continue;
         }
-        let Some(reply) = answer(&line, on_call) else {
+        let mut note = |mut bytes: Vec<u8>| {
+            bytes.push(b'\n');
+            let _ = send.write_all(&bytes);
+            let _ = send.flush();
+        };
+        let Some(reply) = answer(&line, on_call, &mut note) else {
             continue;
         };
         send.write_all(&reply)?;
@@ -233,8 +266,9 @@ fn serve_connection(stream: Stream, on_call: &dyn Fn(Call)) -> io::Result<()> {
 }
 
 /// The reply line to one request line, or `None` for a notification,
-/// which JSON-RPC answers with nothing.
-fn answer(line: &[u8], on_call: &dyn Fn(Call)) -> Option<Vec<u8>> {
+/// which JSON-RPC answers with nothing. Notes the call sends before its
+/// answer go to `note` as they come.
+fn answer(line: &[u8], on_call: &dyn Fn(Call), note: &mut dyn FnMut(Vec<u8>)) -> Option<Vec<u8>> {
     let null = Value::Null;
     let respond = |id: &Value, outcome: Result<Value, Error>| {
         let (result, error) = match outcome {
@@ -279,9 +313,13 @@ fn answer(line: &[u8], on_call: &dyn Fn(Call)) -> Option<Vec<u8>> {
         params: request.params,
         reply: Reply(Arc::new(Mutex::new(Some(sender)))),
     });
-    let outcome = receiver
-        .recv()
-        .unwrap_or_else(|_| Err(Error::new(code::NO_ANSWER, "prev did not answer")));
+    let outcome = loop {
+        match receiver.recv() {
+            Ok(Event::Note(params)) => note(serde_json::to_vec(&params).unwrap_or_default()),
+            Ok(Event::Done(outcome)) => break outcome,
+            Err(_) => break Err(Error::new(code::NO_ANSWER, "prev did not answer")),
+        }
+    };
     let id = request.id?;
     Some(respond(&id, outcome))
 }
@@ -306,6 +344,17 @@ impl Client {
     /// Calls `method` with `params` and waits for the answer. The outer
     /// error is the connection's, the inner one prev's answer.
     pub fn call(&mut self, method: &str, params: Value) -> io::Result<Result<Value, Error>> {
+        self.call_noting(method, params, &mut |_, _| {})
+    }
+
+    /// Calls as [`Client::call`] does, handing `on_note` each notification
+    /// prev sends about the call before its answer.
+    pub fn call_noting(
+        &mut self,
+        method: &str,
+        params: Value,
+        on_note: &mut dyn FnMut(&str, Value),
+    ) -> io::Result<Result<Value, Error>> {
         let id = self.next_id;
         self.next_id += 1;
         let mut line = serde_json::to_vec(&serde_json::json!({
@@ -317,20 +366,29 @@ impl Client {
         line.push(b'\n');
         self.send.write_all(&line)?;
         self.send.flush()?;
-        let mut reply = String::new();
-        if self.receive.read_line(&mut reply)? == 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "prev closed the control channel",
-            ));
-        }
         #[derive(Deserialize)]
         struct Reply {
             id: Value,
             result: Option<Value>,
             error: Option<Error>,
         }
-        let reply: Reply = serde_json::from_str(&reply)?;
+        let reply = loop {
+            let mut line = String::new();
+            if self.receive.read_line(&mut line)? == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "prev closed the control channel",
+                ));
+            }
+            let message: Value = serde_json::from_str(&line)?;
+            match (
+                message.get("id"),
+                message.get("method").and_then(Value::as_str),
+            ) {
+                (None, Some(method)) => on_note(method, message["params"].clone()),
+                _ => break serde_json::from_value::<Reply>(message)?,
+            }
+        };
         if reply.id != id {
             return Err(io::Error::other("the answer is for another request"));
         }
@@ -360,6 +418,11 @@ mod tests {
     fn echo(call: Call) {
         match call.method.as_str() {
             "echo" => call.reply(Ok(call.params.clone())),
+            "slow" => {
+                call.note("waiting", json!({ "message": "one" }));
+                call.note("waiting", json!({ "message": "two" }));
+                call.reply(Ok(json!("done")));
+            }
             "fail" => call.reply(Err(Error::new(code::INVALID_PARAMS, "no"))),
             // Dropped without an answer.
             "drop" => {}
@@ -409,7 +472,8 @@ mod tests {
     fn bad_requests_get_errors_and_notifications_nothing() {
         let on_call = |call: Call| call.reply(Ok(json!(true)));
         let parse = |line: &str| -> Value {
-            serde_json::from_slice(&answer(line.as_bytes(), &on_call).unwrap()).unwrap()
+            serde_json::from_slice(&answer(line.as_bytes(), &on_call, &mut |_| {}).unwrap())
+                .unwrap()
         };
         assert_eq!(parse("{not json")["error"]["code"], code::PARSE_ERROR);
         assert_eq!(
@@ -423,6 +487,22 @@ mod tests {
         let reply = parse(r#"{"jsonrpc":"2.0","id":"a","method":"x"}"#);
         assert_eq!(reply["id"], "a");
         assert_eq!(reply["result"], true);
-        assert!(answer(br#"{"jsonrpc":"2.0","method":"x"}"#, &on_call).is_none());
+        assert!(answer(br#"{"jsonrpc":"2.0","method":"x"}"#, &on_call, &mut |_| {}).is_none());
+    }
+
+    #[test]
+    fn notes_come_before_the_answer() {
+        serve(test_name("notes"), echo).unwrap();
+        let mut client = Client::connect(&test_name("notes")).unwrap();
+        let mut notes = Vec::new();
+        let answer = client
+            .call_noting("slow", Value::Null, &mut |method, params| {
+                notes.push(format!("{method}: {}", params["message"]))
+            })
+            .unwrap();
+        assert_eq!(answer, Ok(json!("done")));
+        assert_eq!(notes, ["waiting: \"one\"", "waiting: \"two\""]);
+        // The connection goes on as before.
+        assert_eq!(client.call("echo", json!(1)).unwrap(), Ok(json!(1)));
     }
 }

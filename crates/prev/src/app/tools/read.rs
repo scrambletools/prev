@@ -247,7 +247,7 @@ impl Prev {
     }
 
     /// The path of the file window `id` shows.
-    fn shown_path(&self, id: window::Id) -> Option<PathBuf> {
+    pub(super) fn shown_path(&self, id: window::Id) -> Option<PathBuf> {
         match &self.windows.get(&id)?.content {
             Content::Document(document) => Some(document.images.as_ref().map_or_else(
                 || document.path.clone(),
