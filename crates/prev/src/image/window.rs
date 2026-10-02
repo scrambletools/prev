@@ -274,6 +274,8 @@ pub enum Edit {
     ColorCommitted,
     ResetColor,
     ApplySize,
+    /// An edit an agent asks for, made as the toolbar makes its own.
+    Apply(Operation),
 }
 
 #[derive(Debug, Clone)]
@@ -625,6 +627,28 @@ impl ImageWindow {
         self.sidebar
     }
 
+    /// The current image's size with every edit made so far, before the
+    /// edits are drawn.
+    pub fn edited_size(&self) -> Option<(u32, u32)> {
+        let item = self.items.get(self.current)?;
+        item.size
+            .or_else(|| self.shown_image().map(|image| (image.width, image.height)))
+    }
+
+    /// The colour adjustments of the current image, as its sliders show.
+    pub fn color(&self) -> ColorAdjust {
+        self.color
+    }
+
+    /// The format the current image is saved in, when prev can save it
+    /// in place.
+    pub fn save_format(&self) -> Option<SaveFormat> {
+        match self.items.get(self.current)?.source {
+            Source::Raster(format) => SaveFormat::for_saving(format, false),
+            Source::Svg => None,
+        }
+    }
+
     pub fn current_path(&self) -> &Path {
         &self.items[self.current].path
     }
@@ -862,10 +886,14 @@ impl ImageWindow {
                 Task::none()
             }
             Message::FullRendered(index, generation, frame) => {
+                // Kept and saved at once; shown once on the GPU, which a
+                // window out of sight may not get to soon.
+                let saving = self.full_kept(index, generation, &frame);
                 let handle = frame_handle(&frame);
-                allocate(handle, move |allocation| {
+                let shown = allocate(handle, move |allocation| {
                     Message::FullAllocated(index, generation, frame.clone(), allocation)
-                })
+                });
+                Task::batch([saving, shown])
             }
             Message::FullAllocated(index, generation, frame, allocation) => {
                 self.full_rendered(index, generation, frame, allocation)
@@ -1479,6 +1507,17 @@ impl ImageWindow {
                 };
             }
             Edit::ColorCommitted => true,
+            Edit::Apply(Operation::Color(adjust)) => editor.change(|stack| {
+                if stack.current_color() == adjust {
+                    return false;
+                }
+                stack.set_color(adjust);
+                true
+            }),
+            Edit::Apply(operation) => editor.change(|stack| {
+                stack.push(operation);
+                true
+            }),
             Edit::ResetColor => editor.change(|stack| {
                 if stack.current_color().is_identity() {
                     return false;
@@ -1516,12 +1555,20 @@ impl ImageWindow {
         self.items[index].size = Some(output);
         if matches!(
             edit,
-            Edit::Crop | Edit::RotateLeft | Edit::RotateRight | Edit::Undo | Edit::Redo
+            Edit::Crop
+                | Edit::RotateLeft
+                | Edit::RotateRight
+                | Edit::Undo
+                | Edit::Redo
+                | Edit::Apply(_)
         ) {
             self.selection = None;
             self.selecting = false;
         }
-        if matches!(edit, Edit::Undo | Edit::Redo) {
+        if matches!(
+            edit,
+            Edit::Undo | Edit::Redo | Edit::Apply(Operation::Color(_))
+        ) {
             self.color = self
                 .shown()
                 .and_then(|shown| shown.editor.as_ref())
@@ -1576,6 +1623,25 @@ impl ImageWindow {
         })
     }
 
+    /// Keeps a finished full-size render as the edited image, which the
+    /// autosave writes.
+    fn full_kept(&mut self, index: usize, generation: u64, frame: &Arc<Frame>) -> Task<Message> {
+        let Some(shown) = self.shown_mut(index) else {
+            return Task::none();
+        };
+        let latest = shown.editor.as_ref().map_or(0, |editor| editor.generation);
+        if generation != latest {
+            return Task::none();
+        }
+        shown.edited = Some(Arc::clone(frame));
+        self.items[index].thumbnail = Some(thumbnail_of(frame));
+        self.items[index].size = Some((frame.width, frame.height));
+        Task::perform(
+            spawn(move || std::thread::sleep(AUTOSAVE_DELAY)),
+            move |_| Message::AutosaveDue(index, generation),
+        )
+    }
+
     /// Swaps in a finished full-size render once it is on the GPU, so the
     /// view never shows a frame without an image.
     fn full_rendered(
@@ -1605,14 +1671,7 @@ impl ImageWindow {
         shown.levels.clear();
         shown.levels_pending.clear();
         shown.shown_generation = generation;
-        shown.edited = Some(Arc::clone(&frame));
-        self.items[index].thumbnail = Some(thumbnail_of(&frame));
-        self.items[index].size = Some((frame.width, frame.height));
-        let due = Task::perform(
-            spawn(move || std::thread::sleep(AUTOSAVE_DELAY)),
-            move |_| Message::AutosaveDue(index, generation),
-        );
-        Task::batch([self.schedule(), due])
+        self.schedule()
     }
 
     fn autosave(&mut self, index: usize, generation: u64) -> Task<Message> {

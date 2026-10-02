@@ -241,7 +241,7 @@ struct AddRedaction {
 }
 
 /// `"#rrggbb"` as a colour, or `None` for "none".
-fn color(hex: &str) -> Result<Option<Rgb>, Error> {
+pub(super) fn color(hex: &str) -> Result<Option<Rgb>, Error> {
     let hex = hex.trim();
     if hex.eq_ignore_ascii_case("none") {
         return Ok(None);
@@ -257,19 +257,19 @@ fn color(hex: &str) -> Result<Option<Rgb>, Error> {
 }
 
 /// A box given as [x0, y0, x1, y1], in either corner order.
-fn area([x0, y0, x1, y1]: [f32; 4]) -> Rect {
+pub(super) fn area([x0, y0, x1, y1]: [f32; 4]) -> Rect {
     Rect::new(x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1))
 }
 
 /// The window a markup tool acts on, with its viewer and page index.
-struct Target<'a> {
-    id: window::Id,
-    viewer: &'a PdfViewer,
-    page: usize,
-    route: Route,
+pub(super) struct Target<'a> {
+    pub(super) id: window::Id,
+    pub(super) viewer: &'a PdfViewer,
+    pub(super) page: usize,
+    pub(super) route: Route,
     /// Page points per unit of the tool's positions: 1 for PDFs, and
     /// the image's points per pixel for an image's markup.
-    unit: f32,
+    pub(super) unit: f32,
 }
 
 /// Where a window's markup edits go.
@@ -282,14 +282,28 @@ pub(crate) enum Route {
 
 /// Where a markup tool's edit goes, kept once the window is let go.
 #[derive(Clone, Copy)]
-struct Place {
+pub(super) struct Place {
     id: window::Id,
     page: usize,
     route: Route,
 }
 
+impl Place {
+    pub(super) fn id(self) -> window::Id {
+        self.id
+    }
+
+    pub(super) fn page(self) -> usize {
+        self.page
+    }
+
+    pub(super) fn route(self) -> Route {
+        self.route
+    }
+}
+
 impl Target<'_> {
-    fn place(&self) -> Place {
+    pub(super) fn place(&self) -> Place {
         Place {
             id: self.id,
             page: self.page,
@@ -297,11 +311,11 @@ impl Target<'_> {
         }
     }
 
-    fn point(&self, x: f32, y: f32) -> Point {
+    pub(super) fn point(&self, x: f32, y: f32) -> Point {
         Point::new(x * self.unit, y * self.unit)
     }
 
-    fn area(&self, given: [f32; 4]) -> Rect {
+    pub(super) fn area(&self, given: [f32; 4]) -> Rect {
         let rect = area(given);
         Rect::new(
             rect.x0 * self.unit,
@@ -313,7 +327,7 @@ impl Target<'_> {
 }
 
 impl Prev {
-    fn markup_target(
+    pub(super) fn markup_target(
         &self,
         window: Option<u64>,
         page: usize,
@@ -385,7 +399,7 @@ impl Prev {
 }
 
 /// Answers once `work` finds the edits to make in window `id`.
-fn later_edits(
+pub(super) fn later_edits(
     id: window::Id,
     route: Route,
     answer: &Answer,

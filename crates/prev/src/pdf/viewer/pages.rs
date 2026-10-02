@@ -12,7 +12,7 @@ use prev_pdf::worker::{PageEdit, PageOutcome, Restructured};
 
 use super::{PdfMessage, PdfViewer, Request, TileKey};
 use crate::i18n::Describe;
-use crate::pdf::history::{Change, Insertion, PageChange, Stack};
+use crate::pdf::history::{Change, Entry, Insertion, PageChange};
 
 /// How a click on a thumbnail changes the page selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub struct PagesSent {
     edit: PageEdit,
     /// Where the change went in the history; `None` for edits that are not
     /// undone, such as applying redactions.
-    stack: Option<Stack>,
+    entry: Option<Entry>,
     /// Pages to select afterwards, in the new numbering.
     select: Option<Vec<usize>>,
 }
@@ -123,8 +123,8 @@ impl PdfViewer {
             _ => None,
         };
         let edit = change.forward();
-        self.edit.history.record(Change::Pages(change));
-        self.send_pages(edit, Some(Stack::Done), select)
+        let entry = self.edit.history.record(Change::Pages(change));
+        self.send_pages(edit, Some(entry), select)
     }
 
     pub fn rotate_pages(&mut self, quarter_turns: i32) -> Task<PdfMessage> {
@@ -162,10 +162,11 @@ impl PdfViewer {
             .copied()
             .collect();
         select.sort_unstable();
-        self.edit
+        let entry = self
+            .edit
             .history
             .record(Change::Pages(PageChange::Reordered(order.clone())));
-        self.send_pages(PageEdit::Reorder(order), Some(Stack::Done), Some(select))
+        self.send_pages(PageEdit::Reorder(order), Some(entry), Some(select))
     }
 
     /// Where new pages go: after the selected or current page.
@@ -228,20 +229,20 @@ impl PdfViewer {
         self.send_pages(PageEdit::ApplyRedactions, None, None)
     }
 
-    pub(super) fn undo_pages(&mut self, edit: PageEdit, stack: Stack) -> Task<PdfMessage> {
-        self.send_pages(edit, Some(stack), None)
+    pub(super) fn undo_pages(&mut self, edit: PageEdit, entry: Entry) -> Task<PdfMessage> {
+        self.send_pages(edit, Some(entry), None)
     }
 
     fn send_pages(
         &mut self,
         edit: PageEdit,
-        stack: Option<Stack>,
+        entry: Option<Entry>,
         select: Option<Vec<usize>>,
     ) -> Task<PdfMessage> {
         let receiver = self.handle.pages(edit.clone());
         let sent = PagesSent {
             edit,
-            stack,
+            entry,
             select,
         };
         Task::perform(receiver, move |result| {
@@ -262,8 +263,8 @@ impl PdfViewer {
         let restructured = match result {
             Ok(restructured) => restructured,
             Err(error) => {
-                if let Some(stack) = sent.stack {
-                    self.edit.history.discard(stack);
+                if let Some(entry) = sent.entry {
+                    self.edit.history.discard(entry);
                 }
                 self.requests.push(Request::Notice(crate::fl!(
                     "pages-change-failed",
@@ -272,8 +273,8 @@ impl PdfViewer {
                 return Task::none();
             }
         };
-        if let Some(stack) = sent.stack {
-            self.edit.history.page_outcome(stack, &restructured.outcome);
+        if let Some(entry) = sent.entry {
+            self.edit.history.page_outcome(entry, &restructured.outcome);
         }
         if let PageOutcome::Redacted(count) = restructured.outcome {
             self.requests.push(Request::Notice(match count {

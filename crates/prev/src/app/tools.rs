@@ -181,6 +181,7 @@ fn tool<I: DeserializeOwned + JsonSchema + 'static>(
     }
 }
 
+mod edit;
 mod markup;
 pub(crate) use markup::Route;
 mod read;
@@ -226,6 +227,7 @@ static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
     tools.extend(read::tools());
     tools.extend(view::tools());
     tools.extend(markup::tools());
+    tools.extend(edit::tools());
     tools
 });
 

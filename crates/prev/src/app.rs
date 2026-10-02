@@ -288,6 +288,12 @@ pub enum Message {
     AskBeforeToggled(tools::Kind, bool),
     /// A tool that waited on something answers.
     ToolAnswer(tools::Answer, Result<tools::Output, prev::control::Error>),
+    /// replace_image saved the new image, or could not.
+    ToolReplaced(
+        window::Id,
+        tools::Answer,
+        Result<(u32, u32), prev::control::Error>,
+    ),
     /// A markup tool found the edits to make in a window, then answers.
     ToolMarkup(
         window::Id,
@@ -1112,6 +1118,7 @@ impl Prev {
                 answer.send(result);
                 Task::none()
             }
+            Message::ToolReplaced(id, answer, result) => self.image_replaced(id, &answer, result),
             Message::ToolMarkup(id, route, answer, edits, output) => {
                 self.agent_markup(id, route, &answer, edits, output)
             }

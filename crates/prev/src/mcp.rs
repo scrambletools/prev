@@ -18,6 +18,14 @@ use serde_json::{Value, json};
 
 use crate::control::{self, Client};
 
+/// What agents read first about prev's tools.
+const INSTRUCTIONS: &str = "Controls prev, the PDF, image and Markdown viewer, on the user's \
+desktop, where the user may be watching. list_windows gives the windows; other tools take a \
+window number, or act on the window in front. Positions on PDF pages are in points from the \
+page's top-left corner, with y growing down; on an image's markup, in image pixels. Every \
+change saves to the file by itself, as edits in prev do, and is one step of the user's Undo; \
+there is nothing to save. The user's settings may make prev ask them before a tool runs.";
+
 /// How long to wait for a prev this command started to open the control
 /// channel.
 const START_TIME: Duration = Duration::from_secs(20);
@@ -146,9 +154,7 @@ impl ServerHandler for Relay {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("prev", env!("CARGO_PKG_VERSION")))
-            .with_instructions(
-                "Controls prev, the document and image viewer, on the user's desktop.",
-            )
+            .with_instructions(INSTRUCTIONS)
     }
 
     async fn initialize(

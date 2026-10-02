@@ -259,7 +259,7 @@ impl Prev {
 }
 
 impl Shown<'_> {
-    fn what(&self) -> &'static str {
+    pub(super) fn what(&self) -> &'static str {
         match self {
             Shown::Start => "no file",
             Shown::Pdf(_) => "a PDF",

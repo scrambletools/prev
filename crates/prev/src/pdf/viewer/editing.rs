@@ -17,7 +17,7 @@ use prev_pdf::worker::{Edit, Edited, PageMarkup, Ticket};
 
 use super::{PdfMessage, PdfViewer, Request};
 use crate::i18n::Describe;
-use crate::pdf::history::{Change, History, Stack, Step};
+use crate::pdf::history::{Change, Entry, History, Step};
 use crate::pdf::layout;
 use crate::pdf::markup::{self, Handle, Shape, Tool};
 
@@ -272,6 +272,24 @@ pub enum AgentEdit {
         page: usize,
         annotation: Annotation,
     },
+    /// An image or drawing over `annotation`'s rect, such as a placed
+    /// picture or signature.
+    AddStamp {
+        page: usize,
+        annotation: Annotation,
+        content: StampContent,
+    },
+    Field {
+        page: usize,
+        field: Box<Field>,
+        value: String,
+    },
+    Pages(crate::pdf::history::PageChange),
+    /// Moves pages to the gap before page `to`.
+    MovePages {
+        moving: Vec<usize>,
+        to: usize,
+    },
 }
 
 /// A loupe's magnified image, ready to add or replace.
@@ -288,7 +306,7 @@ pub struct LoupeRender {
 pub struct Sent {
     page: usize,
     /// Where the change went, for a removal token.
-    stack: Option<Stack>,
+    entry: Option<Entry>,
     select: Option<String>,
     open_text: bool,
 }
@@ -297,7 +315,7 @@ impl Sent {
     fn plain(page: usize) -> Self {
         Self {
             page,
-            stack: None,
+            entry: None,
             select: None,
             open_text: false,
         }
@@ -1101,7 +1119,7 @@ impl PdfViewer {
         content: Option<StampContent>,
         open_text: bool,
     ) -> Task<PdfMessage> {
-        self.edit.history.record(Change::Added {
+        let entry = self.edit.history.record(Change::Added {
             page,
             annotation: annotation.clone(),
             content: content.clone(),
@@ -1109,7 +1127,7 @@ impl PdfViewer {
         });
         let sent = Sent {
             page,
-            stack: Some(Stack::Done),
+            entry: Some(entry),
             select: Some(annotation.id.clone()),
             open_text,
         };
@@ -1143,29 +1161,29 @@ impl PdfViewer {
 
     fn remove(&mut self, page: usize, annotation: Annotation) -> Task<PdfMessage> {
         let id = annotation.id.clone();
-        self.edit.history.record(Change::Removed {
+        let entry = self.edit.history.record(Change::Removed {
             page,
             annotation,
             removed: None,
         });
         let sent = Sent {
-            stack: Some(Stack::Done),
+            entry: Some(entry),
             ..Sent::plain(page)
         };
         self.send(page, Edit::Remove(id), sent)
     }
 
-    /// Sends an undo or redo step; `stack` is where its change went.
-    fn send_step(&mut self, step: Step, stack: Stack) -> Task<PdfMessage> {
+    /// Sends an undo or redo step for the change `entry`.
+    fn send_step(&mut self, step: Step, entry: Entry) -> Task<PdfMessage> {
         match step {
             Step::Annotation(page, edit) => {
                 let sent = Sent {
-                    stack: Some(stack),
+                    entry: Some(entry),
                     ..Sent::plain(page)
                 };
                 self.send(page, *edit, sent)
             }
-            Step::Pages(edit) => self.undo_pages(edit, stack),
+            Step::Pages(edit) => self.undo_pages(edit, entry),
         }
     }
 
@@ -1207,8 +1225,8 @@ impl PdfViewer {
                 fields: edited.fields,
             },
         );
-        if let (Some(token), Some(stack)) = (edited.removed, sent.stack) {
-            self.edit.history.removed(stack, token);
+        if let (Some(token), Some(entry)) = (edited.removed, sent.entry) {
+            self.edit.history.removed(entry, token);
         }
         if let Some(id) = sent.select {
             self.edit.selected = Some((page, id.clone()));
@@ -1437,6 +1455,14 @@ impl PdfViewer {
                     after,
                 } => self.change(page, *before, *after, None, None),
                 AgentEdit::Remove { page, annotation } => self.remove(page, annotation),
+                AgentEdit::AddStamp {
+                    page,
+                    annotation,
+                    content,
+                } => self.add(page, annotation, Some(content), false),
+                AgentEdit::Field { page, field, value } => self.set_field(page, &field, value),
+                AgentEdit::Pages(change) => self.change_pages(change),
+                AgentEdit::MovePages { moving, to } => self.move_pages(&moving, to),
             },
             EditMessage::SetTool(tool) => {
                 self.edit.drag = None;
@@ -1522,7 +1548,7 @@ impl PdfViewer {
                 self.edit.field = None;
                 self.edit.selected = None;
                 match self.edit.history.undo() {
-                    Some(step) => self.send_step(step, Stack::Undone),
+                    Some((step, entry)) => self.send_step(step, entry),
                     None => Task::none(),
                 }
             }
@@ -1531,7 +1557,7 @@ impl PdfViewer {
                 self.edit.field = None;
                 self.edit.selected = None;
                 match self.edit.history.redo() {
-                    Some(step) => self.send_step(step, Stack::Done),
+                    Some((step, entry)) => self.send_step(step, entry),
                     None => Task::none(),
                 }
             }

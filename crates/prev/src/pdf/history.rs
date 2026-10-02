@@ -246,21 +246,24 @@ impl Change {
 
 #[derive(Debug, Default)]
 pub struct History {
-    done: Vec<Change>,
-    undone: Vec<Change>,
+    done: Vec<(Entry, Change)>,
+    undone: Vec<(Entry, Change)>,
+    next: u64,
 }
 
-/// Which list a change moved to, to route what its edit returns.
+/// A change in the history, by number: what its edit answers goes to it,
+/// wherever it is by then, as later changes may be made before the answer
+/// comes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Stack {
-    Done,
-    Undone,
-}
+pub struct Entry(u64);
 
 impl History {
-    pub fn record(&mut self, change: Change) {
-        self.done.push(change);
+    pub fn record(&mut self, change: Change) -> Entry {
+        let entry = Entry(self.next);
+        self.next += 1;
+        self.done.push((entry, change));
         self.undone.clear();
+        entry
     }
 
     pub fn can_undo(&self) -> bool {
@@ -271,40 +274,41 @@ impl History {
         !self.undone.is_empty()
     }
 
-    /// The step to send to undo the last change. A page change still
-    /// waiting for the document thread cannot be undone yet.
-    pub fn undo(&mut self) -> Option<Step> {
-        let step = self.done.last()?.backward_step()?;
-        let change = self.done.pop()?;
-        self.undone.push(change);
-        Some(step)
+    /// The step to send to undo the last change, and the change. A page
+    /// change still waiting for the document thread cannot be undone yet.
+    pub fn undo(&mut self) -> Option<(Step, Entry)> {
+        let step = self.done.last()?.1.backward_step()?;
+        let (entry, change) = self.done.pop()?;
+        self.undone.push((entry, change));
+        Some((step, entry))
     }
 
-    pub fn redo(&mut self) -> Option<Step> {
-        let change = self.undone.pop()?;
+    pub fn redo(&mut self) -> Option<(Step, Entry)> {
+        let (entry, change) = self.undone.pop()?;
         let step = change.forward_step();
-        self.done.push(change);
-        Some(step)
+        self.done.push((entry, change));
+        Some((step, entry))
     }
 
-    /// Stores what a page edit answered on the change last moved to
-    /// `stack`.
-    pub fn page_outcome(&mut self, stack: Stack, outcome: &PageOutcome) {
-        let list = match stack {
-            Stack::Done => &mut self.done,
-            Stack::Undone => &mut self.undone,
-        };
-        if let Some(Change::Pages(change)) = list.last_mut() {
+    fn change(&mut self, entry: Entry) -> Option<&mut Change> {
+        self.done
+            .iter_mut()
+            .chain(self.undone.iter_mut())
+            .find(|(found, _)| *found == entry)
+            .map(|(_, change)| change)
+    }
+
+    /// Stores what a page edit answered on its change.
+    pub fn page_outcome(&mut self, entry: Entry, outcome: &PageOutcome) {
+        if let Some(Change::Pages(change)) = self.change(entry) {
             change.set_outcome(outcome);
         }
     }
 
-    /// Drops the change last moved to `stack`, whose edit failed.
-    pub fn discard(&mut self, stack: Stack) {
-        match stack {
-            Stack::Done => self.done.pop(),
-            Stack::Undone => self.undone.pop(),
-        };
+    /// Drops a change whose edit failed.
+    pub fn discard(&mut self, entry: Entry) {
+        self.done.retain(|(found, _)| *found != entry);
+        self.undone.retain(|(found, _)| *found != entry);
     }
 
     /// Forgets everything, after a change that cannot be undone.
@@ -313,13 +317,9 @@ impl History {
         self.undone.clear();
     }
 
-    /// Stores a removal token on the change last moved to `stack`.
-    pub fn removed(&mut self, stack: Stack, token: Removed) {
-        let list = match stack {
-            Stack::Done => &mut self.done,
-            Stack::Undone => &mut self.undone,
-        };
-        if let Some(change) = list.last_mut() {
+    /// Stores a removal token on its change.
+    pub fn removed(&mut self, entry: Entry, token: Removed) {
+        if let Some(change) = self.change(entry) {
             change.set_removed(token);
         }
     }
@@ -345,12 +345,12 @@ mod tests {
             removed: None,
         });
         assert!(history.can_undo() && !history.can_redo());
-        let Some(Step::Annotation(page, edit)) = history.undo() else {
+        let Some((Step::Annotation(page, edit), _)) = history.undo() else {
             panic!("no annotation step");
         };
         assert_eq!(page, 2);
         assert!(matches!(*edit, Edit::Remove(ref id) if id == "a"));
-        let Some(Step::Annotation(_, edit)) = history.redo() else {
+        let Some((Step::Annotation(_, edit), _)) = history.redo() else {
             panic!("no annotation step");
         };
         assert!(matches!(*edit, Edit::Add(..)), "no token yet, so add again");
@@ -376,19 +376,45 @@ mod tests {
     #[test]
     fn page_changes_wait_for_their_outcome() {
         let mut history = History::default();
-        history.record(Change::Pages(PageChange::Removed {
+        let entry = history.record(Change::Pages(PageChange::Removed {
             pages: vec![1],
             removed: None,
         }));
         assert!(history.undo().is_none(), "nothing to put back yet");
-        history.page_outcome(Stack::Done, &PageOutcome::Removed(Vec::new()));
+        history.page_outcome(entry, &PageOutcome::Removed(Vec::new()));
         assert!(matches!(
             history.undo(),
-            Some(Step::Pages(PageEdit::Restore(_)))
+            Some((Step::Pages(PageEdit::Restore(_)), _))
         ));
         assert!(matches!(
             history.redo(),
-            Some(Step::Pages(PageEdit::Remove(ref pages))) if pages == &[1]
+            Some((Step::Pages(PageEdit::Remove(ref pages)), _)) if pages == &[1]
+        ));
+    }
+
+    #[test]
+    fn answers_go_to_their_change_after_later_ones() {
+        let mut history = History::default();
+        let inserted = history.record(Change::Pages(PageChange::Inserted {
+            at: 1,
+            count: 0,
+            source: Insertion::Blank(prev_pdf::geometry::Size::new(612.0, 792.0)),
+            removed: None,
+        }));
+        // A second change before the insert's answer comes.
+        let rotated = history.record(Change::Pages(PageChange::Rotated {
+            pages: vec![0],
+            quarter_turns: 1,
+        }));
+        history.page_outcome(inserted, &PageOutcome::Inserted { at: 1, count: 1 });
+        history.page_outcome(rotated, &PageOutcome::Done);
+        assert!(matches!(
+            history.undo(),
+            Some((Step::Pages(PageEdit::Rotate { .. }), _))
+        ));
+        assert!(matches!(
+            history.undo(),
+            Some((Step::Pages(PageEdit::Remove(ref pages)), _)) if pages == &[1]
         ));
     }
 
