@@ -18,9 +18,9 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
 use windows_sys::Win32::UI::Input::Pointer::{POINTER_INFO, POINTER_PEN_INFO, POINTER_TOUCH_INFO};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     ClipCursor, GetClientRect, GetClipCursor, GetCursorPos, GetSystemMetrics, GetWindowPlacement,
-    GetWindowRect, IsIconic, ShowCursor, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP,
+    GetWindowRect, IsIconic, LoadCursorW, ShowCursor, HCURSOR, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP,
     IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE, IDC_SIZEWE, IDC_WAIT,
-    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_MAXIMIZE,
+    SM_CXCURSOR, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_MAXIMIZE,
     WINDOWPLACEMENT,
 };
 
@@ -157,6 +157,36 @@ pub fn get_instance_handle() -> HMODULE {
     }
 
     unsafe { &__ImageBase as *const _ as _ }
+}
+
+/// The handle for a named cursor. Windows has no open or closed hand, so
+/// `Grab` and `Grabbing` use prev's hands, at the size of the system's
+/// cursors; every other cursor is one of Windows' own.
+pub(crate) fn named_cursor(cursor: CursorIcon) -> HCURSOR {
+    use std::sync::{Arc, OnceLock};
+
+    use super::icon::{RaiiCursor, WinCursor};
+
+    static GRAB: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
+    static GRABBING: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
+    let hand = || {
+        // The size of the system's cursors: 32 pixels at 100%.
+        let size = unsafe { GetSystemMetrics(SM_CXCURSOR) }.max(32) as u16;
+        let image = crate::platform_impl::hand_cursors::image(cursor, size)?;
+        match WinCursor::new(&image).ok()? {
+            WinCursor::Cursor(cursor) => Some(cursor),
+            WinCursor::Failed => None,
+        }
+    };
+    let custom = match cursor {
+        CursorIcon::Grab => GRAB.get_or_init(hand).as_ref(),
+        CursorIcon::Grabbing => GRABBING.get_or_init(hand).as_ref(),
+        _ => None,
+    };
+    match custom {
+        Some(cursor) => cursor.as_raw_handle(),
+        None => unsafe { LoadCursorW(0, to_windows_cursor(cursor)) },
+    }
 }
 
 pub(crate) fn to_windows_cursor(cursor: CursorIcon) -> PCWSTR {

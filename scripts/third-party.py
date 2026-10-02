@@ -26,7 +26,8 @@ BUNDLED = [
     ("Material Symbols Rounded", "Apache-2.0", "icons", "https://github.com/google/material-design-icons"),
     ("smithay-clipboard", "MIT", "vendored with a drag and drop patch, see vendor/PATCHES.md", "https://github.com/Smithay/smithay-clipboard"),
     ("iced_graphics, iced_widget", "MIT", "vendored with right to left text input patches, see vendor/PATCHES.md", "https://github.com/iced-rs/iced"),
-    ("winit", "Apache-2.0", "vendored with patches for the keyboard layout in use and the files macOS opens, see vendor/PATCHES.md", "https://github.com/rust-windowing/winit"),
+    ("winit", "Apache-2.0", "vendored with patches for the keyboard layout in use, the files macOS opens, drag and drop, cursors and the open and closed hands, see vendor/PATCHES.md", "https://github.com/rust-windowing/winit"),
+    ("Hand cursors by Abdulkaiz Khatri", "GPL-3.0", "the open and closed hand for panning, on Linux and Windows", "https://github.com/ful1e5/apple_cursor"),
 ]
 
 

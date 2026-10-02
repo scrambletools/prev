@@ -125,30 +125,34 @@ impl CustomCursor {
         event_loop: &ActiveEventLoop,
         cursor: PlatformCustomCursorSource,
     ) -> CustomCursor {
+        Self::from_image(&event_loop.xconn, &cursor.0)
+    }
+
+    pub(crate) fn from_image(
+        xconn: &Arc<XConnection>,
+        image: &crate::cursor::CursorImage,
+    ) -> CustomCursor {
         unsafe {
-            let ximage = (event_loop.xconn.xcursor.XcursorImageCreate)(
-                cursor.0.width as i32,
-                cursor.0.height as i32,
-            );
+            let ximage =
+                (xconn.xcursor.XcursorImageCreate)(image.width as i32, image.height as i32);
             if ximage.is_null() {
                 panic!("failed to allocate cursor image");
             }
-            (*ximage).xhot = cursor.0.hotspot_x as u32;
-            (*ximage).yhot = cursor.0.hotspot_y as u32;
+            (*ximage).xhot = image.hotspot_x as u32;
+            (*ximage).yhot = image.hotspot_y as u32;
             (*ximage).delay = 0;
 
-            let dst = slice::from_raw_parts_mut((*ximage).pixels, cursor.0.rgba.len() / 4);
-            for (dst, chunk) in dst.iter_mut().zip(cursor.0.rgba.chunks_exact(4)) {
+            let dst = slice::from_raw_parts_mut((*ximage).pixels, image.rgba.len() / 4);
+            for (dst, chunk) in dst.iter_mut().zip(image.rgba.chunks_exact(4)) {
                 *dst = (chunk[0] as u32) << 16
                     | (chunk[1] as u32) << 8
                     | (chunk[2] as u32)
                     | (chunk[3] as u32) << 24;
             }
 
-            let cursor =
-                (event_loop.xconn.xcursor.XcursorImageLoadCursor)(event_loop.xconn.display, ximage);
-            (event_loop.xconn.xcursor.XcursorImageDestroy)(ximage);
-            Self { inner: Arc::new(CustomCursorInner { xconn: event_loop.xconn.clone(), cursor }) }
+            let cursor = (xconn.xcursor.XcursorImageLoadCursor)(xconn.display, ximage);
+            (xconn.xcursor.XcursorImageDestroy)(ximage);
+            Self { inner: Arc::new(CustomCursorInner { xconn: Arc::clone(xconn), cursor }) }
         }
     }
 }
