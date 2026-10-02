@@ -27,6 +27,12 @@ Show a short help and exit.
 .BR \-V ", " \-\-version
 Show the version and exit.
 .TP
+.B \-\-mcp
+Serve MCP on standard input and output, so an AI agent can control the
+running prev, which starts if it is not running. prev asks the user before
+an agent it has not seen gets to act; Settings turns this off and chooses
+what else prev asks about.
+.TP
 .B \-\-
 Treat every following argument as a file, even if it starts with a dash.
 .SH FILES

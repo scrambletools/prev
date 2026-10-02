@@ -185,6 +185,23 @@ the panel alike.
 
 ## Stage 1: outside control (MCP)
 
+Stage 1 is built: every step below is done, and every use case was tried
+from Claude Code on Linux and macOS and from a local model (qwen3.8
+through ollama), with the tools also called directly on Windows. Where it
+came out differently from this plan:
+
+- The calls go over a control channel of their own, beside the
+  single-instance socket, which stays for passing files.
+- A tool whose kind asks first says so in its description, and a call
+  held for the user's answer tells the agent so as MCP progress.
+- Markup tools also work on an image's markup, in image pixels, opening
+  the markup first; `place_signature`, `place_image` and `export` do too.
+- Trying the use cases added `crop_pages`, `whole_words` for text
+  matches, text and a duration for `point_at`, scaled image exports,
+  colour names, and window sizes in `list_windows`.
+
+The plan as written:
+
 - prev's MCP server uses `rmcp`, the official Rust SDK.
 - An agent starts `prev --mcp`, which speaks MCP over standard input and
   output and passes each call to the running prev over its

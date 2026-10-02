@@ -106,6 +106,7 @@
 <tr><th>Images</th><td>The image crate; rawler for camera RAW; libheif with libde265 and aom's AV1 decoder for HEIC and AVIF</td></tr>
 <tr><th>SVG and Markdown</th><td>resvg; pulldown-cmark with syntect for highlighting</td></tr>
 <tr><th>Translations</th><td>Project Fluent</td></tr>
+<tr><th>AI agents</th><td>An MCP server, <code>prev --mcp</code>, on standard input and output, through rmcp; it relays to the running prev over a private local socket (a named pipe on Windows), with JSON-RPC 2.0</td></tr>
 <tr><th>Fonts</th><td>Roboto Flex, Material Symbols Rounded and Dancing Script, bundled</td></tr>
 <tr><th>System integration</th><td>XDG desktop portals on Linux; Win32 and OLE on Windows; AppKit and Launch Services on macOS, with a menu bar through muda</td></tr>
 <tr><th>Dependencies</th><td>All open source, with licenses checked by cargo-deny in CI; GPL-2.0-only is refused</td></tr>
@@ -141,6 +142,7 @@
 <tr><th>License</th><td>GNU AGPL-3.0 or later, as MuPDF requires; the bundled fonts keep their own licenses (SIL Open Font License 1.1, Apache 2.0)</td></tr>
 <tr><th>Source</th><td><a href="https://github.com/scrambletools/prev">github.com/scrambletools/prev</a></td></tr>
 <tr><th>Network</th><td>None of its own: prev goes online only to fetch a picture dropped onto it as a web address, and to open links you click. No accounts, no telemetry</td></tr>
+<tr><th>AI agents</th><td>Only those you allow, through <code>prev --mcp</code>; no bundled model. What an agent reads goes to the model it uses</td></tr>
 <tr><th>Code signing</th><td>Windows and macOS releases are not yet signed; see the <a href="./#code-signing">code signing policy</a></td></tr>
 </tbody></table>
 </main>

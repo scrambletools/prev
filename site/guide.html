@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A tour of prev</title>
-<meta name="description" content="A walkthrough of everything prev does: reading and marking up PDFs, forms and signatures, page editing, redaction, images, drag and drop and settings.">
+<meta name="description" content="A walkthrough of everything prev does: reading and marking up PDFs, forms and signatures, page editing, redaction, images, drag and drop, AI agents and settings.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -36,6 +36,7 @@
 <li><a href="#svg-and-markdown">SVG and Markdown</a></li>
 <li><a href="#inspector">Inspector</a></li>
 <li><a href="#drag-and-drop">Drag and drop</a></li>
+<li><a href="#ai-agents">Working with AI agents</a></li>
 <li><a href="#saving-and-versions">Saving and versions</a></li>
 <li><a href="#settings">Settings</a></li>
 <li><a href="#looks">Looks</a></li>
@@ -419,6 +420,65 @@ starts and when prev quits.</p>
 <li>The page thumbnails do not scroll by themselves while dragging near
   their top or bottom; the scroll wheel scrolls them during a drag.</li>
 </ul>
+<h2 id="ai-agents">Working with AI agents</h2>
+<p>An AI agent, such as Claude Code or a local model in an MCP client, can
+work in prev for you: read a document, show you something in it, mark it
+up, fill a form, sign, redact, rearrange pages, edit an image and export.
+prev runs an MCP server, <code>prev --mcp</code>, which the agent starts and
+talks to over standard input and output. It passes the agent's requests
+to the prev you are using, starting prev if it is not running, so you can
+watch the agent work in your own windows. Nothing listens on the network,
+and prev bundles no model: what the agent reads goes to the model the
+agent uses, so use one you trust with those files.</p>
+<h3 id="agent-setup">Setting up an agent</h3>
+<p>There is nothing to set up in prev. Add it to the agent as an MCP server
+that runs <code>prev --mcp</code>. For Claude Code:</p>
+<pre><code>claude mcp add prev -- prev --mcp</code></pre>
+<p>Where <code>prev</code> is not on the path, give the whole path:
+<code>/Applications/prev.app/Contents/MacOS/prev</code> on macOS,
+<code>%LOCALAPPDATA%\Programs\prev\prev.exe</code> on Windows, and
+<code>flatpak run io.github.scrambletools.prev</code> for the Flatpak. For a local
+model, use an MCP client that works with it and add prev the same way;
+most take a file like this:</p>
+<pre><code>{ "mcpServers": { "prev": { "command": "prev", "args": ["--mcp"] } } }</code></pre>
+<p>The first time an agent connects, prev asks whether to let it control
+prev, in the window in front. Allow is remembered; Don't Allow lasts until
+prev quits. Settings lists the agents you allowed, with Forget to be asked
+again, and <strong>Allow outside control</strong> turns all of it off.</p>
+<figure><img class="shot" src="screenshots/agent-connect.png" alt="prev asking: Allow Claude Code to control prev?, with Don't allow and Allow, over the annual report" width="1360" height="791" loading="lazy"></figure>
+<h3 id="agent-approval">Asking before an agent acts</h3>
+<p>Settings has a switch for each kind of thing an agent can do: read a
+file, change the view or a window, mark up, edit, sign, apply redactions,
+and export. With a switch on, prev shows what the agent asks to do in the
+window it acts on, with Allow and Don't Allow, and the agent waits for
+your answer. Signing and applying redactions ask at first, as Undo cannot
+take them back; the others start off. The agent is told which tools ask,
+so it can tell you to look at prev.</p>
+<figure class="portrait"><img class="shot" src="screenshots/agent-ask.png" alt="prev asking: Let Claude Code sign this file?, adding that Undo cannot take this back, over a filled-in membership form" width="900" height="995" loading="lazy"></figure>
+<figure><img class="shot" src="screenshots/settings-outside-control.png" alt="Settings scrolled to Outside control: Allow outside control on, Claude Code allowed, and the Ask before an agent switches, with signing and applying redactions on" width="1360" height="791" loading="lazy"></figure>
+<h3 id="agent-work">What agents can do</h3>
+<ul>
+<li><strong>Read</strong>: the windows open, a document's pages, text with its
+  positions, search, annotations, form fields, saved signatures, pictures
+  of pages and images, and Markdown files.</li>
+<li><strong>Show you</strong>: go to a page or a place on it, zoom, change the view
+  mode, outline an area or some text for a few seconds, open and close
+  the sidebar, inspector and other panels, and size, place, focus and
+  close windows. On Wayland a window cannot place itself, so there only
+  its size changes.</li>
+<li><strong>Mark up</strong>: highlights, notes, text boxes, shapes, arrows and
+  redaction marks, on PDFs and on images.</li>
+<li><strong>Edit</strong>: rotate, delete, move, insert and crop pages, fill form
+  fields, place pictures, and crop, rotate, resize and adjust the color of
+  images. A model that changes an image, such as to remove its background,
+  takes it from prev and hands back the changed one, and prev keeps the
+  image as it was among its versions.</li>
+<li><strong>Sign, redact and export</strong>: place one of your saved signatures,
+  apply redaction marks, and export to a new file.</li>
+</ul>
+<figure><img class="shot" src="screenshots/agent-point.png" alt="An agent pointing out the largest expense: the drip irrigation row of the budget's expenses table, outlined in the accent color" width="1360" height="791" loading="lazy"><figcaption>An agent showing you the largest expense as it tells you about it.</figcaption></figure>
+<p>Agents work as you do: each change saves by itself and is one step of
+Undo, so you can take back what an agent did.</p>
 <h2 id="saving-and-versions">Saving and versions</h2>
 <p>There is no Save command: edits to PDFs and images are written in place
 a moment after you stop, and when a window closes. Before the first
@@ -479,6 +539,9 @@ click outside it. Changes apply to every window at once:</p>
   <li>Windows lets only you choose default apps, so there the button opens
     prev's page in Settings, Apps, Default apps.</li>
   </ul></li>
+<li><strong>Outside control</strong>: whether AI agents may control prev, the
+  agents you allowed, and what prev asks you about before an agent acts;
+  see <a href="#ai-agents">Working with AI agents</a>.</li>
 <li><strong>Storage</strong>: where prev keeps signatures, version history and
   bookmarks.</li>
 </ul>

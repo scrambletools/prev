@@ -151,6 +151,11 @@ For a walkthrough of every feature with more screenshots, see
   history and bookmarks are kept. They are saved in `~/.config/prev.toml`
   (`%APPDATA%\prev\prev.toml` on Windows,
   `~/Library/Application Support/prev/prev.toml` on macOS).
+- **AI agents**: `prev --mcp` serves prev's tools over MCP, so Claude
+  Code or a local model in an MCP client can read, show, mark up, edit,
+  sign, redact and export in the prev you are using, asking you first
+  where Settings says to. prev bundles no model and listens on no
+  network. See [Using prev with AI agents](#using-prev-with-ai-agents).
 - **Desktop integration**
   - One window per document, with a single running instance.
   - Open files from the file dialog or by dragging them onto a window.
@@ -272,6 +277,29 @@ opaque; with a package, add it to `~/.config/hypr/hyprland.lua`:
 ```lua
 o.window("^io\\.github\\.scrambletools\\.prev$", { tag = "-default-opacity", opacity = "1 1" })
 ```
+
+## Using prev with AI agents
+
+Add prev to an agent as an MCP server that runs `prev --mcp`. For Claude
+Code:
+
+```sh
+claude mcp add prev -- prev --mcp
+```
+
+Where `prev` is not on the path, give its whole path:
+`/Applications/prev.app/Contents/MacOS/prev` on macOS,
+`%LOCALAPPDATA%\Programs\prev\prev.exe` on Windows, or
+`flatpak run io.github.scrambletools.prev` for the Flatpak. MCP clients
+for local models take the same command, often as
+`{ "mcpServers": { "prev": { "command": "prev", "args": ["--mcp"] } } }`.
+
+The first time an agent connects, prev asks whether to let it in. Settings
+turns outside control off, lists the agents allowed, and has a switch for
+each kind of tool (reading, the view, markup, edits, signing, redacting
+and exporting) that makes prev ask before an agent's call runs; signing
+and redacting ask at first. What the agent reads goes to its model. The
+[guide](https://prev.run/guide.html#ai-agents) has more.
 
 ## Building
 
