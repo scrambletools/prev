@@ -3714,6 +3714,7 @@ dependencies = [
  "rfd",
  "rust-embed",
  "serde",
+ "serde_json",
  "smithay-clipboard",
  "tempfile",
  "tiff",

@@ -664,6 +664,10 @@ impl Prev {
                 Task::none()
             }
             Message::External(External::OpenPaths(paths)) => self.open_paths(paths),
+            Message::External(External::Control(call)) => {
+                self.control(call);
+                Task::none()
+            }
             #[cfg(target_os = "macos")]
             Message::External(External::Menu(action)) => {
                 let target = self
@@ -1198,6 +1202,25 @@ impl Prev {
         // Updates that start drags or change windows run as usual.
         let after = self.with_pdf(id, |_| Task::none());
         Task::batch([task, after, self.open_paths_if_any(files)])
+    }
+
+    /// Answers a call on the control channel. The tools come in later;
+    /// `ping` says which prev answers.
+    fn control(&mut self, call: prev::control::Call) {
+        use prev::control::{Error, code};
+        let answer = match call.method.as_str() {
+            "ping" => Ok(serde_json::json!({
+                "protocol": prev::control::PROTOCOL,
+                "version": env!("CARGO_PKG_VERSION"),
+                "build": env!("PREV_COMMIT"),
+                "development": !prev_store::paths::PRODUCTION,
+            })),
+            method => Err(Error::new(
+                code::METHOD_NOT_FOUND,
+                format!("prev has no method {method}"),
+            )),
+        };
+        call.reply(answer);
     }
 
     fn open_paths_if_any(&mut self, paths: Vec<PathBuf>) -> Task<Message> {

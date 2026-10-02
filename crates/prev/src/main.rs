@@ -20,6 +20,9 @@ pub enum External {
     Menu(prev::shortcuts::Action),
     OmarchyThemeChanged,
     Drag(prev::dnd::DragEvent),
+    /// A request on the control channel, for `prev --mcp` and other
+    /// clients.
+    Control(prev::control::Call),
 }
 
 static EXTERNAL_EVENTS: Mutex<Option<UnboundedReceiver<External>>> = Mutex::new(None);
@@ -79,8 +82,9 @@ fn main() -> iced::Result {
         match instance::claim_or_forward(&socket, &paths) {
             Ok(Role::Forwarded) => return Ok(()),
             Ok(Role::Primary(listener)) => {
-                let sender = sender.clone();
-                listener.spawn(move |paths| send(&sender, External::OpenPaths(paths)));
+                let files = sender.clone();
+                listener.spawn(move |paths| send(&files, External::OpenPaths(paths)));
+                serve_control(&sender);
             }
             Err(error) => eprintln!("prev: running without single instance: {error}"),
         }
@@ -90,8 +94,9 @@ fn main() -> iced::Result {
     match instance::claim_or_forward(&instance::pipe_name(), &paths) {
         Ok(Role::Forwarded) => return Ok(()),
         Ok(Role::Primary(listener)) => {
-            let sender = sender.clone();
-            listener.spawn(move |paths| send(&sender, External::OpenPaths(paths)));
+            let files = sender.clone();
+            listener.spawn(move |paths| send(&files, External::OpenPaths(paths)));
+            serve_control(&sender);
         }
         Err(error) => eprintln!("prev: running without single instance: {error}"),
     }
@@ -153,6 +158,21 @@ fn attach_console() {
 
 fn send(sender: &UnboundedSender<External>, event: External) {
     let _ = sender.unbounded_send(event);
+}
+
+/// Opens the control channel, whose calls the app answers. prev runs
+/// without it if it cannot be opened.
+fn serve_control(sender: &UnboundedSender<External>) {
+    let sender = sender.clone();
+    let opened = prev::control::address()
+        // A call the app can no longer take is dropped, which answers it
+        // with an error.
+        .and_then(|address| {
+            prev::control::serve(address, move |call| send(&sender, External::Control(call)))
+        });
+    if let Err(error) = opened {
+        eprintln!("prev: running without the control channel: {error}");
+    }
 }
 
 /// Hands the receiver to the subscription once.
