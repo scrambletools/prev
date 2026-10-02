@@ -236,6 +236,11 @@ impl MarkdownWindow {
         }
     }
 
+    /// The words and lines in the file.
+    pub fn counts(&self) -> (usize, usize) {
+        self.counts
+    }
+
     pub fn open(path: PathBuf) -> (Self, Task<Message>) {
         let watching = Arc::new(AtomicBool::new(true));
         let window = Self {

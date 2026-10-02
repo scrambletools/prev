@@ -63,6 +63,66 @@ pub enum Source {
     Svg,
 }
 
+/// The image a window shows, as agents read it.
+pub struct ShownImage {
+    /// Its place among the window's images, from 0.
+    pub index: usize,
+    pub count: usize,
+    pub width: u32,
+    pub height: u32,
+    /// Frames of an animation, 1 for a still image.
+    pub frames: usize,
+    pub pixels: Pixels,
+}
+
+/// An image's pixels, ready to draw at any size.
+#[derive(Clone)]
+pub enum Pixels {
+    /// The first frame, with the window's edits.
+    Raster(Arc<Frame>),
+    Svg(Svg),
+}
+
+impl Pixels {
+    /// The pixels, scaled down to fit `max_side` if they are larger.
+    /// Slow: call it off the interface thread.
+    pub fn draw(&self, max_side: Option<u32>) -> Result<Frame, String> {
+        let fit = |width: f32, height: f32| {
+            max_side.map_or(1.0, |side| (side as f32 / width.max(height)).min(1.0))
+        };
+        match self {
+            Pixels::Svg(svg) => {
+                let (width, height) = svg.size();
+                svg.render(fit(width, height))
+                    .map_err(|error| error.describe())
+            }
+            Pixels::Raster(frame) => {
+                let scale = fit(frame.width as f32, frame.height as f32);
+                if scale >= 1.0 {
+                    return Ok(Frame::clone(frame));
+                }
+                let image =
+                    ::image::RgbaImage::from_raw(frame.width, frame.height, frame.pixels.clone())
+                        .ok_or("the image's pixels are incomplete")?;
+                let width = ((frame.width as f32 * scale).round() as u32).max(1);
+                let height = ((frame.height as f32 * scale).round() as u32).max(1);
+                let small = ::image::imageops::resize(
+                    &image,
+                    width,
+                    height,
+                    ::image::imageops::FilterType::Triangle,
+                );
+                Ok(Frame {
+                    width,
+                    height,
+                    pixels: small.into_raw(),
+                    delay: Duration::ZERO,
+                })
+            }
+        }
+    }
+}
+
 /// A decoded image, ready to show.
 #[derive(Debug, Clone)]
 pub struct LoadedImage {
@@ -530,6 +590,28 @@ impl ImageWindow {
 
     pub fn paths(&self) -> impl Iterator<Item = &Path> {
         self.items.iter().map(|item| item.path.as_path())
+    }
+
+    /// The image shown, for agents: where it is in the window, its size,
+    /// and its pixels as edited so far; `None` while it loads.
+    pub fn shown_image(&self) -> Option<ShownImage> {
+        let shown = self.shown()?;
+        let pixels = match &shown.image.svg {
+            Some(svg) => Pixels::Svg(svg.clone()),
+            None => Pixels::Raster(shown.current_frame()?),
+        };
+        let (width, height) = match &pixels {
+            Pixels::Raster(frame) => (frame.width, frame.height),
+            Pixels::Svg(_) => (shown.image.width, shown.image.height),
+        };
+        Some(ShownImage {
+            index: self.current,
+            count: self.items.len(),
+            width,
+            height,
+            frames: shown.image.frames.len().max(1),
+            pixels,
+        })
     }
 
     pub fn current_path(&self) -> &Path {

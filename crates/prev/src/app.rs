@@ -403,7 +403,7 @@ impl Prev {
         for path in paths {
             let path = prev_store::paths::canonical(&path);
             if let Some(id) = self.window_showing(&path) {
-                tasks.push(window::gain_focus(id));
+                tasks.push(tools::bring_forward(id));
                 continue;
             }
             match filetype::detect_path(&path) {

@@ -115,7 +115,7 @@ impl PdfWindow {
         }
     }
 
-    pub(super) fn viewer(&self) -> Option<&PdfViewer> {
+    pub fn viewer(&self) -> Option<&PdfViewer> {
         match &self.state {
             State::Ready(viewer) => Some(viewer),
             _ => None,

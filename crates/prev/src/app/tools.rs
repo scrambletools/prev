@@ -76,13 +76,13 @@ impl Kind {
 
 /// What a tool gives back.
 #[derive(Debug, Clone)]
-#[allow(dead_code, reason = "pictures come with the render tools")]
 pub(crate) enum Output {
     /// An object, as structured content and the same as text for agents
     /// that read only text.
     Json(Value),
     Text(String),
-    Png(Vec<u8>),
+    /// A picture, with a line saying what it shows.
+    Png(Vec<u8>, String),
 }
 
 impl Output {
@@ -94,12 +94,15 @@ impl Output {
                 "structuredContent": value,
             }),
             Output::Text(text) => json!({ "content": [{ "type": "text", "text": text }] }),
-            Output::Png(png) => json!({
-                "content": [{
-                    "type": "image",
-                    "data": base64::engine::general_purpose::STANDARD.encode(png),
-                    "mimeType": "image/png",
-                }],
+            Output::Png(png, note) => json!({
+                "content": [
+                    {
+                        "type": "image",
+                        "data": base64::engine::general_purpose::STANDARD.encode(png),
+                        "mimeType": "image/png",
+                    },
+                    { "type": "text", "text": note },
+                ],
             }),
         }
     }
@@ -117,7 +120,6 @@ impl Answer {
     }
 
     /// Answers with what `task` gives, once it finishes.
-    #[allow(dead_code, reason = "for the tools that wait on a document")]
     pub(super) fn later(self, task: Task<Result<Output, Error>>) -> Task<Message> {
         task.map(move |result| Message::ToolAnswer(self.clone(), result))
     }
@@ -179,9 +181,11 @@ fn tool<I: DeserializeOwned + JsonSchema + 'static>(
     }
 }
 
+mod read;
+
 /// Every tool, in the order agents see them.
 static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
-    vec![
+    let mut tools = vec![
         tool(
             "list_windows",
             "List windows",
@@ -207,7 +211,7 @@ static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
                          window for the user instead.",
                         number(id)
                     ))));
-                    window::gain_focus(id)
+                    bring_forward(id)
                 }
                 Err(error) => {
                     answer.send(Err(error));
@@ -215,7 +219,9 @@ static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
                 }
             },
         ),
-    ]
+    ];
+    tools.extend(read::tools());
+    tools
 });
 
 /// The input of a tool that takes none.
@@ -229,6 +235,12 @@ struct Nothing {}
 struct On {
     /// The window's number from list_windows; the one in front if left out.
     window: Option<u64>,
+}
+
+/// Answers `answer` with `result` at once.
+fn reply(answer: &Answer, result: Result<Output, Error>) -> Task<Message> {
+    answer.send(result);
+    Task::none()
 }
 
 /// The tools as MCP lists them.
@@ -266,8 +278,22 @@ pub(super) fn find(name: &str) -> Option<&'static Tool> {
     TOOLS.iter().find(|tool| tool.name == name)
 }
 
+/// Brings window `id` to the front. Wayland lets a window ask only for
+/// attention, which some compositors answer by focusing it.
+pub(super) fn bring_forward(id: window::Id) -> Task<Message> {
+    let focus = window::gain_focus(id);
+    if cfg!(target_os = "linux") {
+        Task::batch([
+            focus,
+            window::request_user_attention(id, Some(window::UserAttention::Informational)),
+        ])
+    } else {
+        focus
+    }
+}
+
 /// The number agents know window `id` by.
-fn number(id: window::Id) -> u64 {
+pub(super) fn number(id: window::Id) -> u64 {
     id.to_string().parse().unwrap_or_default()
 }
 
@@ -331,6 +357,17 @@ impl Prev {
             .map(|(id, window)| {
                 let (kind, file) = match &window.content {
                     Content::Start => ("start", None),
+                    Content::Document(super::Document {
+                        images: Some(images),
+                        ..
+                    }) => {
+                        let svg = matches!(
+                            images.shown_image().map(|image| image.pixels),
+                            Some(prev::image::window::Pixels::Svg(_))
+                        );
+                        let kind = if svg { "svg" } else { "image" };
+                        (kind, Some(images.current_path().display().to_string()))
+                    }
                     Content::Document(document) => {
                         let kind = match &document.kind {
                             Ok(Some(FileKind::Pdf)) => "pdf",
@@ -410,9 +447,10 @@ mod tests {
         let json = Output::Json(json!({ "a": 1 })).into_result();
         assert_eq!(json["structuredContent"]["a"], 1);
         assert_eq!(json["content"][0]["text"], r#"{"a":1}"#);
-        let png = Output::Png(vec![1, 2, 3]).into_result();
+        let png = Output::Png(vec![1, 2, 3], "note".to_owned()).into_result();
         assert_eq!(png["content"][0]["type"], "image");
         assert_eq!(png["content"][0]["data"], "AQID");
         assert_eq!(png["content"][0]["mimeType"], "image/png");
+        assert_eq!(png["content"][1]["text"], "note");
     }
 }
