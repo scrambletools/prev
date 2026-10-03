@@ -3,7 +3,7 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
-## [2.0.0] - 2026-10-02
+## [2.0.0] - 2026-10-03
 
 ### Added
 
@@ -50,6 +50,8 @@ All notable changes to prev. Versions follow
   the settings portal is slow to answer.
 - With animations off, buttons and menu rows light up under the pointer
   straight away.
+- Fit to width no longer shows a horizontal scrollbar, which rounding
+  could bring up by a fraction of a pixel.
 
 ## [1.6.0] - 2026-10-01
 

@@ -92,7 +92,7 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
-    <release version="2.0.0" date="2026-10-02">
+    <release version="2.0.0" date="2026-10-03">
       <description>
         <p>prev now has an assistant: a chat panel beside the document that answers about the file and works in it, finding and pointing at things, marking up, filling in, editing, signing and redacting, asking first where you choose. It talks to a local model, such as Ollama's, or to a cloud model from Anthropic, OpenAI or Google with your API key, kept in the system keychain. AI agents such as Claude Code can also control prev over MCP. Also: Settings in tabs, colors that follow the system accent as it changes, toolbars matching the title bar on Windows and macOS, and bold text drawn in prev's own font.</p>
       </description>
