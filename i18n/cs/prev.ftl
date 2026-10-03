@@ -779,3 +779,91 @@ agent-ask-export = Povolit agentovi { $agent } exportovat tento soubor?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } žádá o použití nástroje „{ $tool }“. V Nastavení zvolíte, na co se prev ptá.
 agent-ask-final = Tuto akci nelze vrátit zpět.
+
+## The assistant
+settings-tab-assistant = Asistent
+settings-assistant-note = Modely, se kterými může panel asistenta mluvit. Klíče jsou uloženy v systémové klíčence.
+settings-assistant-none = Zatím žádné modely. Přidejte model níže: místní model, například v Ollama, zůstává v tomto počítači; cloudový model potřebuje klíč API od svého poskytovatele.
+settings-assistant-in-use = Používá se
+settings-assistant-use = Použít
+settings-assistant-remove = Odebrat
+settings-assistant-add = Přidat model
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Server kompatibilní s OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Model, například { $example }
+settings-assistant-key = Klíč API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Adresa, například { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Kontext
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands } tis. tokenů
+settings-assistant-context-note = Větší kontext umožní asistentovi přečíst v jedné konverzaci větší část souboru, model ale zabere více paměti a může odpovídat pomaleji.
+settings-assistant-add-button = Přidat
+settings-assistant-use-key = Pokračovat
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Vytvořte klíč na webu poskytovatele { $provider } a vložte ho sem.
+settings-assistant-get-key = Získat klíč API
+settings-assistant-key-kept = Váš klíč pro poskytovatele { $provider } je uložen v systémové klíčence.
+settings-assistant-change-key = Změnit klíč
+settings-assistant-key-refused = Poskytovatel { $provider } tento klíč odmítl. Zkontrolujte, zda byl zkopírován celý a ze správného účtu.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = Server { $provider } běží na adrese { $address }.
+settings-assistant-no-server = Na tomto počítači nebyl nalezen spuštěný server { $provider }. Spusťte ho, nebo níže zadejte jeho adresu.
+settings-assistant-get-server = Stáhnout { $provider }
+settings-assistant-look-again = Hledat znovu
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Použít jinou adresu
+settings-assistant-looking = Hledání modelů…
+settings-assistant-found-none = Server { $provider } zatím nemá žádné modely. Stáhněte si v něm některý a pak hledejte znovu.
+settings-assistant-recommended = Doporučeno
+settings-assistant-uses-tools = Používá nástroje
+settings-assistant-sees = Rozpozná obrázky
+settings-assistant-no-tools = Neumí používat nástroje, které asistent potřebuje
+settings-assistant-added-tag = Přidáno
+settings-assistant-trying = Zkouší se…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Otevřít stránku
+# $model is the model's name.
+settings-assistant-added = Model { $model } odpověděl a byl přidán.
+settings-assistant-key-needed = Tento model potřebuje klíč API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Klíč se nepodařilo uložit do klíčenky: { $error }
+assistant-title = Asistent
+assistant-new-chat = Nová konverzace
+assistant-ask = Zeptejte se na tento soubor
+assistant-send = Odeslat
+assistant-stop = Zastavit
+assistant-thinking = Přemýšlí…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Úvahy
+assistant-running = Probíhá…
+assistant-stopped = Zastaveno.
+assistant-no-model = Nejprve přidejte model v Nastavení.
+assistant-add-model = Asistent potřebuje model: cloudový model s klíčem API, nebo místní model.
+assistant-open-settings = Přidat model
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Nyní mluvíte s modelem { $model }.
+assistant-add-another = Přidat model…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } na tomto počítači
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } na adrese { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Konverzace se už nevejde do toho, co model { $model } dokáže přečíst najednou. Začněte novou konverzaci, nebo zvolte model, který přečte více.
+assistant-problem-key = Poskytovatel { $provider } odmítl klíč API. Zkontrolujte ho v Nastavení.
+assistant-problem-rate = Poskytovatel { $provider } žádá o zpomalení. Zkuste to za chvíli znovu.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = Poskytovatel { $provider } žádá o zpomalení: { $message }
+assistant-problem-credit = Poskytovatel { $provider } hlásí, že účet nemá žádný kredit. U nového účtu je třeba nejprve koupit kredit na webu poskytovatele { $provider }, teprve pak bude klíč fungovat. Potom to zkuste znovu.
+assistant-problem-model = Poskytovatel { $provider } nemá model s názvem { $model }. Zkontrolujte jeho název v Nastavení.
+assistant-problem-unavailable = Poskytovatel { $provider } je přetížený nebo má potíže. Zkuste to za chvíli znovu.
+assistant-problem-unreachable = prev se nepodařilo spojit s poskytovatelem { $provider }. Zkontrolujte připojení, nebo zda server běží.
+assistant-problem-refused = Model { $model } odmítl odpovědět.
+# $message is what the provider said, untranslated.
+assistant-problem-other = Model { $model } neodpověděl: { $message }

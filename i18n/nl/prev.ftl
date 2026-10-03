@@ -898,3 +898,92 @@ agent-ask-export = { $agent } toestaan dit bestand te exporteren?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } vraagt om ‘{ $tool }’ te gebruiken. In Instellingen kies je waarnaar prev vraagt.
 agent-ask-final = Dit kan niet ongedaan worden gemaakt.
+
+## The assistant
+
+settings-tab-assistant = Assistent
+settings-assistant-note = De modellen waarmee de assistent kan praten. Sleutels worden bewaard in de beveiligde opslag van het systeem.
+settings-assistant-none = Nog geen modellen. Voeg er hieronder een toe: een lokaal model, zoals dat van Ollama, blijft op deze computer; een cloudmodel heeft een API-sleutel van de aanbieder nodig.
+settings-assistant-in-use = In gebruik
+settings-assistant-use = Gebruiken
+settings-assistant-remove = Verwijderen
+settings-assistant-add = Model toevoegen
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI-compatibele server
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Model, bijvoorbeeld { $example }
+settings-assistant-key = API-sleutel
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Adres, bijvoorbeeld { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Context
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K tokens
+settings-assistant-context-note = Met meer kan de assistent in één chat meer van een bestand lezen, maar het model gebruikt dan meer geheugen en antwoordt mogelijk trager.
+settings-assistant-add-button = Toevoegen
+settings-assistant-use-key = Doorgaan
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Maak een sleutel aan op de site van { $provider } en plak die hier.
+settings-assistant-get-key = API-sleutel aanvragen
+settings-assistant-key-kept = Je sleutel voor { $provider } wordt bewaard in de beveiligde opslag van het systeem.
+settings-assistant-change-key = Sleutel wijzigen
+settings-assistant-key-refused = { $provider } heeft deze sleutel geweigerd. Controleer of die volledig is gekopieerd, uit het juiste account.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } draait op { $address }.
+settings-assistant-no-server = prev heeft op deze computer geen draaiende { $provider } gevonden. Start het, of geef hieronder het adres op.
+settings-assistant-get-server = { $provider } downloaden
+settings-assistant-look-again = Opnieuw zoeken
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Ander adres gebruiken
+settings-assistant-looking = Modellen zoeken…
+settings-assistant-found-none = { $provider } heeft nog geen modellen. Download er daarmee een en zoek dan opnieuw.
+settings-assistant-recommended = Aanbevolen
+settings-assistant-uses-tools = Gebruikt tools
+settings-assistant-sees = Ziet afbeeldingen
+settings-assistant-no-tools = Kan geen tools gebruiken, en die heeft de assistent nodig
+settings-assistant-added-tag = Toegevoegd
+settings-assistant-trying = Proberen…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Pagina openen
+# $model is the model's name.
+settings-assistant-added = { $model } heeft geantwoord en is toegevoegd.
+settings-assistant-key-needed = Dit model heeft een API-sleutel nodig.
+# $error is what the keychain said.
+settings-assistant-key-failed = De sleutel kon niet in de beveiligde opslag worden bewaard: { $error }
+assistant-title = Assistent
+assistant-new-chat = Nieuwe chat
+assistant-ask = Vraag iets over dit bestand
+assistant-send = Versturen
+assistant-stop = Stoppen
+assistant-thinking = Denkt na…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Gedachten
+assistant-running = Bezig…
+assistant-stopped = Gestopt.
+assistant-no-model = Voeg eerst een model toe in Instellingen.
+assistant-add-model = De assistent heeft een model nodig: een cloudmodel met de bijbehorende API-sleutel, of een lokaal model.
+assistant-open-settings = Model toevoegen
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Je praat nu met { $model }.
+assistant-add-another = Model toevoegen…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } op deze computer
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } op { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Het gesprek past niet meer in wat { $model } in één keer kan lezen. Begin een nieuwe chat, of kies een model dat meer kan lezen.
+assistant-problem-key = { $provider } heeft de API-sleutel geweigerd. Controleer die in Instellingen.
+assistant-problem-rate = { $provider } vraagt om het rustiger aan te doen. Probeer het zo opnieuw.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } vraagt om het rustiger aan te doen: { $message }
+assistant-problem-credit = { $provider } meldt dat het account geen tegoed heeft. Voor een nieuw account moet je eerst tegoed kopen op de site van { $provider } voordat de sleutel werkt; probeer het daarna opnieuw.
+assistant-problem-model = { $provider } heeft geen model met de naam { $model }. Controleer de naam in Instellingen.
+assistant-problem-unavailable = { $provider } is bezet of heeft problemen. Probeer het zo opnieuw.
+assistant-problem-unreachable = prev kon { $provider } niet bereiken. Controleer je verbinding, of dat de server draait.
+assistant-problem-refused = { $model } weigerde te antwoorden.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } heeft niet geantwoord: { $message }

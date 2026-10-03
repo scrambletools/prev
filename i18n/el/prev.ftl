@@ -754,3 +754,91 @@ agent-ask-export = Να επιτραπεί στο { $agent } να εξαγάγε
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = Το { $agent } ζητά να χρησιμοποιήσει το «{ $tool }». Στις Ρυθμίσεις επιλέγετε για τι ρωτά το prev.
 agent-ask-final = Αυτό δεν μπορεί να αναιρεθεί.
+
+## The assistant
+settings-tab-assistant = Βοηθός
+settings-assistant-note = Τα μοντέλα με τα οποία μπορεί να μιλά ο πίνακας του βοηθού. Τα κλειδιά φυλάσσονται στην κλειδοθήκη του συστήματος.
+settings-assistant-none = Δεν υπάρχουν ακόμη μοντέλα. Προσθέστε ένα παρακάτω: ένα τοπικό μοντέλο, όπως ένα του Ollama, μένει σε αυτόν τον υπολογιστή· ένα μοντέλο cloud χρειάζεται κλειδί API από τον πάροχό του.
+settings-assistant-in-use = Σε χρήση
+settings-assistant-use = Χρήση
+settings-assistant-remove = Αφαίρεση
+settings-assistant-add = Προσθήκη μοντέλου
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Διακομιστής συμβατός με OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Μοντέλο, π.χ. { $example }
+settings-assistant-key = Κλειδί API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Διεύθυνση, π.χ. { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Παράθυρο περιβάλλοντος
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands } χιλ. tokens
+settings-assistant-context-note = Μεγαλύτερο παράθυρο επιτρέπει στον βοηθό να διαβάσει μεγαλύτερο μέρος ενός αρχείου σε μία συνομιλία, αλλά το μοντέλο καταλαμβάνει περισσότερη μνήμη και μπορεί να απαντά πιο αργά.
+settings-assistant-add-button = Προσθήκη
+settings-assistant-use-key = Συνέχεια
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Δημιουργήστε ένα κλειδί στον ιστότοπο του παρόχου { $provider } και επικολλήστε το εδώ.
+settings-assistant-get-key = Λήψη κλειδιού API
+settings-assistant-key-kept = Το κλειδί σας για τον πάροχο { $provider } φυλάσσεται στην κλειδοθήκη του συστήματος.
+settings-assistant-change-key = Αλλαγή κλειδιού
+settings-assistant-key-refused = Ο πάροχος { $provider } απέρριψε αυτό το κλειδί. Ελέγξτε ότι αντιγράφηκε ολόκληρο, από τον σωστό λογαριασμό.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = Ο διακομιστής { $provider } εκτελείται στη διεύθυνση { $address }.
+settings-assistant-no-server = Το prev δεν βρήκε διακομιστή { $provider } σε λειτουργία σε αυτόν τον υπολογιστή. Ξεκινήστε τον ή δώστε τη διεύθυνσή του παρακάτω.
+settings-assistant-get-server = Λήψη { $provider }
+settings-assistant-look-again = Νέα αναζήτηση
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Χρήση άλλης διεύθυνσης
+settings-assistant-looking = Αναζήτηση μοντέλων…
+settings-assistant-found-none = Ο διακομιστής { $provider } δεν έχει ακόμη μοντέλα. Κατεβάστε ένα μέσω αυτού και αναζητήστε ξανά.
+settings-assistant-recommended = Προτείνεται
+settings-assistant-uses-tools = Χρησιμοποιεί εργαλεία
+settings-assistant-sees = Βλέπει εικόνες
+settings-assistant-no-tools = Δεν μπορεί να χρησιμοποιήσει εργαλεία, που τα χρειάζεται ο βοηθός
+settings-assistant-added-tag = Προστέθηκε
+settings-assistant-trying = Δοκιμή…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Άνοιγμα σελίδας
+# $model is the model's name.
+settings-assistant-added = Το μοντέλο { $model } απάντησε και προστέθηκε.
+settings-assistant-key-needed = Αυτό το μοντέλο χρειάζεται κλειδί API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Δεν ήταν δυνατή η φύλαξη του κλειδιού στην κλειδοθήκη: { $error }
+assistant-title = Βοηθός
+assistant-new-chat = Νέα συνομιλία
+assistant-ask = Ρωτήστε για αυτό το αρχείο
+assistant-send = Αποστολή
+assistant-stop = Διακοπή
+assistant-thinking = Σκέφτεται…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Σκέψεις
+assistant-running = Εκτελείται…
+assistant-stopped = Διακόπηκε.
+assistant-no-model = Προσθέστε πρώτα ένα μοντέλο στις Ρυθμίσεις.
+assistant-add-model = Ο βοηθός χρειάζεται ένα μοντέλο: ένα μοντέλο cloud με το κλειδί API του ή ένα τοπικό μοντέλο.
+assistant-open-settings = Προσθήκη μοντέλου
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Τώρα μιλάτε με το μοντέλο { $model }.
+assistant-add-another = Προσθήκη μοντέλου…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } σε αυτόν τον υπολογιστή
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } στη διεύθυνση { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Η συνομιλία δεν χωρά πλέον σε όσα μπορεί να διαβάσει μονομιάς το μοντέλο { $model }. Ξεκινήστε νέα συνομιλία ή επιλέξτε ένα μοντέλο που διαβάζει περισσότερα.
+assistant-problem-key = Ο πάροχος { $provider } απέρριψε το κλειδί API. Ελέγξτε το στις Ρυθμίσεις.
+assistant-problem-rate = Ο πάροχος { $provider } ζητά να μειωθεί ο ρυθμός των αιτημάτων. Δοκιμάστε ξανά σε λίγο.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = Ο πάροχος { $provider } ζητά να μειωθεί ο ρυθμός των αιτημάτων: { $message }
+assistant-problem-credit = Ο πάροχος { $provider } αναφέρει ότι ο λογαριασμός δεν έχει υπόλοιπο πίστωσης. Σε νέο λογαριασμό πρέπει πρώτα να αγοράσετε πίστωση στον ιστότοπο του παρόχου { $provider } για να λειτουργήσει το κλειδί· έπειτα δοκιμάστε ξανά.
+assistant-problem-model = Ο πάροχος { $provider } δεν έχει μοντέλο με το όνομα { $model }. Ελέγξτε το όνομά του στις Ρυθμίσεις.
+assistant-problem-unavailable = Ο πάροχος { $provider } είναι απασχολημένος ή αντιμετωπίζει προβλήματα. Δοκιμάστε ξανά σε λίγο.
+assistant-problem-unreachable = Το prev δεν μπόρεσε να συνδεθεί με τον πάροχο { $provider }. Ελέγξτε τη σύνδεσή σας ή ότι ο διακομιστής λειτουργεί.
+assistant-problem-refused = Το μοντέλο { $model } αρνήθηκε να απαντήσει.
+# $message is what the provider said, untranslated.
+assistant-problem-other = Το μοντέλο { $model } δεν απάντησε: { $message }

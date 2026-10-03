@@ -742,3 +742,91 @@ agent-ask-export = อนุญาตให้ { $agent } ส่งออกไ�
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } ขอใช้ “{ $tool }” คุณเลือกได้ในการตั้งค่าว่าจะให้ prev ถามเรื่องใดบ้าง
 agent-ask-final = เลิกทำสิ่งนี้ไม่ได้
+
+## The assistant
+settings-tab-assistant = ผู้ช่วย
+settings-assistant-note = โมเดลที่แผงผู้ช่วยใช้งานได้ คีย์จะเก็บไว้ในพวงกุญแจของระบบ
+settings-assistant-none = ยังไม่มีโมเดล เพิ่มได้ด้านล่าง โมเดลภายในเครื่อง เช่น โมเดลของ Ollama จะทำงานอยู่บนคอมพิวเตอร์เครื่องนี้เท่านั้น ส่วนโมเดลบนคลาวด์ต้องใช้คีย์ API จากผู้ให้บริการ
+settings-assistant-in-use = กำลังใช้
+settings-assistant-use = ใช้
+settings-assistant-remove = เอาออก
+settings-assistant-add = เพิ่มโมเดล
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = เซิร์ฟเวอร์ที่เข้ากันได้กับ OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = โมเดล เช่น { $example }
+settings-assistant-key = คีย์ API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = ที่อยู่ เช่น { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = บริบท
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K โทเค็น
+settings-assistant-context-note = ค่าที่มากขึ้นทำให้ผู้ช่วยอ่านไฟล์ได้มากขึ้นในการแชทครั้งเดียว แต่โมเดลจะใช้หน่วยความจำมากขึ้นและอาจตอบช้าลง
+settings-assistant-add-button = เพิ่ม
+settings-assistant-use-key = ดำเนินการต่อ
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = สร้างคีย์บนเว็บไซต์ของ { $provider } แล้ววางที่นี่
+settings-assistant-get-key = รับคีย์ API
+settings-assistant-key-kept = คีย์ { $provider } ของคุณเก็บไว้ในพวงกุญแจของระบบ
+settings-assistant-change-key = เปลี่ยนคีย์
+settings-assistant-key-refused = { $provider } ปฏิเสธคีย์นี้ ตรวจสอบว่าคัดลอกคีย์มาครบถ้วนและมาจากบัญชีที่ถูกต้อง
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } กำลังทำงานอยู่ที่ { $address }
+settings-assistant-no-server = prev ไม่พบ { $provider } ที่ทำงานอยู่บนคอมพิวเตอร์เครื่องนี้ เริ่ม { $provider } หรือใส่ที่อยู่ด้านล่าง
+settings-assistant-get-server = รับ { $provider }
+settings-assistant-look-again = ค้นหาอีกครั้ง
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = ใช้ที่อยู่อื่น
+settings-assistant-looking = กำลังค้นหาโมเดล…
+settings-assistant-found-none = { $provider } ยังไม่มีโมเดล ดาวน์โหลดโมเดลด้วย { $provider } แล้วค้นหาอีกครั้ง
+settings-assistant-recommended = แนะนำ
+settings-assistant-uses-tools = ใช้เครื่องมือได้
+settings-assistant-sees = ดูรูปภาพได้
+settings-assistant-no-tools = ใช้เครื่องมือไม่ได้ ซึ่งผู้ช่วยจำเป็นต้องใช้
+settings-assistant-added-tag = เพิ่มแล้ว
+settings-assistant-trying = กำลังลอง…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = เปิดหน้าเว็บ
+# $model is the model's name.
+settings-assistant-added = { $model } ตอบกลับแล้วและถูกเพิ่มแล้ว
+settings-assistant-key-needed = โมเดลนี้ต้องใช้คีย์ API
+# $error is what the keychain said.
+settings-assistant-key-failed = ไม่สามารถเก็บคีย์ไว้ในพวงกุญแจได้: { $error }
+assistant-title = ผู้ช่วย
+assistant-new-chat = แชทใหม่
+assistant-ask = ถามเกี่ยวกับไฟล์นี้
+assistant-send = ส่ง
+assistant-stop = หยุด
+assistant-thinking = กำลังคิด…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = ความคิด
+assistant-running = กำลังทำงาน…
+assistant-stopped = หยุดแล้ว
+assistant-no-model = เพิ่มโมเดลในการตั้งค่าก่อน
+assistant-add-model = ผู้ช่วยต้องใช้โมเดล ได้แก่ โมเดลบนคลาวด์พร้อมคีย์ API หรือโมเดลภายในเครื่อง
+assistant-open-settings = เพิ่มโมเดล
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = กำลังคุยกับ { $model }
+assistant-add-another = เพิ่มโมเดล…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } บนคอมพิวเตอร์เครื่องนี้
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } ที่ { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = บทสนทนายาวเกินกว่าที่ { $model } จะอ่านได้ในครั้งเดียว เริ่มแชทใหม่ หรือเลือกโมเดลที่อ่านได้มากกว่า
+assistant-problem-key = { $provider } ปฏิเสธคีย์ API ตรวจสอบคีย์ในการตั้งค่า
+assistant-problem-rate = { $provider } ขอให้ส่งคำขอช้าลง ลองอีกครั้งในอีกสักครู่
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } ขอให้ส่งคำขอช้าลง: { $message }
+assistant-problem-credit = { $provider } แจ้งว่าบัญชีไม่มีเครดิต บัญชีใหม่ต้องซื้อเครดิตบนเว็บไซต์ของ { $provider } ก่อนจึงจะใช้คีย์ได้ จากนั้นลองอีกครั้ง
+assistant-problem-model = { $provider } ไม่มีโมเดลชื่อ { $model } ตรวจสอบชื่อในการตั้งค่า
+assistant-problem-unavailable = { $provider } ไม่ว่างหรือมีปัญหา ลองอีกครั้งในอีกสักครู่
+assistant-problem-unreachable = prev เชื่อมต่อกับ { $provider } ไม่ได้ ตรวจสอบการเชื่อมต่อ หรือตรวจสอบว่าเซิร์ฟเวอร์กำลังทำงานอยู่
+assistant-problem-refused = { $model } ปฏิเสธที่จะตอบ
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } ไม่ได้ตอบ: { $message }

@@ -760,3 +760,92 @@ agent-ask-export = Vols permetre que { $agent } exporti aquest fitxer?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } demana fer servir «{ $tool }». A Configuració pots triar què pregunta el prev.
 agent-ask-final = Aquesta acció no es pot desfer.
+
+## The assistant
+
+settings-tab-assistant = Assistent
+settings-assistant-note = Els models amb què pot parlar el plafó de l'assistent. Les claus es desen al clauer del sistema.
+settings-assistant-none = Encara no hi ha cap model. Afegeix-ne un a sota: un model local, com els d'Ollama, es queda en aquest ordinador; un model al núvol necessita una clau d'API del seu proveïdor.
+settings-assistant-in-use = En ús
+settings-assistant-use = Fes servir
+settings-assistant-remove = Elimina
+settings-assistant-add = Afegeix un model
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Servidor compatible amb OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Model, com ara { $example }
+settings-assistant-key = Clau d'API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Adreça, com ara { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Context
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K tokens
+settings-assistant-context-note = Més context permet que l'assistent llegeixi una part més gran d'un fitxer en un xat, però el model ocupa més memòria i pot respondre més a poc a poc.
+settings-assistant-add-button = Afegeix
+settings-assistant-use-key = Continua
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Crea una clau a { $provider } i enganxa-la aquí.
+settings-assistant-get-key = Obtén una clau d'API
+settings-assistant-key-kept = La teva clau per a { $provider } es desa al clauer del sistema.
+settings-assistant-change-key = Canvia la clau
+settings-assistant-key-refused = { $provider } ha rebutjat aquesta clau. Comprova que s'ha copiat sencera i del compte correcte.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } s'està executant a { $address }.
+settings-assistant-no-server = El prev no ha trobat { $provider } en execució en aquest ordinador. Inicia'l o indica'n l'adreça a sota.
+settings-assistant-get-server = Obtén { $provider }
+settings-assistant-look-again = Torna a cercar
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Fes servir una altra adreça
+settings-assistant-looking = S'estan cercant models…
+settings-assistant-found-none = { $provider } encara no té cap model. Baixa'n un amb { $provider } i torna a cercar.
+settings-assistant-recommended = Recomanat
+settings-assistant-uses-tools = Fa servir eines
+settings-assistant-sees = Veu imatges
+settings-assistant-no-tools = No pot fer servir eines, i l'assistent les necessita
+settings-assistant-added-tag = Afegit
+settings-assistant-trying = S'està provant…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Obre la pàgina
+# $model is the model's name.
+settings-assistant-added = { $model } ha respost i s'ha afegit.
+settings-assistant-key-needed = Aquest model necessita una clau d'API.
+# $error is what the keychain said.
+settings-assistant-key-failed = No s'ha pogut desar la clau al clauer: { $error }
+assistant-title = Assistent
+assistant-new-chat = Xat nou
+assistant-ask = Pregunta sobre aquest fitxer
+assistant-send = Envia
+assistant-stop = Atura
+assistant-thinking = S'està pensant…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Raonament
+assistant-running = S'està executant…
+assistant-stopped = Aturat.
+assistant-no-model = Primer afegeix un model a Configuració.
+assistant-add-model = L'assistent necessita un model: un model al núvol amb la seva clau d'API, o un model local.
+assistant-open-settings = Afegeix un model
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Ara parles amb { $model }.
+assistant-add-another = Afegeix un model…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } en aquest ordinador
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } a { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = La conversa ja no cap en el que { $model } pot llegir alhora. Comença un xat nou o tria un model que pugui llegir més.
+assistant-problem-key = { $provider } ha rebutjat la clau d'API. Revisa-la a Configuració.
+assistant-problem-rate = { $provider } demana anar més a poc a poc. Torna-ho a provar d'aquí a un moment.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } demana anar més a poc a poc: { $message }
+assistant-problem-credit = { $provider } diu que el compte no té crèdit. Un compte nou n'ha de comprar a { $provider } perquè la clau funcioni; després torna-ho a provar.
+assistant-problem-model = { $provider } no té cap model anomenat { $model }. Comprova'n el nom a Configuració.
+assistant-problem-unavailable = { $provider } està ocupat o té problemes. Torna-ho a provar d'aquí a un moment.
+assistant-problem-unreachable = El prev no ha pogut connectar amb { $provider }. Comprova la connexió o que el servidor s'estigui executant.
+assistant-problem-refused = { $model } ha declinat respondre.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } no ha respost: { $message }

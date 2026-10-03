@@ -886,3 +886,91 @@ agent-ask-export = { $agent }이(가) 이 파일을 내보내도록 허용하시
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent }이(가) “{ $tool }”을(를) 사용하려고 합니다. prev가 무엇을 물을지는 설정에서 선택합니다.
 agent-ask-final = 이 작업은 실행 취소할 수 없습니다.
+
+## The assistant
+settings-tab-assistant = 어시스턴트
+settings-assistant-note = 어시스턴트 패널에서 사용할 수 있는 모델입니다. 키는 시스템 키체인에 보관됩니다.
+settings-assistant-none = 아직 모델이 없습니다. 아래에서 추가하세요. Ollama 같은 로컬 모델은 이 컴퓨터 안에서만 실행되고, 클라우드 모델은 제공업체의 API 키가 필요합니다.
+settings-assistant-in-use = 사용 중
+settings-assistant-use = 사용
+settings-assistant-remove = 제거
+settings-assistant-add = 모델 추가
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI 호환 서버
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = 모델(예: { $example })
+settings-assistant-key = API 키
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = 주소(예: { $example })
+# The menu of how much a local model reads at once.
+settings-assistant-context = 컨텍스트
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K 토큰
+settings-assistant-context-note = 크게 설정하면 어시스턴트가 한 번의 채팅에서 파일을 더 많이 읽을 수 있지만, 모델이 메모리를 더 많이 사용하고 응답이 느려질 수 있습니다.
+settings-assistant-add-button = 추가
+settings-assistant-use-key = 계속
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = { $provider } 사이트에서 키를 만들어 여기에 붙여 넣으세요.
+settings-assistant-get-key = API 키 받기
+settings-assistant-key-kept = { $provider } 키는 시스템 키체인에 보관되어 있습니다.
+settings-assistant-change-key = 키 변경
+settings-assistant-key-refused = { $provider }에서 이 키를 거부했습니다. 올바른 계정의 키를 빠짐없이 복사했는지 확인하세요.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider }이(가) { $address }에서 실행 중입니다.
+settings-assistant-no-server = prev가 이 컴퓨터에서 실행 중인 { $provider }을(를) 찾지 못했습니다. { $provider }을(를) 시작하거나 아래에 주소를 입력하세요.
+settings-assistant-get-server = { $provider } 받기
+settings-assistant-look-again = 다시 찾기
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = 다른 주소 사용
+settings-assistant-looking = 모델을 찾는 중…
+settings-assistant-found-none = { $provider }에 아직 모델이 없습니다. { $provider }(으)로 모델을 다운로드한 다음 다시 찾으세요.
+settings-assistant-recommended = 추천
+settings-assistant-uses-tools = 도구 사용
+settings-assistant-sees = 이미지 인식
+settings-assistant-no-tools = 도구를 사용할 수 없음(어시스턴트에 필요함)
+settings-assistant-added-tag = 추가됨
+settings-assistant-trying = 확인 중…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = 페이지 열기
+# $model is the model's name.
+settings-assistant-added = { $model }이(가) 응답하여 추가되었습니다.
+settings-assistant-key-needed = 이 모델에는 API 키가 필요합니다.
+# $error is what the keychain said.
+settings-assistant-key-failed = 키를 키체인에 보관할 수 없습니다: { $error }
+assistant-title = 어시스턴트
+assistant-new-chat = 새 채팅
+assistant-ask = 이 파일에 대해 질문하기
+assistant-send = 보내기
+assistant-stop = 중단
+assistant-thinking = 생각하는 중…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = 생각
+assistant-running = 실행 중…
+assistant-stopped = 중단되었습니다.
+assistant-no-model = 먼저 설정에서 모델을 추가하세요.
+assistant-add-model = 어시스턴트에는 모델이 필요합니다. API 키가 있는 클라우드 모델이나 로컬 모델을 추가하세요.
+assistant-open-settings = 모델 추가
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = 이제 { $model }과(와) 대화합니다.
+assistant-add-another = 모델 추가…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = 이 컴퓨터의 { $provider }
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $host }의 { $provider }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = 대화가 { $model }이(가) 한 번에 읽을 수 있는 양을 넘었습니다. 새 채팅을 시작하거나 더 많이 읽을 수 있는 모델을 선택하세요.
+assistant-problem-key = { $provider }에서 API 키를 거부했습니다. 설정에서 키를 확인하세요.
+assistant-problem-rate = { $provider }에서 요청 속도를 낮춰 달라고 합니다. 잠시 후 다시 시도하세요.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider }에서 요청 속도를 낮춰 달라고 합니다: { $message }
+assistant-problem-credit = { $provider }에 따르면 계정에 크레딧이 없습니다. 새 계정은 { $provider } 사이트에서 크레딧을 구입해야 키를 사용할 수 있습니다. 구입한 다음 다시 시도하세요.
+assistant-problem-model = { $provider }에 { $model }(이)라는 모델이 없습니다. 설정에서 이름을 확인하세요.
+assistant-problem-unavailable = { $provider }이(가) 사용량이 많거나 문제가 있습니다. 잠시 후 다시 시도하세요.
+assistant-problem-unreachable = prev가 { $provider }에 연결할 수 없습니다. 인터넷 연결이나 서버가 실행 중인지 확인하세요.
+assistant-problem-refused = { $model }이(가) 답변을 거절했습니다.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model }이(가) 응답하지 않았습니다: { $message }

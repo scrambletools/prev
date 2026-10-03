@@ -758,3 +758,91 @@ agent-ask-export = לאפשר ל-{ $agent } לייצא את הקובץ הזה?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } מבקש להשתמש ב-"{ $tool }". בהגדרות אפשר לבחור על מה prev שואל.
 agent-ask-final = אי אפשר לבטל את הפעולה הזו.
+
+## The assistant
+settings-tab-assistant = עוזר
+settings-assistant-note = המודלים שחלונית העוזר יכולה לדבר איתם. המפתחות נשמרים בצרור המפתחות של המערכת.
+settings-assistant-none = אין עדיין מודלים. אפשר להוסיף אחד למטה: מודל מקומי, כמו של Ollama, נשאר במחשב הזה; מודל בענן צריך מפתח API מהספק שלו.
+settings-assistant-in-use = בשימוש
+settings-assistant-use = שימוש
+settings-assistant-remove = הסרה
+settings-assistant-add = הוספת מודל
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = שרת תואם OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = מודל, למשל { $example }
+settings-assistant-key = מפתח API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = כתובת, למשל { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = הקשר
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K טוקנים
+settings-assistant-context-note = ערך גבוה יותר מאפשר לעוזר לקרוא חלק גדול יותר מהקובץ בשיחה אחת, אבל המודל צורך יותר זיכרון ועשוי לענות לאט יותר.
+settings-assistant-add-button = הוספה
+settings-assistant-use-key = המשך
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = יש ליצור מפתח באתר של { $provider } ולהדביק אותו כאן.
+settings-assistant-get-key = קבלת מפתח API
+settings-assistant-key-kept = המפתח שלך ל-{ $provider } נשמר בצרור המפתחות של המערכת.
+settings-assistant-change-key = החלפת המפתח
+settings-assistant-key-refused = { $provider } דחה את המפתח הזה. כדאי לבדוק שהוא הועתק במלואו ומהחשבון הנכון.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } פועל בכתובת { $address }.
+settings-assistant-no-server = prev לא מצא { $provider } שפועל במחשב הזה. אפשר להפעיל אותו, או לתת את הכתובת שלו למטה.
+settings-assistant-get-server = הורדת { $provider }
+settings-assistant-look-again = חיפוש חוזר
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = שימוש בכתובת אחרת
+settings-assistant-looking = מחפש מודלים…
+settings-assistant-found-none = אין עדיין מודלים ב-{ $provider }. אפשר להוריד מודל דרכו ואז לחפש שוב.
+settings-assistant-recommended = מומלץ
+settings-assistant-uses-tools = משתמש בכלים
+settings-assistant-sees = רואה תמונות
+settings-assistant-no-tools = לא יכול להשתמש בכלים, והעוזר זקוק להם
+settings-assistant-added-tag = נוסף
+settings-assistant-trying = מנסה…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = פתיחת הדף
+# $model is the model's name.
+settings-assistant-added = { $model } ענה ונוסף.
+settings-assistant-key-needed = המודל הזה צריך מפתח API.
+# $error is what the keychain said.
+settings-assistant-key-failed = לא ניתן לשמור את המפתח בצרור המפתחות: { $error }
+assistant-title = עוזר
+assistant-new-chat = שיחה חדשה
+assistant-ask = שאלה על הקובץ הזה
+assistant-send = שליחה
+assistant-stop = עצירה
+assistant-thinking = חושב…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = מחשבות
+assistant-running = פועל…
+assistant-stopped = נעצר.
+assistant-no-model = קודם צריך להוסיף מודל בהגדרות.
+assistant-add-model = העוזר צריך מודל: מודל בענן עם מפתח ה-API שלו, או מודל מקומי.
+assistant-open-settings = הוספת מודל
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = השיחה עכשיו עם { $model }.
+assistant-add-another = הוספת מודל…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } במחשב הזה
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } בכתובת { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = השיחה כבר גדולה ממה ש-{ $model } יכול לקרוא בבת אחת. אפשר להתחיל שיחה חדשה, או לבחור מודל שיכול לקרוא יותר.
+assistant-problem-key = { $provider } דחה את מפתח ה-API. אפשר לבדוק אותו בהגדרות.
+assistant-problem-rate = { $provider } מבקש להאט. אפשר לנסות שוב בעוד רגע.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } מבקש להאט: { $message }
+assistant-problem-credit = לפי { $provider }, אין בחשבון קרדיט. בחשבון חדש צריך לקנות קרדיט באתר של { $provider } לפני שהמפתח יעבוד; אחר כך אפשר לנסות שוב.
+assistant-problem-model = ל-{ $provider } אין מודל בשם { $model }. אפשר לבדוק את השם שלו בהגדרות.
+assistant-problem-unavailable = { $provider } עמוס או שיש בו תקלה. אפשר לנסות שוב בעוד רגע.
+assistant-problem-unreachable = prev לא הצליח להתחבר ל-{ $provider }. כדאי לבדוק את החיבור, או שהשרת פועל.
+assistant-problem-refused = { $model } סירב לענות.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } לא ענה: { $message }

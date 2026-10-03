@@ -759,3 +759,91 @@ agent-ask-export = Ruhusu { $agent } kuhamisha faili hii?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } anaomba kutumia “{ $tool }”. Katika Mipangilio unachagua mambo ambayo prev huuliza.
 agent-ask-final = Hili haliwezi kutenduliwa.
+
+## The assistant
+settings-tab-assistant = Msaidizi
+settings-assistant-note = Modeli ambazo kidirisha cha msaidizi kinaweza kuzungumza nazo. Funguo huhifadhiwa katika hifadhi ya funguo ya mfumo.
+settings-assistant-none = Bado hakuna modeli. Ongeza moja hapa chini: modeli ya ndani, kama ile ya Ollama, hubaki kwenye kompyuta hii; modeli ya wingu inahitaji ufunguo wa API kutoka kwa mtoa huduma wake.
+settings-assistant-in-use = Inatumika
+settings-assistant-use = Tumia
+settings-assistant-remove = Ondoa
+settings-assistant-add = Ongeza modeli
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Seva inayooana na OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Modeli, kwa mfano { $example }
+settings-assistant-key = Ufunguo wa API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Anwani, kwa mfano { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Muktadha
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = Tokeni { $thousands }K
+settings-assistant-context-note = Muktadha mkubwa zaidi humwezesha msaidizi kusoma sehemu kubwa zaidi ya faili katika gumzo moja, lakini modeli hutumia kumbukumbu zaidi na huenda ikajibu polepole zaidi.
+settings-assistant-add-button = Ongeza
+settings-assistant-use-key = Endelea
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Tengeneza ufunguo kwenye tovuti ya { $provider } kisha uubandike hapa.
+settings-assistant-get-key = Pata ufunguo wa API
+settings-assistant-key-kept = Ufunguo wako wa { $provider } umehifadhiwa katika hifadhi ya funguo ya mfumo.
+settings-assistant-change-key = Badilisha ufunguo
+settings-assistant-key-refused = { $provider } imekataa ufunguo huu. Hakikisha umenakiliwa wote, kutoka kwa akaunti sahihi.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } inaendeshwa kwenye { $address }.
+settings-assistant-no-server = prev haikupata { $provider } ikiendeshwa kwenye kompyuta hii. Iwashe, au weka anwani yake hapa chini.
+settings-assistant-get-server = Pata { $provider }
+settings-assistant-look-again = Tafuta tena
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Tumia anwani nyingine
+settings-assistant-looking = Inatafuta modeli…
+settings-assistant-found-none = { $provider } bado haina modeli. Pakua moja kwa kuitumia, kisha utafute tena.
+settings-assistant-recommended = Inapendekezwa
+settings-assistant-uses-tools = Hutumia zana
+settings-assistant-sees = Huona picha
+settings-assistant-no-tools = Haiwezi kutumia zana, ambazo msaidizi anahitaji
+settings-assistant-added-tag = Imeongezwa
+settings-assistant-trying = Inajaribu…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Fungua ukurasa
+# $model is the model's name.
+settings-assistant-added = { $model } imejibu na imeongezwa.
+settings-assistant-key-needed = Modeli hii inahitaji ufunguo wa API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Ufunguo haukuweza kuhifadhiwa katika hifadhi ya funguo: { $error }
+assistant-title = Msaidizi
+assistant-new-chat = Gumzo jipya
+assistant-ask = Uliza kuhusu faili hii
+assistant-send = Tuma
+assistant-stop = Simamisha
+assistant-thinking = Inafikiri…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Mawazo
+assistant-running = Inaendesha…
+assistant-stopped = Imesimamishwa.
+assistant-no-model = Ongeza modeli katika Mipangilio kwanza.
+assistant-add-model = Msaidizi anahitaji modeli: modeli ya wingu pamoja na ufunguo wake wa API, au modeli ya ndani.
+assistant-open-settings = Ongeza modeli
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Sasa unazungumza na { $model }.
+assistant-add-another = Ongeza modeli…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } kwenye kompyuta hii
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } kwenye { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Mazungumzo hayatoshi tena katika kiasi ambacho { $model } inaweza kusoma kwa wakati mmoja. Anzisha gumzo jipya, au chagua modeli inayoweza kusoma zaidi.
+assistant-problem-key = { $provider } imekataa ufunguo wa API. Uangalie katika Mipangilio.
+assistant-problem-rate = { $provider } inaomba upunguze kasi. Jaribu tena baada ya muda mfupi.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } inaomba upunguze kasi: { $message }
+assistant-problem-credit = { $provider } inasema akaunti haina salio. Akaunti mpya inahitaji kununua salio kwenye tovuti ya { $provider } kabla ufunguo wake haujafanya kazi; kisha jaribu tena.
+assistant-problem-model = { $provider } haina modeli inayoitwa { $model }. Angalia jina lake katika Mipangilio.
+assistant-problem-unavailable = { $provider } ina shughuli nyingi au ina tatizo. Jaribu tena baada ya muda mfupi.
+assistant-problem-unreachable = prev haikuweza kufikia { $provider }. Angalia muunganisho wako, au kama seva inaendeshwa.
+assistant-problem-refused = { $model } imekataa kujibu.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } haikujibu: { $message }

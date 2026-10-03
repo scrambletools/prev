@@ -761,3 +761,92 @@ agent-ask-export = Permitir que { $agent } exporte este ficheiro?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } pede para usar «{ $tool }». Nas Definições, escolhe sobre o que o prev pergunta.
 agent-ask-final = Isto não pode ser anulado.
+
+## The assistant
+
+settings-tab-assistant = Assistente
+settings-assistant-note = Os modelos com que o painel do assistente pode conversar. As chaves ficam guardadas no porta-chaves do sistema.
+settings-assistant-none = Ainda não há modelos. Adicione um abaixo: um modelo local, como os do Ollama, fica neste computador; um modelo na nuvem precisa de uma chave de API do respetivo fornecedor.
+settings-assistant-in-use = Em utilização
+settings-assistant-use = Utilizar
+settings-assistant-remove = Remover
+settings-assistant-add = Adicionar um modelo
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Servidor compatível com OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Modelo, por exemplo { $example }
+settings-assistant-key = Chave de API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Endereço, por exemplo { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Contexto
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K tokens
+settings-assistant-context-note = Mais contexto permite ao assistente ler uma parte maior de um ficheiro numa conversa, mas o modelo ocupa mais memória e pode responder mais devagar.
+settings-assistant-add-button = Adicionar
+settings-assistant-use-key = Continuar
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Crie uma chave no site de { $provider } e cole-a aqui.
+settings-assistant-get-key = Obter uma chave de API
+settings-assistant-key-kept = A sua chave de { $provider } fica guardada no porta-chaves do sistema.
+settings-assistant-change-key = Alterar chave
+settings-assistant-key-refused = { $provider } recusou esta chave. Verifique se foi copiada por inteiro, a partir da conta certa.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } está em execução em { $address }.
+settings-assistant-no-server = O prev não encontrou { $provider } em execução neste computador. Inicie-o ou indique o respetivo endereço abaixo.
+settings-assistant-get-server = Obter { $provider }
+settings-assistant-look-again = Procurar novamente
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Utilizar outro endereço
+settings-assistant-looking = A procurar modelos…
+settings-assistant-found-none = { $provider } ainda não tem modelos. Transfira um com { $provider } e procure novamente.
+settings-assistant-recommended = Recomendado
+settings-assistant-uses-tools = Utiliza ferramentas
+settings-assistant-sees = Vê imagens
+settings-assistant-no-tools = Não pode utilizar ferramentas, de que o assistente precisa
+settings-assistant-added-tag = Adicionado
+settings-assistant-trying = A testar…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Abrir a página
+# $model is the model's name.
+settings-assistant-added = { $model } respondeu e foi adicionado.
+settings-assistant-key-needed = Este modelo precisa de uma chave de API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Não foi possível guardar a chave no porta-chaves: { $error }
+assistant-title = Assistente
+assistant-new-chat = Nova conversa
+assistant-ask = Pergunte sobre este ficheiro
+assistant-send = Enviar
+assistant-stop = Parar
+assistant-thinking = A pensar…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Raciocínio
+assistant-running = Em execução…
+assistant-stopped = Parado.
+assistant-no-model = Primeiro, adicione um modelo nas Definições.
+assistant-add-model = O assistente precisa de um modelo: um modelo na nuvem com a respetiva chave de API, ou um modelo local.
+assistant-open-settings = Adicionar um modelo
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Agora a conversar com { $model }.
+assistant-add-another = Adicionar um modelo…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } neste computador
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } em { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = A conversa já não cabe no que { $model } consegue ler de uma vez. Comece uma nova conversa ou escolha um modelo que consiga ler mais.
+assistant-problem-key = { $provider } recusou a chave de API. Verifique-a nas Definições.
+assistant-problem-rate = { $provider } pede para abrandar. Tente novamente daqui a pouco.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } pede para abrandar: { $message }
+assistant-problem-credit = { $provider } indica que a conta não tem crédito. Uma conta nova tem de comprar crédito no site de { $provider } antes de a chave funcionar; depois, tente novamente.
+assistant-problem-model = { $provider } não tem nenhum modelo chamado { $model }. Verifique o nome nas Definições.
+assistant-problem-unavailable = { $provider } está ocupado ou com problemas. Tente novamente daqui a pouco.
+assistant-problem-unreachable = O prev não conseguiu contactar { $provider }. Verifique a sua ligação ou se o servidor está em execução.
+assistant-problem-refused = { $model } recusou-se a responder.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } não respondeu: { $message }

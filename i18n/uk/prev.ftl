@@ -926,3 +926,91 @@ agent-ask-export = Дозволити агентові { $agent } експорт
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } просить використати «{ $tool }». У параметрах можна вибрати, про що питає prev.
 agent-ask-final = Цю дію не можна відмінити.
+
+## The assistant
+settings-tab-assistant = Асистент
+settings-assistant-note = Моделі, з якими може спілкуватися панель асистента. Ключі зберігаються в системній в’язці ключів.
+settings-assistant-none = Моделей ще немає. Додайте модель нижче: локальна модель, наприклад в Ollama, залишається на цьому комп’ютері; хмарній моделі потрібен ключ API від її постачальника.
+settings-assistant-in-use = Використовується
+settings-assistant-use = Використати
+settings-assistant-remove = Видалити
+settings-assistant-add = Додати модель
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Сервер, сумісний з OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Модель, наприклад { $example }
+settings-assistant-key = Ключ API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Адреса, наприклад { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Контекст
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands } тис. токенів
+settings-assistant-context-note = Що більший контекст, то більшу частину файлу асистент зможе прочитати в одному чаті, але модель займе більше пам’яті й може відповідати повільніше.
+settings-assistant-add-button = Додати
+settings-assistant-use-key = Продовжити
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Створіть ключ на сайті постачальника { $provider } і вставте його сюди.
+settings-assistant-get-key = Отримати ключ API
+settings-assistant-key-kept = Ваш ключ для постачальника { $provider } зберігається в системній в’язці ключів.
+settings-assistant-change-key = Змінити ключ
+settings-assistant-key-refused = Постачальник { $provider } відхилив цей ключ. Перевірте, чи його скопійовано повністю і з потрібного облікового запису.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = Сервер { $provider } працює за адресою { $address }.
+settings-assistant-no-server = На цьому комп’ютері не знайдено запущеного сервера { $provider }. Запустіть його або вкажіть його адресу нижче.
+settings-assistant-get-server = Завантажити { $provider }
+settings-assistant-look-again = Шукати знову
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Використати іншу адресу
+settings-assistant-looking = Пошук моделей…
+settings-assistant-found-none = На сервері { $provider } ще немає моделей. Завантажте модель за його допомогою і пошукайте знову.
+settings-assistant-recommended = Рекомендовано
+settings-assistant-uses-tools = Використовує інструменти
+settings-assistant-sees = Бачить зображення
+settings-assistant-no-tools = Не вміє використовувати інструменти, потрібні асистентові
+settings-assistant-added-tag = Додано
+settings-assistant-trying = Перевірка…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Відкрити сторінку
+# $model is the model's name.
+settings-assistant-added = Модель { $model } відповіла й додана.
+settings-assistant-key-needed = Цій моделі потрібен ключ API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Не вдалося зберегти ключ у в’язці ключів: { $error }
+assistant-title = Асистент
+assistant-new-chat = Новий чат
+assistant-ask = Запитайте про цей файл
+assistant-send = Надіслати
+assistant-stop = Зупинити
+assistant-thinking = Думає…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Міркування
+assistant-running = Виконується…
+assistant-stopped = Зупинено.
+assistant-no-model = Спершу додайте модель у параметрах.
+assistant-add-model = Асистентові потрібна модель: хмарна модель із ключем API або локальна модель.
+assistant-open-settings = Додати модель
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Тепер ви спілкуєтеся з моделлю { $model }.
+assistant-add-another = Додати модель…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } на цьому комп’ютері
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } за адресою { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Розмова більше не вміщується в обсяг, який модель { $model } може прочитати за раз. Почніть новий чат або виберіть модель, яка читає більше.
+assistant-problem-key = Постачальник { $provider } відхилив ключ API. Перевірте його в параметрах.
+assistant-problem-rate = Постачальник { $provider } просить зменшити частоту запитів. Спробуйте ще раз трохи згодом.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = Постачальник { $provider } просить зменшити частоту запитів: { $message }
+assistant-problem-credit = Постачальник { $provider } повідомляє, що на балансі облікового запису немає коштів. Для нового облікового запису спершу потрібно поповнити баланс на сайті постачальника { $provider }, лише тоді ключ запрацює; потім спробуйте ще раз.
+assistant-problem-model = Постачальник { $provider } не має моделі з назвою { $model }. Перевірте її назву в параметрах.
+assistant-problem-unavailable = Постачальник { $provider } перевантажений або має проблеми. Спробуйте ще раз трохи згодом.
+assistant-problem-unreachable = prev не вдалося зв’язатися з постачальником { $provider }. Перевірте підключення або чи працює сервер.
+assistant-problem-refused = Модель { $model } відмовилася відповідати.
+# $message is what the provider said, untranslated.
+assistant-problem-other = Модель { $model } не відповіла: { $message }

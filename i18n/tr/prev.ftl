@@ -895,3 +895,91 @@ agent-ask-export = { $agent } bu dosyayı dışa aktarabilsin mi?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent }, “{ $tool }” aracını kullanmak istiyor. prev'in neleri soracağını Ayarlar'dan seçebilirsiniz.
 agent-ask-final = Bu işlem geri alınamaz.
+
+## The assistant
+settings-tab-assistant = Asistan
+settings-assistant-note = Asistan panelinin konuşabildiği modeller. Anahtarlar sistemin kimlik bilgisi deposunda saklanır.
+settings-assistant-none = Henüz model yok. Aşağıdan bir tane ekleyin: Ollama'nınki gibi yerel bir model bu bilgisayarda kalır; bulut modeli ise sağlayıcısından alınan bir API anahtarı gerektirir.
+settings-assistant-in-use = Kullanımda
+settings-assistant-use = Kullan
+settings-assistant-remove = Kaldır
+settings-assistant-add = Model ekle
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI uyumlu sunucu
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Model, örneğin { $example }
+settings-assistant-key = API anahtarı
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Adres, örneğin { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Bağlam
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K token
+settings-assistant-context-note = Daha büyük bir bağlam, asistanın tek bir sohbette dosyanın daha fazlasını okumasını sağlar, ancak model daha fazla bellek kullanır ve daha yavaş yanıt verebilir.
+settings-assistant-add-button = Ekle
+settings-assistant-use-key = Devam
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = { $provider } sitesinde bir anahtar oluşturup buraya yapıştırın.
+settings-assistant-get-key = API anahtarı al
+settings-assistant-key-kept = { $provider } anahtarınız sistemin kimlik bilgisi deposunda saklanıyor.
+settings-assistant-change-key = Anahtarı değiştir
+settings-assistant-key-refused = { $provider } bu anahtarı reddetti. Anahtarın eksiksiz ve doğru hesaptan kopyalandığını kontrol edin.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } şu adreste çalışıyor: { $address }
+settings-assistant-no-server = prev bu bilgisayarda çalışan bir { $provider } bulamadı. Başlatın ya da adresini aşağıya girin.
+settings-assistant-get-server = { $provider } indir
+settings-assistant-look-again = Yeniden ara
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Başka bir adres kullan
+settings-assistant-looking = Modeller aranıyor…
+settings-assistant-found-none = { $provider } içinde henüz model yok. Onunla bir model indirin, sonra yeniden arayın.
+settings-assistant-recommended = Önerilen
+settings-assistant-uses-tools = Araç kullanır
+settings-assistant-sees = Resimleri görür
+settings-assistant-no-tools = Asistanın ihtiyaç duyduğu araçları kullanamaz
+settings-assistant-added-tag = Eklendi
+settings-assistant-trying = Deneniyor…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Sayfayı aç
+# $model is the model's name.
+settings-assistant-added = { $model } yanıt verdi ve eklendi.
+settings-assistant-key-needed = Bu model bir API anahtarı gerektirir.
+# $error is what the keychain said.
+settings-assistant-key-failed = Anahtar, kimlik bilgisi deposunda saklanamadı: { $error }
+assistant-title = Asistan
+assistant-new-chat = Yeni sohbet
+assistant-ask = Bu dosya hakkında sorun
+assistant-send = Gönder
+assistant-stop = Durdur
+assistant-thinking = Düşünüyor…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Düşünceler
+assistant-running = Çalışıyor…
+assistant-stopped = Durduruldu.
+assistant-no-model = Önce Ayarlar'dan bir model ekleyin.
+assistant-add-model = Asistanın bir modele ihtiyacı var: API anahtarıyla bir bulut modeli ya da yerel bir model.
+assistant-open-settings = Model ekle
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Artık { $model } ile konuşuyorsunuz.
+assistant-add-another = Model ekle…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = Bu bilgisayarda { $provider }
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $host } adresinde { $provider }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Sohbet artık { $model } modelinin tek seferde okuyabileceği miktara sığmıyor. Yeni bir sohbet başlatın ya da daha fazlasını okuyabilen bir model seçin.
+assistant-problem-key = { $provider } API anahtarını reddetti. Ayarlar'dan kontrol edin.
+assistant-problem-rate = { $provider } yavaşlamanızı istiyor. Birazdan yeniden deneyin.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } yavaşlamanızı istiyor: { $message }
+assistant-problem-credit = { $provider } hesapta kredi olmadığını bildiriyor. Yeni bir hesabın anahtarının çalışması için önce { $provider } sitesinden kredi satın alınması gerekir; ardından yeniden deneyin.
+assistant-problem-model = { $provider } üzerinde { $model } adında bir model yok. Adını Ayarlar'dan kontrol edin.
+assistant-problem-unavailable = { $provider } meşgul ya da sorun yaşıyor. Birazdan yeniden deneyin.
+assistant-problem-unreachable = prev, { $provider } hizmetine ulaşamadı. Bağlantınızı ya da sunucunun çalışıp çalışmadığını kontrol edin.
+assistant-problem-refused = { $model } yanıt vermeyi reddetti.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } yanıt vermedi: { $message }

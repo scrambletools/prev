@@ -752,3 +752,92 @@ agent-ask-export = Saako { $agent } viedä tämän tiedoston?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } pyytää käyttää toimintoa ”{ $tool }”. Asetuksissa valitset, mistä prev kysyy.
 agent-ask-final = Tätä ei voi kumota.
+
+## The assistant
+
+settings-tab-assistant = Avustaja
+settings-assistant-note = Mallit, joiden kanssa avustaja voi keskustella. Avaimet säilytetään järjestelmän avainnipussa.
+settings-assistant-none = Ei vielä malleja. Lisää malli alla: paikallinen malli, kuten Ollaman, pysyy tällä tietokoneella; pilvimalli tarvitsee palveluntarjoajansa API-avaimen.
+settings-assistant-in-use = Käytössä
+settings-assistant-use = Käytä
+settings-assistant-remove = Poista
+settings-assistant-add = Lisää malli
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI-yhteensopiva palvelin
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Malli, esimerkiksi { $example }
+settings-assistant-key = API-avain
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Osoite, esimerkiksi { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Konteksti
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K tokenia
+settings-assistant-context-note = Suurempi arvo antaa avustajan lukea yhdessä keskustelussa enemmän tiedostosta, mutta malli vie enemmän muistia ja voi vastata hitaammin.
+settings-assistant-add-button = Lisää
+settings-assistant-use-key = Jatka
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Luo avain { $provider }-palvelun sivustolla ja liitä se tähän.
+settings-assistant-get-key = Hanki API-avain
+settings-assistant-key-kept = { $provider }-avaimesi säilytetään järjestelmän avainnipussa.
+settings-assistant-change-key = Vaihda avain
+settings-assistant-key-refused = { $provider } hylkäsi tämän avaimen. Tarkista, että se kopioitiin kokonaan ja oikealta tililtä.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } on käynnissä osoitteessa { $address }.
+settings-assistant-no-server = prev ei löytänyt tältä tietokoneelta käynnissä olevaa { $provider }-palvelinta. Käynnistä se tai anna sen osoite alla.
+settings-assistant-get-server = Hanki { $provider }
+settings-assistant-look-again = Etsi uudelleen
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Käytä toista osoitetta
+settings-assistant-looking = Etsitään malleja…
+settings-assistant-found-none = Palvelussa { $provider } ei ole vielä malleja. Lataa malli sen avulla ja etsi sitten uudelleen.
+settings-assistant-recommended = Suositeltu
+settings-assistant-uses-tools = Käyttää työkaluja
+settings-assistant-sees = Näkee kuvat
+settings-assistant-no-tools = Ei osaa käyttää työkaluja, joita avustaja tarvitsee
+settings-assistant-added-tag = Lisätty
+settings-assistant-trying = Kokeillaan…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Avaa sivu
+# $model is the model's name.
+settings-assistant-added = { $model } vastasi, ja se on lisätty.
+settings-assistant-key-needed = Tämä malli tarvitsee API-avaimen.
+# $error is what the keychain said.
+settings-assistant-key-failed = Avainta ei voitu tallentaa avainnippuun: { $error }
+assistant-title = Avustaja
+assistant-new-chat = Uusi keskustelu
+assistant-ask = Kysy tästä tiedostosta
+assistant-send = Lähetä
+assistant-stop = Pysäytä
+assistant-thinking = Miettii…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Ajatukset
+assistant-running = Käynnissä…
+assistant-stopped = Pysäytetty.
+assistant-no-model = Lisää ensin malli Asetuksissa.
+assistant-add-model = Avustaja tarvitsee mallin: pilvimallin ja sen API-avaimen tai paikallisen mallin.
+assistant-open-settings = Lisää malli
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Keskustelukumppanina on nyt { $model }.
+assistant-add-another = Lisää malli…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } tällä tietokoneella
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } osoitteessa { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Keskustelu ei enää mahdu siihen, mitä { $model } pystyy lukemaan kerralla. Aloita uusi keskustelu tai valitse malli, joka pystyy lukemaan enemmän.
+assistant-problem-key = { $provider } hylkäsi API-avaimen. Tarkista se Asetuksissa.
+assistant-problem-rate = { $provider } pyytää hidastamaan. Yritä hetken kuluttua uudelleen.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } pyytää hidastamaan: { $message }
+assistant-problem-credit = { $provider } ilmoittaa, ettei tilillä ole saldoa. Uudelle tilille on ensin ostettava saldoa { $provider }-palvelun sivustolta, ennen kuin avain toimii; yritä sitten uudelleen.
+assistant-problem-model = Palvelussa { $provider } ei ole mallia nimeltä { $model }. Tarkista nimi Asetuksissa.
+assistant-problem-unavailable = { $provider } on ruuhkautunut tai siinä on ongelmia. Yritä hetken kuluttua uudelleen.
+assistant-problem-unreachable = prev ei saanut yhteyttä palveluun { $provider }. Tarkista yhteytesi tai se, että palvelin on käynnissä.
+assistant-problem-refused = { $model } kieltäytyi vastaamasta.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } ei vastannut: { $message }

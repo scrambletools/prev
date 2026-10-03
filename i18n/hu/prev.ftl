@@ -754,3 +754,91 @@ agent-ask-export = Engedélyezi, hogy { $agent } exportálja ezt a fájlt?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } szeretné használni ezt: „{ $tool }”. A Beállításokban választhatja ki, mire kérdez rá a prev.
 agent-ask-final = Ez nem vonható vissza.
+
+## The assistant
+settings-tab-assistant = Asszisztens
+settings-assistant-note = Azok a modellek, amelyekkel az asszisztenspanel beszélgethet. A kulcsokat a rendszer kulcstartója őrzi.
+settings-assistant-none = Még nincs modell. Adjon hozzá egyet lent: a helyi modell, például egy Ollama-modell, ezen a számítógépen marad; a felhőalapú modellhez API-kulcs kell a szolgáltatójától.
+settings-assistant-in-use = Használatban
+settings-assistant-use = Használat
+settings-assistant-remove = Eltávolítás
+settings-assistant-add = Modell hozzáadása
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI-kompatibilis kiszolgáló
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Modell, például { $example }
+settings-assistant-key = API-kulcs
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Cím, például { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Kontextus
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands } ezer token
+settings-assistant-context-note = Nagyobb kontextussal az asszisztens egy csevegésben nagyobb részt olvashat el egy fájlból, de a modell több memóriát foglal, és lassabban válaszolhat.
+settings-assistant-add-button = Hozzáadás
+settings-assistant-use-key = Tovább
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Hozzon létre egy kulcsot a szolgáltató webhelyén ({ $provider }), és illessze be ide.
+settings-assistant-get-key = API-kulcs beszerzése
+settings-assistant-key-kept = A kulcsát ({ $provider }) a rendszer kulcstartója őrzi.
+settings-assistant-change-key = Kulcs módosítása
+settings-assistant-key-refused = { $provider } elutasította ezt a kulcsot. Ellenőrizze, hogy teljes egészében és a megfelelő fiókból másolta-e ki.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } fut ezen a címen: { $address }.
+settings-assistant-no-server = A prev nem talált futó { $provider }-kiszolgálót ezen a számítógépen. Indítsa el, vagy adja meg lent a címét.
+settings-assistant-get-server = { $provider } letöltése
+settings-assistant-look-again = Keresés újra
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Másik cím használata
+settings-assistant-looking = Modellek keresése…
+settings-assistant-found-none = { $provider }: még nincs modell. Töltsön le vele egyet, majd keressen újra.
+settings-assistant-recommended = Ajánlott
+settings-assistant-uses-tools = Eszközöket használ
+settings-assistant-sees = Képeket is lát
+settings-assistant-no-tools = Nem tud eszközöket használni, pedig az asszisztensnek erre szüksége van
+settings-assistant-added-tag = Hozzáadva
+settings-assistant-trying = Próba…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Oldal megnyitása
+# $model is the model's name.
+settings-assistant-added = { $model } válaszolt, és hozzá lett adva.
+settings-assistant-key-needed = Ehhez a modellhez API-kulcs kell.
+# $error is what the keychain said.
+settings-assistant-key-failed = A kulcsot nem sikerült a kulcstartóba menteni: { $error }
+assistant-title = Asszisztens
+assistant-new-chat = Új csevegés
+assistant-ask = Kérdezzen erről a fájlról
+assistant-send = Küldés
+assistant-stop = Leállítás
+assistant-thinking = Gondolkodik…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Gondolatok
+assistant-running = Fut…
+assistant-stopped = Leállítva.
+assistant-no-model = Előbb adjon hozzá egy modellt a Beállításokban.
+assistant-add-model = Az asszisztensnek modell kell: felhőalapú modell az API-kulcsával, vagy helyi modell.
+assistant-open-settings = Modell hozzáadása
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Most ezzel a modellel beszélget: { $model }.
+assistant-add-another = Modell hozzáadása…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } ezen a számítógépen
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } itt: { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = A beszélgetés már nem fér bele abba, amit { $model } egyszerre el tud olvasni. Kezdjen új csevegést, vagy válasszon olyan modellt, amely többet tud olvasni.
+assistant-problem-key = { $provider } elutasította az API-kulcsot. Ellenőrizze a Beállításokban.
+assistant-problem-rate = { $provider } lassítást kér. Próbálja újra egy kis idő múlva.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } lassítást kér: { $message }
+assistant-problem-credit = { $provider } szerint a fióknak nincs kreditje. Új fiók esetén előbb kreditet kell vásárolni a szolgáltató webhelyén ({ $provider }), csak utána működik a kulcs; ezután próbálja újra.
+assistant-problem-model = { $provider } nem ismer { $model } nevű modellt. Ellenőrizze a nevét a Beállításokban.
+assistant-problem-unavailable = { $provider } túlterhelt, vagy problémái vannak. Próbálja újra egy kis idő múlva.
+assistant-problem-unreachable = A prev nem tudott kapcsolódni a szolgáltatóhoz: { $provider }. Ellenőrizze a kapcsolatot, vagy hogy fut-e a kiszolgáló.
+assistant-problem-refused = { $model } nem volt hajlandó válaszolni.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } nem válaszolt: { $message }

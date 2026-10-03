@@ -751,3 +751,92 @@ agent-ask-export = Vill du låta { $agent } exportera den här filen?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } ber om att få använda ”{ $tool }”. I Inställningar väljer du vad prev frågar om.
 agent-ask-final = Det här kan inte ångras.
+
+## The assistant
+
+settings-tab-assistant = Assistent
+settings-assistant-note = Modellerna som assistenten kan prata med. Nycklar förvaras i systemets nyckelring.
+settings-assistant-none = Inga modeller än. Lägg till en nedan: en lokal modell, som Ollamas, stannar på den här datorn; en molnmodell behöver en API-nyckel från leverantören.
+settings-assistant-in-use = Används
+settings-assistant-use = Använd
+settings-assistant-remove = Ta bort
+settings-assistant-add = Lägg till en modell
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI-kompatibel server
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Modell, till exempel { $example }
+settings-assistant-key = API-nyckel
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Adress, till exempel { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Kontext
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K token
+settings-assistant-context-note = Mer låter assistenten läsa mer av en fil i en chatt, men modellen tar mer minne och kan svara långsammare.
+settings-assistant-add-button = Lägg till
+settings-assistant-use-key = Fortsätt
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Skapa en nyckel på webbplatsen för { $provider } och klistra in den här.
+settings-assistant-get-key = Skaffa en API-nyckel
+settings-assistant-key-kept = Din nyckel för { $provider } förvaras i systemets nyckelring.
+settings-assistant-change-key = Byt nyckel
+settings-assistant-key-refused = { $provider } avvisade den här nyckeln. Kontrollera att den kopierades i sin helhet, från rätt konto.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } körs på { $address }.
+settings-assistant-no-server = prev hittade ingen { $provider } som körs på den här datorn. Starta den, eller ange dess adress nedan.
+settings-assistant-get-server = Hämta { $provider }
+settings-assistant-look-again = Sök igen
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Använd en annan adress
+settings-assistant-looking = Söker efter modeller…
+settings-assistant-found-none = { $provider } har inga modeller än. Hämta en med den och sök sedan igen.
+settings-assistant-recommended = Rekommenderas
+settings-assistant-uses-tools = Använder verktyg
+settings-assistant-sees = Ser bilder
+settings-assistant-no-tools = Kan inte använda verktyg, vilket assistenten behöver
+settings-assistant-added-tag = Tillagd
+settings-assistant-trying = Provar…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Öppna sidan
+# $model is the model's name.
+settings-assistant-added = { $model } svarade och har lagts till.
+settings-assistant-key-needed = Den här modellen behöver en API-nyckel.
+# $error is what the keychain said.
+settings-assistant-key-failed = Nyckeln kunde inte sparas i nyckelringen: { $error }
+assistant-title = Assistent
+assistant-new-chat = Ny chatt
+assistant-ask = Fråga om den här filen
+assistant-send = Skicka
+assistant-stop = Stoppa
+assistant-thinking = Tänker…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Tankar
+assistant-running = Kör…
+assistant-stopped = Stoppad.
+assistant-no-model = Lägg först till en modell i Inställningar.
+assistant-add-model = Assistenten behöver en modell: en molnmodell med sin API-nyckel, eller en lokal modell.
+assistant-open-settings = Lägg till en modell
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Pratar nu med { $model }.
+assistant-add-another = Lägg till en modell…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } på den här datorn
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } på { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Samtalet ryms inte längre i det som { $model } kan läsa på en gång. Starta en ny chatt, eller välj en modell som kan läsa mer.
+assistant-problem-key = { $provider } avvisade API-nyckeln. Kontrollera den i Inställningar.
+assistant-problem-rate = { $provider } ber dig sakta ner. Försök igen om en stund.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } ber dig sakta ner: { $message }
+assistant-problem-credit = { $provider } säger att kontot saknar saldo. För ett nytt konto måste saldot först fyllas på via webbplatsen för { $provider } innan nyckeln fungerar; försök sedan igen.
+assistant-problem-model = { $provider } har ingen modell som heter { $model }. Kontrollera namnet i Inställningar.
+assistant-problem-unavailable = { $provider } är upptagen eller har problem. Försök igen om en stund.
+assistant-problem-unreachable = prev kunde inte nå { $provider }. Kontrollera anslutningen, eller att servern körs.
+assistant-problem-refused = { $model } avböjde att svara.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } svarade inte: { $message }

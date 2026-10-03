@@ -903,3 +903,91 @@ agent-ask-export = { $agent } को यह फ़ाइल एक्सपो�
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } “{ $tool }” का उपयोग करना चाहता है। prev किन बातों पर पूछे, यह सेटिंग्स में चुना जाता है।
 agent-ask-final = इसे पूर्ववत नहीं किया जा सकता।
+
+## The assistant
+settings-tab-assistant = असिस्टेंट
+settings-assistant-note = वे मॉडल जिनसे असिस्टेंट पैनल बात कर सकता है। कुंजियाँ सिस्टम के कीचेन में रखी जाती हैं।
+settings-assistant-none = अभी कोई मॉडल नहीं है। नीचे एक जोड़ें: स्थानीय मॉडल, जैसे Ollama का, इसी कंप्यूटर पर रहता है; क्लाउड मॉडल को अपने प्रदाता से API कुंजी चाहिए।
+settings-assistant-in-use = उपयोग में
+settings-assistant-use = उपयोग करें
+settings-assistant-remove = हटाएँ
+settings-assistant-add = मॉडल जोड़ें
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI के साथ संगत सर्वर
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = मॉडल, जैसे { $example }
+settings-assistant-key = API कुंजी
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = पता, जैसे { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = संदर्भ
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K टोकन
+settings-assistant-context-note = ज़्यादा होने पर असिस्टेंट एक चैट में फ़ाइल का ज़्यादा हिस्सा पढ़ सकता है, लेकिन मॉडल ज़्यादा मेमोरी लेता है और धीरे जवाब दे सकता है।
+settings-assistant-add-button = जोड़ें
+settings-assistant-use-key = जारी रखें
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = { $provider } की साइट पर एक कुंजी बनाएँ और उसे यहाँ पेस्ट करें।
+settings-assistant-get-key = API कुंजी पाएँ
+settings-assistant-key-kept = आपकी { $provider } कुंजी सिस्टम के कीचेन में रखी गई है।
+settings-assistant-change-key = कुंजी बदलें
+settings-assistant-key-refused = { $provider } ने यह कुंजी अस्वीकार कर दी। जाँचें कि यह पूरी और सही खाते से कॉपी की गई है।
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } { $address } पर चल रहा है।
+settings-assistant-no-server = prev को इस कंप्यूटर पर कोई चलता हुआ { $provider } नहीं मिला। इसे शुरू करें, या नीचे इसका पता दें।
+settings-assistant-get-server = { $provider } पाएँ
+settings-assistant-look-again = फिर से खोजें
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = दूसरा पता उपयोग करें
+settings-assistant-looking = मॉडल खोजे जा रहे हैं…
+settings-assistant-found-none = { $provider } में अभी कोई मॉडल नहीं है। उससे एक डाउनलोड करें, फिर से खोजें।
+settings-assistant-recommended = सुझाया गया
+settings-assistant-uses-tools = टूल का उपयोग करता है
+settings-assistant-sees = तस्वीरें देखता है
+settings-assistant-no-tools = टूल का उपयोग नहीं कर सकता, जिनकी असिस्टेंट को ज़रूरत है
+settings-assistant-added-tag = जोड़ा गया
+settings-assistant-trying = आज़माया जा रहा है…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = पेज खोलें
+# $model is the model's name.
+settings-assistant-added = { $model } ने जवाब दिया और जोड़ दिया गया।
+settings-assistant-key-needed = इस मॉडल को API कुंजी चाहिए।
+# $error is what the keychain said.
+settings-assistant-key-failed = कुंजी कीचेन में नहीं रखी जा सकी: { $error }
+assistant-title = असिस्टेंट
+assistant-new-chat = नई चैट
+assistant-ask = इस फ़ाइल के बारे में पूछें
+assistant-send = भेजें
+assistant-stop = रोकें
+assistant-thinking = सोच रहा है…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = विचार
+assistant-running = चल रहा है…
+assistant-stopped = रोक दिया गया।
+assistant-no-model = पहले सेटिंग्स में एक मॉडल जोड़ें।
+assistant-add-model = असिस्टेंट को एक मॉडल चाहिए: अपनी API कुंजी के साथ क्लाउड मॉडल, या स्थानीय मॉडल।
+assistant-open-settings = मॉडल जोड़ें
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = अब { $model } से बात हो रही है।
+assistant-add-another = मॉडल जोड़ें…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = इस कंप्यूटर पर { $provider }
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $host } पर { $provider }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = बातचीत अब उससे बड़ी हो गई है जितना { $model } एक बार में पढ़ सकता है। नई चैट शुरू करें, या ऐसा मॉडल चुनें जो ज़्यादा पढ़ सके।
+assistant-problem-key = { $provider } ने API कुंजी अस्वीकार कर दी। इसे सेटिंग्स में जाँचें।
+assistant-problem-rate = { $provider } धीमा चलने को कह रहा है। थोड़ी देर में फिर से कोशिश करें।
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } धीमा चलने को कह रहा है: { $message }
+assistant-problem-credit = { $provider } के अनुसार खाते में कोई क्रेडिट नहीं है। नए खाते की कुंजी काम करे, इससे पहले { $provider } की साइट पर कुछ क्रेडिट खरीदना ज़रूरी है; उसके बाद फिर से कोशिश करें।
+assistant-problem-model = { $provider } में { $model } नाम का कोई मॉडल नहीं है। सेटिंग्स में इसका नाम जाँचें।
+assistant-problem-unavailable = { $provider } व्यस्त है या उसमें कोई समस्या है। थोड़ी देर में फिर से कोशिश करें।
+assistant-problem-unreachable = prev { $provider } तक नहीं पहुँच सका। अपना कनेक्शन जाँचें, या देखें कि सर्वर चल रहा है।
+assistant-problem-refused = { $model } ने जवाब देने से मना कर दिया।
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } ने जवाब नहीं दिया: { $message }

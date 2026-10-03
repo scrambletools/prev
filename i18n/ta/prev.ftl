@@ -756,3 +756,91 @@ agent-ask-export = இந்தக் கோப்பை ஏற்றுமத�
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = “{ $tool }” என்பதைப் பயன்படுத்த { $agent } கேட்கிறது. prev எவற்றைப் பற்றிக் கேட்கும் என்பதை அமைப்புகளில் தேர்ந்தெடுக்கலாம்.
 agent-ask-final = இதைச் செயல்தவிர்க்க முடியாது.
+
+## The assistant
+settings-tab-assistant = உதவியாளர்
+settings-assistant-note = உதவியாளர் பலகம் பேசக்கூடிய மாடல்கள். விசைகள் கணினியின் கீசெயினில் வைக்கப்படுகின்றன.
+settings-assistant-none = இன்னும் மாடல்கள் இல்லை. கீழே ஒன்றைச் சேர்க்கவும்: Ollama போன்றவற்றின் உள்ளூர் மாடல் இந்தக் கணினியிலேயே இருக்கும்; மேகக்கணி மாடலுக்கு அதன் வழங்குநரிடமிருந்து API விசை தேவை.
+settings-assistant-in-use = பயன்பாட்டில்
+settings-assistant-use = பயன்படுத்து
+settings-assistant-remove = அகற்று
+settings-assistant-add = மாடலைச் சேர்
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI உடன் இணக்கமான சேவையகம்
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = மாடல், எ.கா. { $example }
+settings-assistant-key = API விசை
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = முகவரி, எ.கா. { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = சூழல்
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K டோக்கன்கள்
+settings-assistant-context-note = அதிகமாக்கினால், ஒரே அரட்டையில் உதவியாளர் கோப்பின் அதிகப் பகுதியைப் படிக்கலாம்; ஆனால் மாடல் அதிக நினைவகத்தை எடுக்கும், மெதுவாகப் பதிலளிக்கவும் கூடும்.
+settings-assistant-add-button = சேர்
+settings-assistant-use-key = தொடர்
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = { $provider } தளத்தில் ஒரு விசையை உருவாக்கி இங்கே ஒட்டவும்.
+settings-assistant-get-key = API விசையைப் பெறு
+settings-assistant-key-kept = உங்கள் { $provider } விசை கணினியின் கீசெயினில் வைக்கப்பட்டுள்ளது.
+settings-assistant-change-key = விசையை மாற்று
+settings-assistant-key-refused = { $provider } இந்த விசையை ஏற்கவில்லை. சரியான கணக்கிலிருந்து முழுமையாக நகலெடுக்கப்பட்டதா எனச் சரிபார்க்கவும்.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } { $address } இல் இயங்குகிறது.
+settings-assistant-no-server = இந்தக் கணினியில் இயங்கும் { $provider } எதையும் prev கண்டறியவில்லை. அதைத் தொடங்கவும், அல்லது கீழே அதன் முகவரியைக் கொடுக்கவும்.
+settings-assistant-get-server = { $provider } ஐப் பெறு
+settings-assistant-look-again = மீண்டும் தேடு
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = வேறு முகவரியைப் பயன்படுத்து
+settings-assistant-looking = மாடல்களைத் தேடுகிறது…
+settings-assistant-found-none = { $provider } இல் இன்னும் மாடல்கள் இல்லை. அதைக் கொண்டு ஒன்றைப் பதிவிறக்கி, மீண்டும் தேடவும்.
+settings-assistant-recommended = பரிந்துரைக்கப்பட்டது
+settings-assistant-uses-tools = கருவிகளைப் பயன்படுத்தும்
+settings-assistant-sees = படங்களைப் பார்க்கும்
+settings-assistant-no-tools = கருவிகளைப் பயன்படுத்த முடியாது; உதவியாளருக்கு அவை தேவை
+settings-assistant-added-tag = சேர்க்கப்பட்டது
+settings-assistant-trying = முயல்கிறது…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = பக்கத்தைத் திற
+# $model is the model's name.
+settings-assistant-added = { $model } பதிலளித்தது, சேர்க்கப்பட்டது.
+settings-assistant-key-needed = இந்த மாடலுக்கு API விசை தேவை.
+# $error is what the keychain said.
+settings-assistant-key-failed = விசையைக் கீசெயினில் வைக்க முடியவில்லை: { $error }
+assistant-title = உதவியாளர்
+assistant-new-chat = புதிய அரட்டை
+assistant-ask = இந்தக் கோப்பைப் பற்றிக் கேளுங்கள்
+assistant-send = அனுப்பு
+assistant-stop = நிறுத்து
+assistant-thinking = சிந்திக்கிறது…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = சிந்தனைகள்
+assistant-running = இயங்குகிறது…
+assistant-stopped = நிறுத்தப்பட்டது.
+assistant-no-model = முதலில் அமைப்புகளில் ஒரு மாடலைச் சேர்க்கவும்.
+assistant-add-model = உதவியாளருக்கு ஒரு மாடல் தேவை: API விசையுடன் கூடிய மேகக்கணி மாடல், அல்லது உள்ளூர் மாடல்.
+assistant-open-settings = மாடலைச் சேர்
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = இப்போது { $model } உடன் பேசுகிறது.
+assistant-add-another = மாடலைச் சேர்…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = இந்தக் கணினியில் { $provider }
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $host } இல் { $provider }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = { $model } ஒரே நேரத்தில் படிக்கக்கூடிய அளவை இந்த உரையாடல் தாண்டிவிட்டது. புதிய அரட்டையைத் தொடங்கவும், அல்லது அதிகம் படிக்கக்கூடிய மாடலைத் தேர்ந்தெடுக்கவும்.
+assistant-problem-key = { $provider } API விசையை ஏற்கவில்லை. அமைப்புகளில் அதைச் சரிபார்க்கவும்.
+assistant-problem-rate = { $provider } வேகத்தைக் குறைக்கச் சொல்கிறது. சிறிது நேரத்தில் மீண்டும் முயலவும்.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } வேகத்தைக் குறைக்கச் சொல்கிறது: { $message }
+assistant-problem-credit = கணக்கில் கிரெடிட் இல்லை என்று { $provider } கூறுகிறது. புதிய கணக்கின் விசை செயல்பட, முதலில் { $provider } தளத்தில் சிறிது கிரெடிட் வாங்க வேண்டும்; பிறகு மீண்டும் முயலவும்.
+assistant-problem-model = { $model } என்ற பெயரில் { $provider } இல் மாடல் எதுவும் இல்லை. அமைப்புகளில் அதன் பெயரைச் சரிபார்க்கவும்.
+assistant-problem-unavailable = { $provider } பரபரப்பாக உள்ளது அல்லது சிக்கலில் உள்ளது. சிறிது நேரத்தில் மீண்டும் முயலவும்.
+assistant-problem-unreachable = prev-ஆல் { $provider } ஐ அடைய முடியவில்லை. உங்கள் இணைப்பைச் சரிபார்க்கவும், அல்லது சேவையகம் இயங்குகிறதா எனப் பார்க்கவும்.
+assistant-problem-refused = { $model } பதிலளிக்க மறுத்துவிட்டது.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } பதிலளிக்கவில்லை: { $message }

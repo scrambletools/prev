@@ -755,3 +755,91 @@ agent-ask-export = { $agent }-কে এই ফাইলটি রপ্তা�
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } “{ $tool }” ব্যবহার করতে চায়। prev কোন বিষয়ে জিজ্ঞাসা করবে, তা সেটিংসে বেছে নেওয়া যায়।
 agent-ask-final = এটি পূর্বাবস্থায় ফেরানো যাবে না।
+
+## The assistant
+settings-tab-assistant = সহকারী
+settings-assistant-note = যেসব মডেলের সঙ্গে সহকারী প্যানেল কথা বলতে পারে। কী সিস্টেমের কীচেইনে রাখা হয়।
+settings-assistant-none = এখনো কোনো মডেল নেই। নিচে একটি যোগ করুন: স্থানীয় মডেল, যেমন Ollama-এর, এই কম্পিউটারেই থাকে; ক্লাউড মডেলের জন্য তার প্রদানকারীর কাছ থেকে API কী লাগে।
+settings-assistant-in-use = ব্যবহৃত হচ্ছে
+settings-assistant-use = ব্যবহার করুন
+settings-assistant-remove = সরান
+settings-assistant-add = মডেল যোগ করুন
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI-এর সঙ্গে সামঞ্জস্যপূর্ণ সার্ভার
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = মডেল, যেমন { $example }
+settings-assistant-key = API কী
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = ঠিকানা, যেমন { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = কনটেক্সট
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K টোকেন
+settings-assistant-context-note = বেশি হলে সহকারী এক চ্যাটে ফাইলের বেশি অংশ পড়তে পারে, কিন্তু মডেল বেশি মেমরি নেয় এবং ধীরে উত্তর দিতে পারে।
+settings-assistant-add-button = যোগ করুন
+settings-assistant-use-key = চালিয়ে যান
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = { $provider }-এর সাইটে একটি কী তৈরি করুন এবং এখানে পেস্ট করুন।
+settings-assistant-get-key = API কী নিন
+settings-assistant-key-kept = আপনার { $provider } কী সিস্টেমের কীচেইনে রাখা আছে।
+settings-assistant-change-key = কী পরিবর্তন করুন
+settings-assistant-key-refused = { $provider } এই কী গ্রহণ করেনি। দেখুন এটি পুরোটা এবং সঠিক অ্যাকাউন্ট থেকে কপি করা হয়েছে কি না।
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } { $address }-এ চলছে।
+settings-assistant-no-server = prev এই কম্পিউটারে কোনো চলমান { $provider } খুঁজে পায়নি। এটি চালু করুন, অথবা নিচে এর ঠিকানা দিন।
+settings-assistant-get-server = { $provider } নিন
+settings-assistant-look-again = আবার খুঁজুন
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = অন্য ঠিকানা ব্যবহার করুন
+settings-assistant-looking = মডেল খোঁজা হচ্ছে…
+settings-assistant-found-none = { $provider }-এ এখনো কোনো মডেল নেই। এটি দিয়ে একটি ডাউনলোড করুন, তারপর আবার খুঁজুন।
+settings-assistant-recommended = প্রস্তাবিত
+settings-assistant-uses-tools = টুল ব্যবহার করে
+settings-assistant-sees = ছবি দেখে
+settings-assistant-no-tools = টুল ব্যবহার করতে পারে না, যা সহকারীর দরকার
+settings-assistant-added-tag = যোগ করা হয়েছে
+settings-assistant-trying = চেষ্টা করা হচ্ছে…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = পৃষ্ঠাটি খুলুন
+# $model is the model's name.
+settings-assistant-added = { $model } উত্তর দিয়েছে এবং যোগ করা হয়েছে।
+settings-assistant-key-needed = এই মডেলের জন্য API কী লাগে।
+# $error is what the keychain said.
+settings-assistant-key-failed = কী কীচেইনে রাখা যায়নি: { $error }
+assistant-title = সহকারী
+assistant-new-chat = নতুন চ্যাট
+assistant-ask = এই ফাইল সম্পর্কে জিজ্ঞাসা করুন
+assistant-send = পাঠান
+assistant-stop = থামান
+assistant-thinking = ভাবছে…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = চিন্তা
+assistant-running = চলছে…
+assistant-stopped = থামানো হয়েছে।
+assistant-no-model = আগে সেটিংসে একটি মডেল যোগ করুন।
+assistant-add-model = সহকারীর একটি মডেল দরকার: API কী-সহ একটি ক্লাউড মডেল, অথবা একটি স্থানীয় মডেল।
+assistant-open-settings = মডেল যোগ করুন
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = এখন { $model }-এর সঙ্গে কথা হচ্ছে।
+assistant-add-another = মডেল যোগ করুন…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = এই কম্পিউটারে { $provider }
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $host }-এ { $provider }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = কথোপকথনটি এখন { $model } একবারে যতটা পড়তে পারে তার চেয়ে বড় হয়ে গেছে। নতুন চ্যাট শুরু করুন, অথবা এমন মডেল বেছে নিন যা বেশি পড়তে পারে।
+assistant-problem-key = { $provider } API কী গ্রহণ করেনি। সেটিংসে এটি দেখুন।
+assistant-problem-rate = { $provider } ধীরে চলতে বলছে। একটু পরে আবার চেষ্টা করুন।
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } ধীরে চলতে বলছে: { $message }
+assistant-problem-credit = { $provider } বলছে অ্যাকাউন্টে কোনো ক্রেডিট নেই। নতুন অ্যাকাউন্টের কী কাজ করার আগে { $provider }-এর সাইটে কিছু ক্রেডিট কিনতে হয়; তারপর আবার চেষ্টা করুন।
+assistant-problem-model = { $provider }-এ { $model } নামে কোনো মডেল নেই। সেটিংসে এর নাম দেখুন।
+assistant-problem-unavailable = { $provider } ব্যস্ত বা সমস্যায় আছে। একটু পরে আবার চেষ্টা করুন।
+assistant-problem-unreachable = prev { $provider }-এ পৌঁছাতে পারেনি। আপনার সংযোগ দেখুন, অথবা সার্ভারটি চলছে কি না।
+assistant-problem-refused = { $model } উত্তর দিতে অস্বীকার করেছে।
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } উত্তর দেয়নি: { $message }

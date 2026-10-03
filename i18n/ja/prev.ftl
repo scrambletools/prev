@@ -865,3 +865,91 @@ agent-ask-export = { $agent }にこのファイルの書き出しを許可しま
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent }が「{ $tool }」を使おうとしています。prevが確認する操作は「設定」で選べます。
 agent-ask-final = この操作は取り消せません。
+
+## The assistant
+settings-tab-assistant = アシスタント
+settings-assistant-note = アシスタントパネルが使えるモデルです。キーはシステムのキーチェーンに保管されます。
+settings-assistant-none = モデルはまだありません。下で追加してください。Ollamaなどのローカルモデルはこのコンピュータ内で動作し、クラウドモデルにはプロバイダのAPIキーが必要です。
+settings-assistant-in-use = 使用中
+settings-assistant-use = 使用
+settings-assistant-remove = 削除
+settings-assistant-add = モデルを追加
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI互換サーバ
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = モデル（例：{ $example }）
+settings-assistant-key = APIキー
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = アドレス（例：{ $example }）
+# The menu of how much a local model reads at once.
+settings-assistant-context = コンテキスト
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }Kトークン
+settings-assistant-context-note = 大きくすると、1回のチャットでファイルをより多く読めるようになりますが、モデルが使うメモリが増え、応答が遅くなることがあります。
+settings-assistant-add-button = 追加
+settings-assistant-use-key = 続ける
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = { $provider }のサイトでキーを作成し、ここに貼り付けてください。
+settings-assistant-get-key = APIキーを取得
+settings-assistant-key-kept = { $provider }のキーはシステムのキーチェーンに保管されています。
+settings-assistant-change-key = キーを変更
+settings-assistant-key-refused = { $provider }がこのキーを拒否しました。正しいアカウントのキーを、最後まで正確にコピーしたか確認してください。
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider }が{ $address }で動作しています。
+settings-assistant-no-server = このコンピュータで動作している{ $provider }が見つかりませんでした。{ $provider }を起動するか、下にアドレスを入力してください。
+settings-assistant-get-server = { $provider }を入手
+settings-assistant-look-again = 再検索
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = 別のアドレスを使用
+settings-assistant-looking = モデルを探しています…
+settings-assistant-found-none = { $provider }にはまだモデルがありません。{ $provider }でモデルをダウンロードしてから、再検索してください。
+settings-assistant-recommended = おすすめ
+settings-assistant-uses-tools = ツールを使用
+settings-assistant-sees = 画像を認識
+settings-assistant-no-tools = ツールを使用できません（アシスタントに必要です）
+settings-assistant-added-tag = 追加済み
+settings-assistant-trying = テスト中…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = ページを開く
+# $model is the model's name.
+settings-assistant-added = { $model }が応答したため、追加しました。
+settings-assistant-key-needed = このモデルにはAPIキーが必要です。
+# $error is what the keychain said.
+settings-assistant-key-failed = キーをキーチェーンに保管できませんでした：{ $error }
+assistant-title = アシスタント
+assistant-new-chat = 新規チャット
+assistant-ask = このファイルについて質問
+assistant-send = 送信
+assistant-stop = 停止
+assistant-thinking = 考え中…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = 思考
+assistant-running = 実行中…
+assistant-stopped = 停止しました。
+assistant-no-model = まず「設定」でモデルを追加してください。
+assistant-add-model = アシスタントにはモデルが必要です。APIキーを使うクラウドモデルか、ローカルモデルを追加してください。
+assistant-open-settings = モデルを追加
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = { $model }と会話しています。
+assistant-add-another = モデルを追加…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = このコンピュータの{ $provider }
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $host }の{ $provider }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = 会話が、{ $model }が一度に読める量を超えました。新規チャットを開始するか、より多く読めるモデルを選んでください。
+assistant-problem-key = { $provider }がAPIキーを拒否しました。「設定」で確認してください。
+assistant-problem-rate = { $provider }から、リクエストのペースを落とすよう求められています。しばらくしてからもう一度お試しください。
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider }から、リクエストのペースを落とすよう求められています：{ $message }
+assistant-problem-credit = { $provider }によると、アカウントにクレジットがありません。新しいアカウントのキーを使うには、先に{ $provider }のサイトでクレジットを購入する必要があります。購入後にもう一度お試しください。
+assistant-problem-model = { $provider }に「{ $model }」という名前のモデルはありません。「設定」で名前を確認してください。
+assistant-problem-unavailable = { $provider }が混雑しているか、問題が発生しています。しばらくしてからもう一度お試しください。
+assistant-problem-unreachable = prevは{ $provider }に接続できませんでした。ネットワーク接続を確認するか、サーバが動作しているか確認してください。
+assistant-problem-refused = { $model }は回答を断りました。
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model }から応答がありませんでした：{ $message }

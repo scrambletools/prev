@@ -895,3 +895,92 @@ agent-ask-export = Permitir que { $agent } exporte este arquivo?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } pede para usar “{ $tool }”. Em Ajustes, você escolhe sobre o que o prev pergunta.
 agent-ask-final = Isso não pode ser desfeito.
+
+## The assistant
+
+settings-tab-assistant = Assistente
+settings-assistant-note = Os modelos com que o painel do assistente pode conversar. As chaves ficam guardadas no chaveiro do sistema.
+settings-assistant-none = Ainda não há modelos. Adicione um abaixo: um modelo local, como os do Ollama, fica neste computador; um modelo na nuvem precisa de uma chave de API do seu provedor.
+settings-assistant-in-use = Em uso
+settings-assistant-use = Usar
+settings-assistant-remove = Remover
+settings-assistant-add = Adicionar um modelo
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Servidor compatível com OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Modelo, como { $example }
+settings-assistant-key = Chave de API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Endereço, como { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Contexto
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K tokens
+settings-assistant-context-note = Mais contexto permite que o assistente leia uma parte maior de um arquivo numa conversa, mas o modelo usa mais memória e pode responder mais devagar.
+settings-assistant-add-button = Adicionar
+settings-assistant-use-key = Continuar
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Crie uma chave no site de { $provider } e cole aqui.
+settings-assistant-get-key = Obter uma chave de API
+settings-assistant-key-kept = Sua chave de { $provider } fica guardada no chaveiro do sistema.
+settings-assistant-change-key = Trocar chave
+settings-assistant-key-refused = { $provider } recusou esta chave. Verifique se ela foi copiada inteira, da conta certa.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } está em execução em { $address }.
+settings-assistant-no-server = O prev não encontrou { $provider } em execução neste computador. Inicie-o ou informe o endereço dele abaixo.
+settings-assistant-get-server = Obter { $provider }
+settings-assistant-look-again = Procurar novamente
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Usar outro endereço
+settings-assistant-looking = Procurando modelos…
+settings-assistant-found-none = { $provider } ainda não tem modelos. Baixe um com ele e procure novamente.
+settings-assistant-recommended = Recomendado
+settings-assistant-uses-tools = Usa ferramentas
+settings-assistant-sees = Vê imagens
+settings-assistant-no-tools = Não pode usar ferramentas, de que o assistente precisa
+settings-assistant-added-tag = Adicionado
+settings-assistant-trying = Testando…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Abrir a página
+# $model is the model's name.
+settings-assistant-added = { $model } respondeu e foi adicionado.
+settings-assistant-key-needed = Este modelo precisa de uma chave de API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Não foi possível guardar a chave no chaveiro: { $error }
+assistant-title = Assistente
+assistant-new-chat = Nova conversa
+assistant-ask = Pergunte sobre este arquivo
+assistant-send = Enviar
+assistant-stop = Parar
+assistant-thinking = Pensando…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Raciocínio
+assistant-running = Executando…
+assistant-stopped = Parado.
+assistant-no-model = Primeiro, adicione um modelo em Ajustes.
+assistant-add-model = O assistente precisa de um modelo: um modelo na nuvem com sua chave de API, ou um modelo local.
+assistant-open-settings = Adicionar um modelo
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Agora conversando com { $model }.
+assistant-add-another = Adicionar um modelo…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } neste computador
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } em { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = A conversa não cabe mais no que { $model } consegue ler de uma vez. Comece uma nova conversa ou escolha um modelo que consiga ler mais.
+assistant-problem-key = { $provider } recusou a chave de API. Verifique-a em Ajustes.
+assistant-problem-rate = { $provider } pede para ir mais devagar. Tente novamente daqui a pouco.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } pede para ir mais devagar: { $message }
+assistant-problem-credit = { $provider } diz que a conta não tem crédito. Uma conta nova precisa comprar crédito no site de { $provider } antes que a chave funcione; depois, tente novamente.
+assistant-problem-model = { $provider } não tem nenhum modelo chamado { $model }. Verifique o nome em Ajustes.
+assistant-problem-unavailable = { $provider } está ocupado ou com problemas. Tente novamente daqui a pouco.
+assistant-problem-unreachable = O prev não conseguiu acessar { $provider }. Verifique sua conexão ou se o servidor está em execução.
+assistant-problem-refused = { $model } se recusou a responder.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } não respondeu: { $message }

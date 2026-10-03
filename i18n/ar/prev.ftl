@@ -935,3 +935,91 @@ agent-ask-export = هل تسمح لـ { $agent } بتصدير هذا الملف�
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = يطلب { $agent } استخدام “{ $tool }”. تحدد الإعدادات ما يسأل عنه prev.
 agent-ask-final = لا يمكن التراجع عن هذا.
+
+## The assistant
+settings-tab-assistant = المساعد
+settings-assistant-note = النماذج التي يمكن للوحة المساعد التحدث إليها. تُحفظ المفاتيح في سلسلة مفاتيح النظام.
+settings-assistant-none = لا توجد نماذج بعد. أضف نموذجًا أدناه: النموذج المحلي، مثل نماذج Ollama، يبقى على هذا الكمبيوتر؛ والنموذج السحابي يحتاج إلى مفتاح API من مزوّده.
+settings-assistant-in-use = قيد الاستخدام
+settings-assistant-use = استخدام
+settings-assistant-remove = إزالة
+settings-assistant-add = إضافة نموذج
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = خادم متوافق مع OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = النموذج، مثل { $example }
+settings-assistant-key = مفتاح API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = العنوان، مثل { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = السياق
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands } ألف رمز مميز
+settings-assistant-context-note = يتيح الحجم الأكبر للمساعد قراءة جزء أكبر من الملف في المحادثة الواحدة، لكن النموذج يستهلك ذاكرة أكثر وقد يجيب بشكل أبطأ.
+settings-assistant-add-button = إضافة
+settings-assistant-use-key = متابعة
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = أنشئ مفتاحًا على موقع { $provider } والصقه هنا.
+settings-assistant-get-key = الحصول على مفتاح API
+settings-assistant-key-kept = مفتاح { $provider } الخاص بك محفوظ في سلسلة مفاتيح النظام.
+settings-assistant-change-key = تغيير المفتاح
+settings-assistant-key-refused = رفض { $provider } هذا المفتاح. تحقّق من أنه نُسخ كاملًا ومن الحساب الصحيح.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } يعمل على { $address }.
+settings-assistant-no-server = لم يجد prev أي { $provider } يعمل على هذا الكمبيوتر. شغّله، أو أدخل عنوانه أدناه.
+settings-assistant-get-server = الحصول على { $provider }
+settings-assistant-look-again = البحث مرة أخرى
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = استخدام عنوان آخر
+settings-assistant-looking = جارٍ البحث عن النماذج…
+settings-assistant-found-none = لا توجد نماذج في { $provider } بعد. نزّل نموذجًا باستخدامه، ثم ابحث مرة أخرى.
+settings-assistant-recommended = موصى به
+settings-assistant-uses-tools = يستخدم الأدوات
+settings-assistant-sees = يرى الصور
+settings-assistant-no-tools = لا يمكنه استخدام الأدوات، وهي ما يحتاج إليه المساعد
+settings-assistant-added-tag = مُضاف
+settings-assistant-trying = جارٍ التجربة…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = فتح الصفحة
+# $model is the model's name.
+settings-assistant-added = أجاب { $model } وتمت إضافته.
+settings-assistant-key-needed = يحتاج هذا النموذج إلى مفتاح API.
+# $error is what the keychain said.
+settings-assistant-key-failed = تعذّر حفظ المفتاح في سلسلة المفاتيح: { $error }
+assistant-title = المساعد
+assistant-new-chat = محادثة جديدة
+assistant-ask = اسأل عن هذا الملف
+assistant-send = إرسال
+assistant-stop = إيقاف
+assistant-thinking = جارٍ التفكير…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = الأفكار
+assistant-running = جارٍ التشغيل…
+assistant-stopped = تم الإيقاف.
+assistant-no-model = أضف نموذجًا في الإعدادات أولًا.
+assistant-add-model = يحتاج المساعد إلى نموذج: نموذج سحابي مع مفتاح API الخاص به، أو نموذج محلي.
+assistant-open-settings = إضافة نموذج
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = المحادثة الآن مع { $model }.
+assistant-add-another = إضافة نموذج…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } على هذا الكمبيوتر
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } على { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = أصبحت المحادثة أكبر مما يستطيع { $model } قراءته دفعة واحدة. ابدأ محادثة جديدة، أو اختر نموذجًا يستطيع قراءة المزيد.
+assistant-problem-key = رفض { $provider } مفتاح API. تحقّق منه في الإعدادات.
+assistant-problem-rate = يطلب { $provider } الإبطاء. حاول مرة أخرى بعد لحظة.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = يطلب { $provider } الإبطاء: { $message }
+assistant-problem-credit = يقول { $provider } إن الحساب لا يحتوي على رصيد. يحتاج الحساب الجديد إلى شراء بعض الرصيد على موقع { $provider } قبل أن يعمل مفتاحه؛ ثم حاول مرة أخرى.
+assistant-problem-model = لا يوجد لدى { $provider } نموذج باسم { $model }. تحقّق من اسمه في الإعدادات.
+assistant-problem-unavailable = { $provider } مشغول أو يواجه مشكلة. حاول مرة أخرى بعد لحظة.
+assistant-problem-unreachable = تعذّر على prev الوصول إلى { $provider }. تحقّق من اتصالك، أو من أن الخادم يعمل.
+assistant-problem-refused = رفض { $model } الإجابة.
+# $message is what the provider said, untranslated.
+assistant-problem-other = لم يُجب { $model }: { $message }

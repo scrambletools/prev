@@ -743,3 +743,91 @@ agent-ask-export = Benarkan { $agent } mengeksport fail ini?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } meminta untuk menggunakan “{ $tool }”. Tetapan menentukan perkara yang ditanya oleh prev.
 agent-ask-final = Ini tidak boleh dibuat asal.
+
+## The assistant
+settings-tab-assistant = Pembantu
+settings-assistant-note = Model yang boleh dihubungi oleh panel pembantu. Kunci disimpan dalam storan kelayakan sistem.
+settings-assistant-none = Belum ada model. Tambah satu di bawah: model setempat, seperti model Ollama, kekal pada komputer ini; model awan memerlukan kunci API daripada penyedianya.
+settings-assistant-in-use = Sedang digunakan
+settings-assistant-use = Guna
+settings-assistant-remove = Alih keluar
+settings-assistant-add = Tambah model
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = Pelayan yang serasi dengan OpenAI
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Model, contohnya { $example }
+settings-assistant-key = Kunci API
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Alamat, contohnya { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Konteks
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K token
+settings-assistant-context-note = Konteks yang lebih besar membolehkan pembantu membaca lebih banyak bahagian fail dalam satu sembang, tetapi model menggunakan lebih banyak memori dan mungkin menjawab dengan lebih perlahan.
+settings-assistant-add-button = Tambah
+settings-assistant-use-key = Teruskan
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Buat kunci di laman web { $provider } dan tampalkannya di sini.
+settings-assistant-get-key = Dapatkan kunci API
+settings-assistant-key-kept = Kunci { $provider } anda disimpan dalam storan kelayakan sistem.
+settings-assistant-change-key = Tukar kunci
+settings-assistant-key-refused = { $provider } menolak kunci ini. Pastikan kunci disalin sepenuhnya, daripada akaun yang betul.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } sedang berjalan di { $address }.
+settings-assistant-no-server = prev tidak menemui { $provider } yang berjalan pada komputer ini. Mulakannya, atau berikan alamatnya di bawah.
+settings-assistant-get-server = Dapatkan { $provider }
+settings-assistant-look-again = Cari semula
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Guna alamat lain
+settings-assistant-looking = Mencari model…
+settings-assistant-found-none = { $provider } belum mempunyai model. Muat turun satu dengannya, kemudian cari semula.
+settings-assistant-recommended = Disyorkan
+settings-assistant-uses-tools = Menggunakan alat
+settings-assistant-sees = Boleh melihat gambar
+settings-assistant-no-tools = Tidak boleh menggunakan alat, yang diperlukan oleh pembantu
+settings-assistant-added-tag = Ditambah
+settings-assistant-trying = Mencuba…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Buka halaman
+# $model is the model's name.
+settings-assistant-added = { $model } telah menjawab dan ditambah.
+settings-assistant-key-needed = Model ini memerlukan kunci API.
+# $error is what the keychain said.
+settings-assistant-key-failed = Kunci tidak dapat disimpan dalam storan kelayakan: { $error }
+assistant-title = Pembantu
+assistant-new-chat = Sembang baharu
+assistant-ask = Tanya tentang fail ini
+assistant-send = Hantar
+assistant-stop = Henti
+assistant-thinking = Berfikir…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Pemikiran
+assistant-running = Sedang berjalan…
+assistant-stopped = Dihentikan.
+assistant-no-model = Tambah model dalam Tetapan dahulu.
+assistant-add-model = Pembantu memerlukan model: model awan dengan kunci API-nya, atau model setempat.
+assistant-open-settings = Tambah model
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Kini bercakap dengan { $model }.
+assistant-add-another = Tambah model…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } pada komputer ini
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } di { $host }
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = Perbualan ini tidak lagi muat dalam jumlah yang boleh dibaca oleh { $model } sekali gus. Mulakan sembang baharu, atau pilih model yang boleh membaca lebih banyak.
+assistant-problem-key = { $provider } menolak kunci API. Semak kunci itu dalam Tetapan.
+assistant-problem-rate = { $provider } meminta anda memperlahankan permintaan. Cuba lagi sebentar nanti.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } meminta anda memperlahankan permintaan: { $message }
+assistant-problem-credit = { $provider } menyatakan akaun ini tiada kredit. Akaun baharu perlu membeli kredit di laman web { $provider } sebelum kuncinya berfungsi; kemudian cuba lagi.
+assistant-problem-model = { $provider } tiada model bernama { $model }. Semak namanya dalam Tetapan.
+assistant-problem-unavailable = { $provider } sedang sibuk atau menghadapi masalah. Cuba lagi sebentar nanti.
+assistant-problem-unreachable = prev tidak dapat menghubungi { $provider }. Semak sambungan anda, atau pastikan pelayan sedang berjalan.
+assistant-problem-refused = { $model } enggan menjawab.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } tidak menjawab: { $message }
