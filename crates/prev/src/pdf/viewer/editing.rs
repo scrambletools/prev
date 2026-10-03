@@ -11,7 +11,7 @@ use iced::widget::text_editor;
 use prev_pdf::annotation::{
     Align, Annotation, Field, FieldKind, Font, Kind, Rgb, StampContent, Style, TextMarkup, new_id,
 };
-use prev_pdf::engine::Bitmap;
+use prev_pdf::engine::{Bitmap, PageDisplay};
 use prev_pdf::geometry::{PixelRect, Point, Quad, Rect};
 use prev_pdf::worker::{Edit, Edited, PageMarkup, Ticket};
 
@@ -28,6 +28,11 @@ pub const HIGHLIGHT_YELLOW: Rgb = Rgb::new(1.0, 0.86, 0.2);
 const LOUPE_ZOOM: f32 = 2.0;
 /// Device pixels per point in a loupe's image.
 const LOUPE_RESOLUTION: f32 = 3.0;
+/// Logical pixels past the view that drafts of an annotation still cover.
+const DRAFT_SLACK: f32 = 96.0;
+/// A loupe's border, and its width in points.
+const LOUPE_BORDER: Rgb = Rgb::new(0.35, 0.35, 0.35);
+const LOUPE_BORDER_WIDTH: f32 = 2.0;
 const SIGNATURE_WIDTH: f32 = 180.0;
 /// A drag shorter than this, in points, counts as a click.
 const CLICK_DISTANCE: f32 = 3.0;
@@ -137,12 +142,122 @@ pub struct Lift {
     uploaded: Option<(Allocation, Allocation)>,
     /// Where the annotation went, once let go.
     pub placed: Option<Rect>,
+    /// The annotation as its handles reshape it, rendered anew, since its
+    /// image stretched would thicken its lines and squash its text.
+    draft: Option<Draft>,
+    /// A render of the reshaped annotation is under way; the next waits
+    /// for it, so the renders keep up with the pointer without piling up.
+    drafting: bool,
+    /// Whether this lift has asked for a draft yet: the first starts from
+    /// the annotation as the document has it.
+    drafted: bool,
+    /// The annotation as it was let go after a reshape, drawn until the
+    /// page shows it.
+    reshaped: Option<Annotation>,
+    /// The page without the annotation, which a loupe magnifies.
+    source: Option<Source>,
+}
+
+/// A page to render, kept with the lift.
+#[derive(Clone)]
+pub struct Source(Arc<dyn PageDisplay>);
+
+impl std::fmt::Debug for Source {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Source")
+    }
+}
+
+/// A render of an annotation being reshaped.
+#[derive(Debug, Clone)]
+pub struct Draft {
+    /// The annotation as rendered.
+    shape: Annotation,
+    /// The area the image covers, in page points.
+    area: Rect,
+    image: ImageHandle,
+    /// Keeps the image on the GPU while it is shown.
+    _uploaded: Allocation,
+}
+
+/// A draft, rendered and on its way to the GPU.
+#[derive(Debug, Clone)]
+pub struct DraftRender {
+    shape: Annotation,
+    area: Rect,
+    image: Option<ImageHandle>,
 }
 
 /// Room around an annotation's rect for its line and antialiasing, in
 /// page points.
 fn lift_margin(annotation: &Annotation) -> f32 {
     annotation.style.line_width + 3.0
+}
+
+/// Where an image of an annotation with `rect`, covering `area`, goes for
+/// the annotation to have `to`: each side keeps its room around the
+/// annotation, scaled with it.
+fn stretched(rect: Rect, area: Rect, to: Rect) -> Rect {
+    let scale_x = to.width() / rect.width().max(0.01);
+    let scale_y = to.height() / rect.height().max(0.01);
+    Rect::new(
+        to.x0 - (rect.x0 - area.x0) * scale_x,
+        to.y0 - (rect.y0 - area.y0) * scale_y,
+        to.x1 + (area.x1 - rect.x1) * scale_x,
+        to.y1 + (area.y1 - rect.y1) * scale_y,
+    )
+}
+
+fn is_loupe(annotation: &Annotation) -> bool {
+    annotation.kind == Kind::Stamp && annotation.subject.as_deref() == Some("Loupe")
+}
+
+/// Whether dragging `handle` draws the annotation anew, rather than moving
+/// its image: a reshape, or a loupe, which shows what is under it.
+fn redrawn(annotation: &Annotation, handle: Handle) -> bool {
+    handle != Handle::Body || is_loupe(annotation)
+}
+
+/// Cuts `bitmap` to the ellipse filling it, with a border `width` pixels
+/// wide just inside its edge, as a round stamp with a border draws it.
+fn round_with_border(bitmap: &mut Bitmap, width: f32, color: Rgb) {
+    let (w, h) = (bitmap.width as f32, bitmap.height as f32);
+    let (rx, ry) = (w / 2.0, h / 2.0);
+    // The distance of a pixel's middle outside the ellipse with radii
+    // `rx`, `ry`, in pixels, roughly: negative inside.
+    let outside = |x: f32, y: f32, rx: f32, ry: f32| {
+        let (dx, dy) = ((x - w / 2.0) / rx.max(0.5), (y - h / 2.0) / ry.max(0.5));
+        ((dx * dx + dy * dy).sqrt() - 1.0) * rx.min(ry)
+    };
+    let ink = [color.red * 255.0, color.green * 255.0, color.blue * 255.0];
+    for y in 0..bitmap.height {
+        for x in 0..bitmap.width {
+            let (cx, cy) = (x as f32 + 0.5, y as f32 + 0.5);
+            let shape = (0.5 - outside(cx, cy, rx, ry)).clamp(0.0, 1.0);
+            let inner = (0.5 - outside(cx, cy, rx - width, ry - width)).clamp(0.0, 1.0);
+            let ring = (shape - inner).max(0.0);
+            let index = ((y * bitmap.width + x) * 4) as usize;
+            let pixel = &mut bitmap.pixels[index..index + 4];
+            for (channel, ink) in pixel[..3].iter_mut().zip(ink) {
+                let blended = if shape > 0.0 {
+                    (*channel as f32 * (shape - ring) + ink * ring) / shape
+                } else {
+                    *channel as f32
+                };
+                *channel = blended.round().clamp(0.0, 255.0) as u8;
+            }
+            pixel[3] = (pixel[3] as f32 * shape).round() as u8;
+        }
+    }
+}
+
+/// Room around a reshaped annotation for what its rect leaves out: a
+/// line's rect runs between its ends, without the arrow heads.
+fn draft_margin(annotation: &Annotation) -> f32 {
+    match annotation.kind {
+        Kind::Line { .. } => annotation.style.line_width * 8.0 + 8.0,
+        _ => lift_margin(annotation),
+    }
 }
 
 impl Editing {
@@ -247,10 +362,14 @@ pub enum EditMessage {
     Copied(Option<String>),
     /// The images of an annotation being moved: the page without it, and
     /// the annotation alone.
-    Lifted(String, Option<(ImageHandle, ImageHandle)>),
+    Lifted(String, Option<(ImageHandle, ImageHandle, Source)>),
     /// Those images, now on the GPU, so the first frame that shows them
     /// draws them both.
     LiftUploaded(String, Option<(Allocation, Allocation)>),
+    /// A render of an annotation being reshaped.
+    Drafted(Box<DraftRender>),
+    /// That render, now on the GPU.
+    DraftUploaded(Box<DraftRender>, Option<Allocation>),
     /// A change an agent asks for, made as the markup tools make it, so
     /// it is one step of Undo.
     Agent(Box<AgentEdit>),
@@ -424,8 +543,56 @@ impl PdfViewer {
                 current,
             } => Some((
                 *page,
-                markup::dragged(original, *handle, *from, *current, self.shift),
+                self.dragged(*page, original, *handle, *from, *current),
             )),
+        }
+    }
+
+    /// `annotation` dragged by `handle` from `from` to `current`, kept on
+    /// its page: a move stops at the page's edges, and a handle goes no
+    /// farther than them.
+    fn dragged(
+        &self,
+        page: usize,
+        annotation: &Annotation,
+        handle: Handle,
+        from: Point,
+        current: Point,
+    ) -> Annotation {
+        let current = match self.info.page_sizes.get(page) {
+            Some(size) => {
+                // Bounds that cannot hold the annotation leave it be.
+                let between = |value: f32, low: f32, high: f32| {
+                    if low <= high {
+                        value.clamp(low, high)
+                    } else {
+                        value
+                    }
+                };
+                match handle {
+                    Handle::Body => {
+                        let rect = annotation.rect;
+                        Point::new(
+                            from.x + between(current.x - from.x, -rect.x0, size.width - rect.x1),
+                            from.y + between(current.y - from.y, -rect.y0, size.height - rect.y1),
+                        )
+                    }
+                    _ => Point::new(
+                        current.x.clamp(0.0, size.width),
+                        current.y.clamp(0.0, size.height),
+                    ),
+                }
+            }
+            None => current,
+        };
+        markup::dragged(annotation, handle, from, current, self.shift)
+    }
+
+    /// The page of the annotation being dragged.
+    fn drag_page(&self) -> usize {
+        match &self.edit.drag {
+            Some(Drag::Move { page, .. }) => *page,
+            _ => 0,
         }
     }
 
@@ -553,8 +720,9 @@ impl PdfViewer {
             });
             if let Some(annotation) = found {
                 self.edit.selected = Some((page, annotation.id.clone()));
-                let opens = annotation.kind == Kind::Note
-                    || clicks >= 2 && annotation.kind == Kind::FreeText;
+                // A note moves when dragged, and opens when clicked, once
+                // it is let go without moving.
+                let opens = clicks >= 2 && annotation.kind == Kind::FreeText;
                 if opens {
                     self.open_text(page, &annotation);
                 } else {
@@ -601,11 +769,8 @@ impl PdfViewer {
         if !allowed {
             return Task::none();
         }
-        // Line ends bend the line, which its image cannot show; masks
-        // cover the page.
-        let lifts = matches!(handle, Handle::Body | Handle::Edge { .. })
-            && annotation.kind.is_editable()
-            && !markup::is_mask(&annotation);
+        // Masks cover the page.
+        let lifts = annotation.kind.is_editable() && !markup::is_mask(&annotation);
         let task = if lifts {
             self.lift(page, &annotation)
         } else {
@@ -654,6 +819,11 @@ impl PdfViewer {
             images: None,
             uploaded: None,
             placed: None,
+            draft: None,
+            drafting: false,
+            drafted: false,
+            reshaped: None,
+            source: None,
         });
         let scale = self.render_scale();
         let pixels = PixelRect {
@@ -679,13 +849,14 @@ impl PdfViewer {
         self.current(
             async move {
                 let lifted = receiver.await.ok()?.ok()?;
-                let without = pool.render(lifted.without, scale, pixels, 1, Ticket::new());
+                let without =
+                    pool.render(Arc::clone(&lifted.without), scale, pixels, 1, Ticket::new());
                 let alone = pool.render(lifted.alone, scale, pixels, 1, Ticket::new());
                 let (without, alone) = (without.await.ok()?.ok()?, alone.await.ok()?.ok()?);
                 let handle = |bitmap: Bitmap| {
                     ImageHandle::from_rgba(bitmap.width, bitmap.height, bitmap.pixels)
                 };
-                Some((handle(without), handle(alone)))
+                Some((handle(without), handle(alone), Source(lifted.without)))
             },
             move |images| PdfMessage::Editing(EditMessage::Lifted(id, images)),
         )
@@ -706,18 +877,245 @@ impl PdfViewer {
             (None, Some((_, moved))) if moved.id == lift.id => moved.rect,
             _ => self.annotation(page, &lift.id)?.rect,
         };
-        // Each side of the images keeps its room around the annotation,
-        // scaled with it when it was resized.
-        let (original, area) = (lift.original, lift.area);
-        let scale_x = moved.width() / original.width().max(0.01);
-        let scale_y = moved.height() / original.height().max(0.01);
-        let target = Rect::new(
-            moved.x0 - (original.x0 - area.x0) * scale_x,
-            moved.y0 - (original.y0 - area.y0) * scale_y,
-            moved.x1 + (area.x1 - original.x1) * scale_x,
-            moved.y1 + (area.y1 - original.y1) * scale_y,
+        let line = self
+            .annotation(page, &lift.id)
+            .is_some_and(|annotation| matches!(annotation.kind, Kind::Line { .. }));
+        if self.reshaping() || lift.reshaped.is_some() {
+            if let Some(draft) = &lift.draft {
+                // A line shows where it was rendered: stretched between
+                // other ends, its arrow heads would bend.
+                let target = if line {
+                    draft.area
+                } else {
+                    stretched(draft.shape.rect, draft.area, moved)
+                };
+                return Some((without, lift.area, &draft.image, target));
+            }
+            // As it was, until its first draft is ready.
+            if line {
+                return Some((without, lift.area, alone, lift.area));
+            }
+        }
+        Some((
+            without,
+            lift.area,
+            alone,
+            stretched(lift.original, lift.area, moved),
+        ))
+    }
+
+    /// Whether a handle that reshapes the selected annotation is being
+    /// dragged, rather than the annotation moved whole.
+    fn reshaping(&self) -> bool {
+        matches!(
+            &self.edit.drag,
+            Some(Drag::Move { handle, original, .. }) if redrawn(original, *handle)
+        ) && self.moving()
+    }
+
+    /// Whether a drag that draws, makes or moves an annotation is under
+    /// way, which scrolls the view at its edge.
+    pub(super) fn edge_scrolls(&self) -> bool {
+        match &self.edit.drag {
+            Some(Drag::Stroke { .. } | Drag::Create { .. }) => true,
+            Some(Drag::Move { .. }) => self.moving(),
+            Some(Drag::Out { .. }) | None => false,
+        }
+    }
+
+    /// The handle being dragged, so the pointer keeps its shape all the
+    /// way, wherever it goes.
+    pub fn dragged_handle(&self) -> Option<Handle> {
+        match &self.edit.drag {
+            Some(Drag::Move { handle, .. }) => Some(*handle),
+            _ => None,
+        }
+    }
+
+    /// The part of `page` in view, in page points, with `slack` logical
+    /// pixels more on each side.
+    fn visible_on_page(&self, page: usize, slack: f32) -> Option<Rect> {
+        let view = &self.view;
+        let start = self.layout.to_page(page, view.x - slack, view.y - slack)?;
+        let end = self.layout.to_page(
+            page,
+            view.x + view.width + slack,
+            view.y + view.height + slack,
+        )?;
+        Some(Rect::new(start.x, start.y, end.x, end.y))
+    }
+
+    /// Renders a loupe as it is now, from the page without it: what is
+    /// under its middle, magnified, cut round with its border, as its stamp
+    /// will show it. Made here, at the screen's resolution, rather than as
+    /// a stamp, which would add an image to the document at every step.
+    fn draft_loupe(
+        &self,
+        shaped: Annotation,
+        source: Arc<dyn PageDisplay>,
+        scale: f32,
+    ) -> Task<PdfMessage> {
+        let rect = shaped.rect;
+        let center = rect.center();
+        let magnified = scale * LOUPE_ZOOM;
+        let (width, height) = (rect.width() / LOUPE_ZOOM, rect.height() / LOUPE_ZOOM);
+        let pixels = PixelRect {
+            x: ((center.x - width / 2.0) * magnified).round() as i32,
+            y: ((center.y - height / 2.0) * magnified).round() as i32,
+            width: (width * magnified).round().max(1.0) as u32,
+            height: (height * magnified).round().max(1.0) as u32,
+        };
+        // The rendered area starts where rounding to whole pixels put it;
+        // the image moves by as much, magnified, so what it shows sits
+        // where the loupe's stamp will put it.
+        let (left, top) = (
+            rect.x0 + (pixels.x as f32 / magnified - (center.x - width / 2.0)) * LOUPE_ZOOM,
+            rect.y0 + (pixels.y as f32 / magnified - (center.y - height / 2.0)) * LOUPE_ZOOM,
         );
-        Some((without, lift.area, alone, target))
+        let area = Rect::new(
+            left,
+            top,
+            left + pixels.width as f32 / scale,
+            top + pixels.height as f32 / scale,
+        );
+        let border = LOUPE_BORDER_WIDTH * scale;
+        let receiver = self
+            .pool
+            .render(source, magnified, pixels, 1, Ticket::new());
+        self.current(
+            async move {
+                let mut bitmap = receiver.await.ok()?.ok()?;
+                round_with_border(&mut bitmap, border, LOUPE_BORDER);
+                Some(ImageHandle::from_rgba(
+                    bitmap.width,
+                    bitmap.height,
+                    bitmap.pixels,
+                ))
+            },
+            move |image| {
+                PdfMessage::Editing(EditMessage::Drafted(Box::new(DraftRender {
+                    shape: shaped,
+                    area,
+                    image,
+                })))
+            },
+        )
+    }
+
+    /// Asks for the annotation being reshaped to be rendered as it is now,
+    /// unless a render is under way or the last one already shows it.
+    pub(super) fn request_draft(&mut self) -> Task<PdfMessage> {
+        let shaped = match &self.edit.drag {
+            Some(Drag::Move {
+                original,
+                handle,
+                from,
+                current,
+                ..
+            }) if redrawn(original, *handle) => {
+                if !self.moving() {
+                    return Task::none();
+                }
+                self.dragged(self.drag_page(), original, *handle, *from, *current)
+            }
+            _ => match self
+                .edit
+                .lift
+                .as_ref()
+                .and_then(|lift| lift.reshaped.clone())
+            {
+                Some(reshaped) => reshaped,
+                None => return Task::none(),
+            },
+        };
+        let scale = self.render_scale();
+        let visible = self
+            .edit
+            .lift
+            .as_ref()
+            .and_then(|lift| self.visible_on_page(lift.page, DRAFT_SLACK));
+        let Some(lift) = self.edit.lift.as_mut().filter(|lift| lift.id == shaped.id) else {
+            return Task::none();
+        };
+        if lift.drafting
+            || lift
+                .draft
+                .as_ref()
+                .is_some_and(|draft| draft.shape == shaped)
+        {
+            return Task::none();
+        }
+        if is_loupe(&shaped) {
+            let Some(Source(source)) = lift.source.clone() else {
+                return Task::none();
+            };
+            lift.drafting = true;
+            return self.draft_loupe(shaped, source, scale);
+        }
+        lift.drafting = true;
+        let fresh = !lift.drafted;
+        lift.drafted = true;
+        let page = lift.page;
+        let margin = draft_margin(&shaped);
+        let rect = shaped.rect;
+        let mut wanted = Rect::new(
+            rect.x0 - margin,
+            rect.y0 - margin,
+            rect.x1 + margin,
+            rect.y1 + margin,
+        );
+        // Only what can be seen, and a little more for the pointer to go
+        // on into: a large annotation zoomed in would otherwise render
+        // and upload far more than the screen at every step.
+        if let Some(visible) = visible {
+            wanted = Rect::new(
+                wanted.x0.max(visible.x0),
+                wanted.y0.max(visible.y0),
+                wanted.x1.min(visible.x1),
+                wanted.y1.min(visible.y1),
+            );
+            if wanted.width() <= 0.0 || wanted.height() <= 0.0 {
+                lift.drafting = false;
+                lift.drafted = !fresh;
+                return Task::none();
+            }
+        }
+        let pixels = PixelRect {
+            x: (wanted.x0 * scale).floor() as i32,
+            y: (wanted.y0 * scale).floor() as i32,
+            width: (wanted.width() * scale).ceil().max(1.0) as u32 + 1,
+            height: (wanted.height() * scale).ceil().max(1.0) as u32 + 1,
+        };
+        let area = Rect::new(
+            pixels.x as f32 / scale,
+            pixels.y as f32 / scale,
+            (pixels.x + pixels.width as i32) as f32 / scale,
+            (pixels.y + pixels.height as i32) as f32 / scale,
+        );
+        let receiver = self.handle.draft(page, shaped.clone(), fresh);
+        let pool = std::sync::Arc::clone(&self.pool);
+        self.current(
+            async move {
+                let display = receiver.await.ok()?.ok()?;
+                let bitmap = pool
+                    .render(display, scale, pixels, 1, Ticket::new())
+                    .await
+                    .ok()?
+                    .ok()?;
+                Some(ImageHandle::from_rgba(
+                    bitmap.width,
+                    bitmap.height,
+                    bitmap.pixels,
+                ))
+            },
+            move |image| {
+                PdfMessage::Editing(EditMessage::Drafted(Box::new(DraftRender {
+                    shape: shaped,
+                    area,
+                    image,
+                })))
+            },
+        )
     }
 
     /// Ends the lift once the page shows the annotation in its new place.
@@ -802,13 +1200,16 @@ impl PdfViewer {
                 from,
                 current,
             } => {
-                let moved = markup::dragged(&original, handle, from, current, self.shift);
+                let moved = self.dragged(page, &original, handle, from, current);
                 let unmoved = (current.x - from.x).hypot(current.y - from.y) < CLICK_DISTANCE / 2.0;
                 match self.edit.lift.as_mut() {
                     // Keep showing it where it went until the page is drawn
                     // anew.
                     Some(lift) if !unmoved && lift.id == original.id => {
-                        lift.placed = Some(moved.rect)
+                        lift.placed = Some(moved.rect);
+                        if redrawn(&original, handle) {
+                            lift.reshaped = Some(moved.clone());
+                        }
                     }
                     // A click: keep the images for a drag that may follow.
                     Some(lift) if unmoved && lift.id == original.id => {
@@ -828,12 +1229,29 @@ impl PdfViewer {
                 {
                     *annotation = moved.clone();
                 }
+                // Its final shape, should the pointer have moved on since
+                // the last draft.
+                let draft = self.request_draft();
                 if unmoved {
+                    if original.kind == Kind::Note && self.edit.text.is_none() {
+                        self.open_text(page, &original);
+                    }
                     Task::none()
-                } else if original.subject.as_deref() == Some("Loupe") {
-                    self.render_loupe(page, moved, Some(*original))
+                } else if is_loupe(&original) {
+                    // From the page without the loupe, which the page
+                    // shown still has where it was.
+                    let source = self
+                        .edit
+                        .lift
+                        .as_ref()
+                        .and_then(|lift| lift.source.clone())
+                        .map(|Source(source)| source);
+                    Task::batch([
+                        draft,
+                        self.render_loupe(page, moved, Some(*original), source),
+                    ])
                 } else {
-                    self.change(page, *original, moved, None, None)
+                    Task::batch([draft, self.change(page, *original, moved, None, None)])
                 }
             }
         };
@@ -866,7 +1284,7 @@ impl PdfViewer {
                 };
                 let mut annotation = markup::shape_annotation(shape, start, end, self.edit.style);
                 match shape {
-                    Shape::Loupe => self.render_loupe(page, annotation, None),
+                    Shape::Loupe => self.render_loupe(page, annotation, None, None),
                     Shape::Mask => {
                         let hole = annotation.rect;
                         let size = self.info.page_sizes[page];
@@ -1270,8 +1688,9 @@ impl PdfViewer {
         page: usize,
         annotation: Annotation,
         before: Option<Annotation>,
+        source: Option<Arc<dyn PageDisplay>>,
     ) -> Task<PdfMessage> {
-        let Some(display) = self.displays.get(&page).cloned() else {
+        let Some(display) = source.or_else(|| self.displays.get(&page).cloned()) else {
             return Task::none();
         };
         let rect = annotation.rect;
@@ -1651,7 +2070,7 @@ impl PdfViewer {
                 let content = StampContent::Image {
                     image,
                     round: true,
-                    border: Some((Rgb::new(0.35, 0.35, 0.35), 2.0)),
+                    border: Some((LOUPE_BORDER, LOUPE_BORDER_WIDTH)),
                 };
                 match before {
                     None => self.add(page, annotation, Some(content), false),
@@ -1659,9 +2078,16 @@ impl PdfViewer {
                 }
             }
             EditMessage::Lifted(id, images) => {
-                let Some((without, alone)) = images else {
+                let Some((without, alone, source)) = images else {
                     return self.editing(EditMessage::LiftUploaded(id, None));
                 };
+                for lift in [&mut self.edit.lift, &mut self.edit.lift_kept]
+                    .into_iter()
+                    .flatten()
+                    .filter(|lift| lift.id == id)
+                {
+                    lift.source = Some(source.clone());
+                }
                 // Both go to the GPU before either is shown: a large image
                 // uploaded while drawing would miss its first frame, and the
                 // page without the annotation would show on its own.
@@ -1694,6 +2120,38 @@ impl PdfViewer {
                     }
                 }
                 Task::none()
+            }
+            EditMessage::Drafted(render) => {
+                let Some(image) = render.image.clone() else {
+                    return self.editing(EditMessage::DraftUploaded(render, None));
+                };
+                // On the GPU before it replaces the last one, so no frame
+                // goes without.
+                iced_runtime::image::allocate(image).map(move |uploaded| {
+                    PdfMessage::Editing(EditMessage::DraftUploaded(render.clone(), uploaded.ok()))
+                })
+            }
+            EditMessage::DraftUploaded(render, uploaded) => {
+                let Some(lift) = self
+                    .edit
+                    .lift
+                    .as_mut()
+                    .filter(|lift| lift.id == render.shape.id)
+                else {
+                    return Task::none();
+                };
+                lift.drafting = false;
+                if let Some(uploaded) = uploaded {
+                    let render = *render;
+                    lift.draft = Some(Draft {
+                        image: uploaded.handle().clone(),
+                        _uploaded: uploaded,
+                        shape: render.shape,
+                        area: render.area,
+                    });
+                }
+                // The pointer may have gone on while this one rendered.
+                self.request_draft()
             }
             EditMessage::Copied(error) => {
                 if let Some(error) = error {

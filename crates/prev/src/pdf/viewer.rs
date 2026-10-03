@@ -26,6 +26,14 @@ pub use editing::{Editing, FieldEdit, TextEdit};
 const PREVIEW_WIDTH: f32 = 320.0;
 const TILE_BUDGET_BYTES: usize = 128 * 1024 * 1024;
 const ZOOM_STEP: f32 = 1.25;
+/// Logical pixels inside the view's edge where a drag starts scrolling.
+const EDGE_ZONE: f32 = 6.0;
+/// Pixels scrolled per step for each pixel the pointer is into that zone
+/// or past the edge, up to `EDGE_STEP_MAX`.
+const EDGE_SPEED: f32 = 0.35;
+const EDGE_STEP_MAX: f32 = 24.0;
+/// Time between steps of scrolling at the edge: about one frame.
+const EDGE_TICK: Duration = Duration::from_millis(16);
 const LATENCY_SAMPLES: usize = 4096;
 
 #[derive(Clone)]
@@ -157,6 +165,8 @@ pub enum PdfMessage {
     /// A result about pages, from before or after the page numbers last
     /// changed; stale ones are dropped.
     Fresh(u64, Box<PdfMessage>),
+    /// A step of scrolling while an annotation is dragged at the view's edge.
+    EdgeScroll,
     Restructured(pages::PagesSent, Result<Restructured, String>),
 }
 
@@ -224,6 +234,11 @@ pub struct PdfViewer {
     /// A zoom and a point of the first page, as fractions of its size, to
     /// centre once the view's real size is known.
     pub pending_view: Option<(f32, (f32, f32))>,
+    /// Where an annotation drag last had the pointer, in document space,
+    /// for scrolling while it is at the view's edge.
+    edge: Option<(f32, f32)>,
+    /// A step of that scrolling is on its way.
+    edge_ticking: bool,
     pub search: SearchState,
     requests: Vec<Request>,
     pub markup: HashMap<usize, PageMarkup>,
@@ -296,6 +311,8 @@ impl PdfViewer {
             dragged: false,
             pending_copy: false,
             pending_view: None,
+            edge: None,
+            edge_ticking: false,
             search: SearchState::default(),
             requests: Vec::new(),
             markup: HashMap::new(),
@@ -550,12 +567,20 @@ impl PdfViewer {
             PdfMessage::Press { x, y, clicks } => self.press(x, y, clicks),
             PdfMessage::Drag { x, y } => {
                 self.drag(x, y);
-                Task::none()
+                self.edge = self.edge_scrolls().then_some((x, y));
+                Task::batch([self.request_draft(), self.start_edge_scroll()])
             }
-            PdfMessage::Release { x, y } => self.release(x, y),
+            PdfMessage::EdgeScroll => {
+                self.edge_ticking = false;
+                self.edge_scroll()
+            }
+            PdfMessage::Release { x, y } => {
+                self.edge = None;
+                self.release(x, y)
+            }
             PdfMessage::Shift(shift) => {
                 self.shift = shift;
-                Task::none()
+                self.request_draft()
             }
             PdfMessage::Command(command) => {
                 self.command = command;
@@ -643,6 +668,64 @@ impl PdfViewer {
                 ),
             )
         })
+    }
+
+    /// How far to scroll for one step while a drag has the pointer at `x`,
+    /// `y`: nothing inside the view, more the farther past its edge.
+    fn edge_velocity(&self, x: f32, y: f32) -> (f32, f32) {
+        let axis = |position: f32, start: f32, length: f32| {
+            let (low, high) = (start + EDGE_ZONE, start + length - EDGE_ZONE);
+            if position < low {
+                -((low - position) * EDGE_SPEED).min(EDGE_STEP_MAX)
+            } else if position > high {
+                ((position - high) * EDGE_SPEED).min(EDGE_STEP_MAX)
+            } else {
+                0.0
+            }
+        };
+        (
+            axis(x, self.view.x, self.view.width),
+            axis(y, self.view.y, self.view.height),
+        )
+    }
+
+    /// Starts scrolling when a drag has the pointer at the view's edge.
+    fn start_edge_scroll(&mut self) -> Task<PdfMessage> {
+        let Some((x, y)) = self.edge else {
+            return Task::none();
+        };
+        if self.edge_ticking || self.edge_velocity(x, y) == (0.0, 0.0) {
+            return Task::none();
+        }
+        self.edge_ticking = true;
+        Task::perform(
+            crate::image::editor::spawn(|| std::thread::sleep(EDGE_TICK)),
+            |_| PdfMessage::EdgeScroll,
+        )
+    }
+
+    /// One step of scrolling at the edge: the view moves, and the drag
+    /// with it, as if the pointer had moved over the page by as much.
+    fn edge_scroll(&mut self) -> Task<PdfMessage> {
+        let Some((x, y)) = self.edge.filter(|_| self.edge_scrolls()) else {
+            self.edge = None;
+            return Task::none();
+        };
+        let (dx, dy) = self.edge_velocity(x, y);
+        let before = (self.view.x, self.view.y);
+        self.scroll_to(before.0 + dx, before.1 + dy);
+        let (moved_x, moved_y) = (self.view.x - before.0, self.view.y - before.1);
+        if moved_x == 0.0 && moved_y == 0.0 {
+            return Task::none();
+        }
+        let point = (x + moved_x, y + moved_y);
+        self.edge = Some(point);
+        self.drag(point.0, point.1);
+        Task::batch([
+            self.schedule(),
+            self.request_draft(),
+            self.start_edge_scroll(),
+        ])
     }
 
     fn scroll_to(&mut self, x: f32, y: f32) {

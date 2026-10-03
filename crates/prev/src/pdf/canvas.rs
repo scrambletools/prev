@@ -94,29 +94,22 @@ impl<Message> PageCanvas<'_, Message> {
             Tool::Highlight(_) => return Some(mouse::Interaction::Text),
             _ => return Some(mouse::Interaction::Crosshair),
         }
+        // A drag keeps its pointer, wherever it goes.
+        if let Some(handle) = viewer.dragged_handle() {
+            return Some(match handle {
+                Handle::Body => mouse::Interaction::Grabbing,
+                handle => handle_interaction(handle),
+            });
+        }
         let per_pixel = 1.0 / super::layout::points_to_pixels(viewer.layout.zoom);
         if let Some((page, annotation)) = viewer.selected_annotation() {
             let point = viewer.layout.to_page(page, x, y)?;
             match markup::hit_handle(annotation, point, markup::HANDLE_PIXELS * per_pixel) {
-                Some(Handle::Edge { x: 0, .. }) => {
-                    return Some(mouse::Interaction::ResizingVertically);
-                }
-                Some(Handle::Edge { y: 0, .. }) => {
-                    return Some(mouse::Interaction::ResizingHorizontally);
-                }
-                Some(Handle::Edge { x, y }) if x == y => {
-                    return Some(mouse::Interaction::ResizingDiagonallyDown);
-                }
-                Some(Handle::Edge { .. }) => {
-                    return Some(mouse::Interaction::ResizingDiagonallyUp);
-                }
-                Some(Handle::LineStart | Handle::LineEnd) => {
-                    return Some(mouse::Interaction::Crosshair);
-                }
                 Some(Handle::Body) if markup::movable(annotation) => {
                     return Some(mouse::Interaction::Grab);
                 }
-                _ => {}
+                Some(Handle::Body) | None => {}
+                Some(handle) => return Some(handle_interaction(handle)),
             }
         }
         let (page, point) = viewer.layout.hit(x, y)?;
@@ -249,8 +242,10 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             }
             Event::Mouse(mouse::Event::CursorMoved { .. }) if state.pressed => {
                 // The event has window coordinates; the cursor given to this
-                // widget is already moved by the scroll offset.
-                let Some(position) = cursor.position() else {
+                // widget is already moved by the scroll offset. Past the
+                // view's edge the scrollable hands it on as levitating; a
+                // drag goes on following it there.
+                let Some(position) = cursor.land().position() else {
                     return;
                 };
                 let (x, y) = to_document(position);
@@ -263,7 +258,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.pressed => {
                 state.pressed = false;
-                let (x, y) = cursor.position().map_or((0.0, 0.0), to_document);
+                let (x, y) = cursor.land().position().map_or((0.0, 0.0), to_document);
                 shell.publish((self.on_message)(PdfMessage::Release { x, y }));
             }
             Event::Mouse(mouse::Event::WheelScrolled { delta }) if state.modifiers.command() => {
@@ -610,6 +605,17 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
 impl<'a, Message: 'a> From<PageCanvas<'a, Message>> for Element<'a, Message> {
     fn from(canvas: PageCanvas<'a, Message>) -> Self {
         Element::new(canvas)
+    }
+}
+
+/// The pointer over a handle that reshapes an annotation.
+fn handle_interaction(handle: Handle) -> mouse::Interaction {
+    match handle {
+        Handle::Edge { x: 0, .. } => mouse::Interaction::ResizingVertically,
+        Handle::Edge { y: 0, .. } => mouse::Interaction::ResizingHorizontally,
+        Handle::Edge { x, y } if x == y => mouse::Interaction::ResizingDiagonallyDown,
+        Handle::Edge { .. } => mouse::Interaction::ResizingDiagonallyUp,
+        Handle::LineStart | Handle::LineEnd | Handle::Body => mouse::Interaction::Crosshair,
     }
 }
 
