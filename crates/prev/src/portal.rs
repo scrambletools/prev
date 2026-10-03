@@ -49,6 +49,19 @@ mod linux {
         rgb(settings.accent_color().await.ok()?)
     }
 
+    /// The desktop's light or dark preference, through the settings
+    /// portal. iced reads it at startup too, but gives the portal only a
+    /// fifth of a second, which a busy desktop can miss.
+    pub async fn color_scheme() -> Option<iced::theme::Mode> {
+        use ashpd::desktop::settings::ColorScheme;
+        let settings = ashpd::desktop::settings::Settings::new().await.ok()?;
+        match settings.color_scheme().await.ok()? {
+            ColorScheme::PreferDark => Some(iced::theme::Mode::Dark),
+            ColorScheme::PreferLight => Some(iced::theme::Mode::Light),
+            ColorScheme::NoPreference => None,
+        }
+    }
+
     /// The accent color each time the desktop changes it.
     pub fn accent_changes() -> impl iced::futures::Stream<Item = Option<(u8, u8, u8)>> {
         use iced::futures::{SinkExt, StreamExt};

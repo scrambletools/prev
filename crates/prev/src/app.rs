@@ -413,6 +413,15 @@ impl Prev {
         prev.reload_omarchy();
         let task = prev.open_paths(paths);
         let system = iced::system::theme().map(Message::SystemTheme);
+        // The portal's own answer, in case it came after iced stopped
+        // waiting for it.
+        #[cfg(target_os = "linux")]
+        let system = Task::batch([
+            system,
+            Task::perform(portal::color_scheme(), |mode| {
+                mode.map_or(Message::Nothing, Message::SystemTheme)
+            }),
+        ]);
         let motion = Task::perform(portal::animations_enabled(), Message::AnimationsEnabled);
         (
             prev,
@@ -854,6 +863,12 @@ impl Prev {
                 Task::batch([task, self.open_paths_if_any(paths)])
             }
             Message::SystemTheme(mode) => {
+                // iced reports no preference when the portal is slow to
+                // answer at startup, which can come after the portal's own
+                // light or dark: keep that.
+                if mode == iced::theme::Mode::None && self.system_mode != iced::theme::Mode::None {
+                    return Task::none();
+                }
                 self.system_mode = mode;
                 self.refresh_theme();
                 // A change of accent often comes with one of mode.
