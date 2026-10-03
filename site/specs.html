@@ -31,6 +31,7 @@
 <li><a href="#documents">PDF features</a></li>
 <li><a href="#languages">Languages</a></li>
 <li><a href="#input">Input</a></li>
+<li><a href="#ai">Assistant and agents</a></li>
 <li><a href="#technology">Technology</a></li>
 <li><a href="#performance">Performance</a></li>
 <li><a href="#files">Settings and data</a></li>
@@ -96,6 +97,22 @@
 <tr><th>Drag and drop</th><td>Both ways on Linux (Wayland), Windows and macOS: pictures, text, files and pages in, with Ctrl (Control on macOS) sending a drop to the sidebar; text, areas, pages and images out, with Shift (or Command) to move pages</td></tr>
 <tr><th>Clipboard</th><td>Text, images, files copied in the file manager, and pages between prev windows; wl-clipboard on Linux</td></tr>
 <tr><th>Accessibility</th><td>Keyboard focus with Tab and Shift+Tab; follows the system's reduced motion setting</td></tr>
+</tbody></table>
+
+<h2 id="ai">Assistant and agents</h2>
+<table class="spec"><tbody>
+<tr><th>Cloud models</th><td>Anthropic, OpenAI and Google Gemini, with your own API key; prev lists the provider's chat models and suggests Claude Sonnet 5.5, GPT-5.6 or Gemini 3.8 Flash. Keys are kept in the system keychain, once per provider</td></tr>
+<tr><th>Local models</th><td>Ollama, found at <code>localhost:11434</code>, with each model's tools, vision and context shown, and qwen3.8 suggested; OpenAI-compatible servers, found at LM Studio's <code>localhost:1234</code>, llama.cpp's <code>localhost:8080</code> or vLLM's <code>localhost:8000</code>; or a server at any address, on this computer or another</td></tr>
+<tr><th>What a model needs</th><td>Tool calling. Seeing pictures is optional: a model without it gets the page's text instead of a picture of it. For Ollama, the context is set per model</td></tr>
+<tr><th>What it can do</th><td>The same 44 tools agents use, below, asking first where Settings says to; each change it makes is one step of Undo</td></tr>
+<tr><th>MCP server</th><td><code>prev --mcp</code>, over standard input and output, for Claude Code (<code>claude mcp add prev -- prev --mcp</code>) or any MCP client. It drives the prev you are using, starting it if needed; nothing listens on the network</td></tr>
+<tr><th>Access</th><td>prev asks before letting a new agent in, and remembers Allow; Settings lists allowed agents, and Allow outside control turns agents off</td></tr>
+<tr><th>Read (11)</th><td><code>list_windows</code>, <code>document_info</code>, <code>page_text</code>, <code>search</code>, <code>current_view</code>, <code>list_annotations</code>, <code>form_fields</code>, <code>list_signatures</code>, <code>render_page</code>, <code>render_image</code>, <code>get_image</code></td></tr>
+<tr><th>View (11)</th><td><code>open_file</code>, <code>focus_window</code>, <code>go_to_page</code>, <code>scroll_to</code>, <code>set_zoom</code>, <code>set_view_mode</code>, <code>point_at</code>, <code>show_panel</code>, <code>hide_panel</code>, <code>set_window</code>, <code>close_window</code></td></tr>
+<tr><th>Markup (7)</th><td><code>highlight</code>, <code>add_note</code>, <code>add_text_box</code>, <code>add_shape</code>, <code>edit_annotation</code>, <code>delete_annotation</code>, <code>add_redaction</code></td></tr>
+<tr><th>Edit (12)</th><td><code>rotate_pages</code>, <code>delete_pages</code>, <code>move_pages</code>, <code>insert_blank_page</code>, <code>crop_pages</code>, <code>fill_field</code>, <code>place_image</code>, <code>crop</code>, <code>rotate</code>, <code>resize</code>, <code>adjust_color</code>, <code>replace_image</code></td></tr>
+<tr><th>Sign, redact, export (3)</th><td><code>place_signature</code>, <code>apply_redactions</code>, <code>export</code></td></tr>
+<tr><th>Asking first</th><td>A switch for each kind above; signing and applying redactions ask at first, as Undo cannot take them back</td></tr>
 </tbody></table>
 
 <h2 id="technology">Technology</h2>
