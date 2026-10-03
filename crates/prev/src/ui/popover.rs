@@ -56,7 +56,7 @@ pub fn surface<'a, Message: 'a>(content: impl Into<Element<'a, Message>>) -> Ele
         .style(|theme: &Theme| {
             let scheme = Scheme::of(theme);
             iced::widget::container::Style {
-                background: Some(scheme.surface_container.into()),
+                background: Some(scheme.chrome.into()),
                 border: iced::border::rounded(shape::LARGE),
                 shadow: elevation::shadow(&scheme, 2),
                 text_color: Some(scheme.on_surface),

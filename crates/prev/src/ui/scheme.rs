@@ -47,6 +47,31 @@ pub struct Scheme {
     pub inverse_on_surface: Color,
     pub scrim: Color,
     pub shadow: Color,
+    /// The window's own chrome: its toolbars, side panels, menus and
+    /// dialogs. On Windows and macOS, the system's title bar color, so
+    /// prev's bars run on from it; elsewhere the container tone.
+    pub chrome: Color,
+}
+
+/// The system's title bar color, in light or dark: Windows 11's, and the
+/// window background macOS draws its title bar from. `None` where the
+/// theme has the say.
+fn system_chrome(dark: bool) -> Option<Color> {
+    if cfg!(windows) {
+        Some(if dark {
+            Color::from_rgb8(0x20, 0x20, 0x20)
+        } else {
+            Color::from_rgb8(0xf3, 0xf3, 0xf3)
+        })
+    } else if cfg!(target_os = "macos") {
+        Some(if dark {
+            Color::from_rgb8(0x1e, 0x1e, 0x1e)
+        } else {
+            Color::from_rgb8(0xec, 0xec, 0xec)
+        })
+    } else {
+        None
+    }
 }
 
 fn color(argb: Argb) -> Color {
@@ -110,6 +135,7 @@ impl Scheme {
             inverse_on_surface: color(scheme.inverse_on_surface()),
             scrim: color(scheme.scrim()),
             shadow: color(scheme.shadow()),
+            chrome: system_chrome(dark).unwrap_or_else(|| color(scheme.surface_container())),
         }
     }
 

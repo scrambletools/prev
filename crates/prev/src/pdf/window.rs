@@ -1351,7 +1351,7 @@ impl PdfWindow {
                                     .clip(true)
                                     .width(self.sidebar_width.value)
                                     .height(Fill)
-                                    .style(style::surface_container_low),
+                                    .style(style::chrome),
                             ),
                             resize::handle(Message::SidebarResized).into(),
                         ),

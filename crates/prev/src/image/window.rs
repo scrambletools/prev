@@ -2079,7 +2079,7 @@ impl ImageWindow {
                             .clip(true)
                             .width(self.sidebar_width.value)
                             .height(Fill)
-                            .style(style::surface_container_low),
+                            .style(style::chrome),
                     ),
                     bottom,
                 ))

@@ -34,6 +34,12 @@ pub fn surface_container(theme: &Theme) -> container::Style {
     filled(scheme.surface_container, scheme.on_surface)
 }
 
+/// The window's chrome: toolbars, side panels and the like.
+pub fn chrome(theme: &Theme) -> container::Style {
+    let scheme = Scheme::of(theme);
+    filled(scheme.chrome, scheme.on_surface)
+}
+
 /// A Markdown code block: a rounded panel a step above the page.
 pub fn code_block(theme: &Theme) -> container::Style {
     let scheme = Scheme::of(theme);
@@ -49,7 +55,7 @@ pub fn dialog(theme: &Theme) -> container::Style {
     container::Style {
         border: border::rounded(shape::surface()),
         shadow: elevation::shadow(&scheme, 3),
-        ..filled(scheme.surface_container_high, scheme.on_surface)
+        ..filled(scheme.chrome, scheme.on_surface)
     }
 }
 
@@ -196,7 +202,7 @@ pub fn outlined_select(theme: &Theme, status: pick_list::Status) -> pick_list::S
 pub fn select_menu(theme: &Theme) -> menu::Style {
     let scheme = Scheme::of(theme);
     menu::Style {
-        background: Background::Color(scheme.surface_container),
+        background: Background::Color(scheme.chrome),
         border: border::rounded(shape::EXTRA_SMALL),
         text_color: scheme.on_surface,
         selected_text_color: scheme.on_surface,

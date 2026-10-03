@@ -709,7 +709,7 @@ impl Prev {
             container(column![header, entries, input, model_row])
                 .width(WIDTH)
                 .height(Fill)
-                .style(style::surface_container_low)
+                .style(style::chrome)
                 .into(),
         )
     }

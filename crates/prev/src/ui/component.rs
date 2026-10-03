@@ -20,7 +20,7 @@ const TOOLTIP_DELAY: Duration = Duration::from_millis(500);
 /// The docked toolbar along the top of a window, or the floating one
 /// when bars float.
 pub fn toolbar<'a, Message: 'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    bar(content, TOOLBAR_HEIGHT, style::surface_container)
+    bar(content, TOOLBAR_HEIGHT, style::chrome)
 }
 
 /// A second toolbar under the first, such as the markup bar.
@@ -28,7 +28,7 @@ pub fn secondary_toolbar<'a, Message: 'a>(
     content: impl Into<Element<'a, Message>>,
     height: f32,
 ) -> Element<'a, Message> {
-    bar(content, height, style::surface_container_low)
+    bar(content, height, style::chrome)
 }
 
 /// M3 floating toolbar: a pill in the container color at elevation 3.
@@ -67,7 +67,7 @@ fn bar<'a, Message: 'a>(
                 background: Some(
                     iced::Color {
                         a: opacity,
-                        ..scheme.surface_container
+                        ..scheme.chrome
                     }
                     .into(),
                 ),
@@ -195,7 +195,7 @@ pub fn between_bars<'a, Message: 'a>(
             element,
             iced::widget::space().height(bottom)
         ])
-        .style(style::surface_container_low)
+        .style(style::chrome)
         .into()
     } else {
         element
@@ -438,7 +438,7 @@ pub fn side_sheet<'a, Message: Clone + 'a>(
     ])
     .width(SIDE_SHEET_WIDTH)
     .height(Fill)
-    .style(style::surface_container_low);
+    .style(style::chrome);
     enter::from_right(sheet)
 }
 
@@ -570,8 +570,8 @@ impl Backdrop {
     pub fn color(self, scheme: &Scheme) -> iced::Color {
         match self {
             Backdrop::Surface => scheme.surface,
-            Backdrop::ContainerLow => scheme.surface_container_low,
-            Backdrop::ContainerHigh => scheme.surface_container_high,
+            // Side panels and dialogs, which are in the chrome color.
+            Backdrop::ContainerLow | Backdrop::ContainerHigh => scheme.chrome,
         }
     }
 }
