@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="2.0.0" date="2026-10-02">
+      <description>
+        <p>prev now has an assistant: a chat panel beside the document that answers about the file and works in it, finding and pointing at things, marking up, filling in, editing, signing and redacting, asking first where you choose. It talks to a local model, such as Ollama's, or to a cloud model from Anthropic, OpenAI or Google with your API key, kept in the system keychain. AI agents such as Claude Code can also control prev over MCP. Also: Settings in tabs, colors that follow the system accent as it changes, toolbars matching the title bar on Windows and macOS, and bold text drawn in prev's own font.</p>
+      </description>
+    </release>
     <release version="1.6.0" date="2026-10-01">
       <description>
         <p>Drag and drop now works both ways on macOS. Images dropped on the page thumbnails, or dragged there from a page, become pages of their own, a PDF dropped on a page asks whether to add it to the end, and holding Ctrl sends a drop to the sidebar. Colors now follow the system accent color on Windows, macOS and Linux desktops, or a color picked in Settings, and Ctrl+drag pans a zoomed-in document. Also: animated images no longer flicker, notices go away after 10 seconds, and closing the file chooser no longer shows an error.</p>

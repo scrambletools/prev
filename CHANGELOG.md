@@ -3,6 +3,54 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [2.0.0] - 2026-10-02
+
+### Added
+
+- The assistant: a chat panel beside the document, opened with the robot
+  head on the toolbar, that answers about the file and works in it with
+  prev's own tools, finding and pointing at things, marking up, filling
+  in, editing, signing, redacting and exporting, asking first where
+  Settings says to. Each window has its own chat, replies stream in as
+  Markdown, models that think show their reasoning, and the model can be
+  changed mid-chat.
+- Settings' new Assistant tab adds models: a local model from a running
+  Ollama or other OpenAI-compatible server on this computer or another,
+  listed with what each can do, or a cloud model from Anthropic, OpenAI
+  or Google Gemini with an API key, kept in the system keychain once per
+  provider. Adding a model tries it first, and a problem, such as a key
+  turned down or an account with no credit, says what to do.
+- AI agents such as Claude Code control the prev you are using over MCP
+  with `prev --mcp`: reading, showing, marking up, editing, signing,
+  redacting and exporting in your own windows. prev asks before letting
+  a new agent in, and Settings chooses which kinds of step ask first.
+- The pointing hand over buttons and links is drawn as on macOS on Linux
+  and Windows too, like the open and closed hands.
+
+### Changed
+
+- Settings is split into tabs: General, Appearance, Assistant, Agents
+  and Storage.
+- On Windows and macOS, toolbars, side panels, menus and dialogs take
+  the system's title bar color, and on macOS prev's toolbar color runs
+  up behind the title bar.
+- Colors follow a change of the system accent color straight away.
+- The table of contents is 15% closer from line to line.
+- The program is larger, 58 MB on Linux, as it now carries the agent
+  server and the assistant's connections to its models.
+- prev needs Rust 1.95 to build.
+
+### Fixed
+
+- Bold text, as in Markdown, is drawn in Roboto Flex; on macOS it fell
+  back to a monospaced font.
+- On macOS, prev follows a switch between light and dark in System
+  Settings.
+- On Linux, prev starts in the desktop's light or dark setting even when
+  the settings portal is slow to answer.
+- With animations off, buttons and menu rows light up under the pointer
+  straight away.
+
 ## [1.6.0] - 2026-10-01
 
 ### Added
@@ -212,6 +260,11 @@ The first release.
 - Material 3 design, light and dark, with colors from the desktop theme,
   an optional floating toolbar, and reduced motion.
 
+[2.0.0]: https://github.com/scrambletools/prev/releases/tag/v2.0.0
+[1.6.0]: https://github.com/scrambletools/prev/releases/tag/v1.6.0
+[1.5.0]: https://github.com/scrambletools/prev/releases/tag/v1.5.0
+[1.4.0]: https://github.com/scrambletools/prev/releases/tag/v1.4.0
+[1.3.0]: https://github.com/scrambletools/prev/releases/tag/v1.3.0
 [1.2.1]: https://github.com/scrambletools/prev/releases/tag/v1.2.1
 [1.2.0]: https://github.com/scrambletools/prev/releases/tag/v1.2.0
 [1.1.0]: https://github.com/scrambletools/prev/releases/tag/v1.1.0

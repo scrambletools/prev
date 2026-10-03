@@ -1,6 +1,6 @@
 # Maintainer: Scramble Tools <https://github.com/scrambletools>
 pkgname=prev
-pkgver=1.6.0
+pkgver=2.0.0
 pkgrel=1
 pkgdesc='View, mark up and sign PDFs and images'
 arch=('x86_64' 'aarch64' 'riscv64')
