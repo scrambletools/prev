@@ -429,6 +429,7 @@ impl Chat {
                     params: choice.request_params(),
                     max_tokens: choice.max_tokens(),
                     vision: choice.vision != Some(false),
+                    pictures_in_results: choice.provider != Provider::Ollama,
                     instructions,
                     tools: tools
                         .into_iter()
@@ -516,6 +517,9 @@ struct Conversation {
     max_tokens: Option<u64>,
     /// Whether the model gets the tools' pictures.
     vision: bool,
+    /// Whether pictures can go in a tool result, which Ollama refuses; there
+    /// they follow the results in the same message.
+    pictures_in_results: bool,
     instructions: String,
     tools: Vec<ToolDefinition>,
     history: Vec<Message>,
@@ -547,6 +551,7 @@ impl Conversation {
                             self.params = choice.request_params();
                             self.max_tokens = choice.max_tokens();
                             self.vision = choice.vision != Some(false);
+                            self.pictures_in_results = choice.provider != Provider::Ollama;
                             self.forget_reasoning();
                         }
                         Err(error) => on_event(Event::Failed(Problem::Other(error))),
@@ -554,10 +559,25 @@ impl Conversation {
                     continue;
                 }
                 Command::Results(results) => {
-                    let content: Vec<UserContent> = results
+                    let mut pictures = Vec::new();
+                    let mut content: Vec<UserContent> = results
                         .into_iter()
                         .filter_map(|result| {
                             let call = self.waiting.remove(&result.id)?;
+                            let mut result = result;
+                            // Pictures that cannot go in a tool result follow it.
+                            if self.vision && !self.pictures_in_results {
+                                for part in &mut result.content {
+                                    if let Content::Png(png) = part {
+                                        pictures.push(std::mem::take(png));
+                                        *part = Content::Text(
+                                            "(The picture is in the message after the tool \
+                                             results.)"
+                                                .to_owned(),
+                                        );
+                                    }
+                                }
+                            }
                             Some(UserContent::tool_result(
                                 call.id,
                                 call.function.name,
@@ -567,6 +587,14 @@ impl Conversation {
                         .collect();
                     if content.is_empty() {
                         continue;
+                    }
+                    if !pictures.is_empty() {
+                        content.push(UserContent::text("The pictures the tools gave:"));
+                        content.extend(
+                            pictures
+                                .into_iter()
+                                .map(|png| UserContent::Image(png_image(png))),
+                        );
                     }
                     self.history.push(Message::User { content });
                 }
@@ -681,6 +709,16 @@ impl Conversation {
 }
 
 /// A tool's result as rig sends it on.
+/// A PNG as rig sends it on.
+fn png_image(png: Vec<u8>) -> Image {
+    Image {
+        data: DocumentSourceKind::Base64(base64::engine::general_purpose::STANDARD.encode(png)),
+        media_type: Some(ImageMediaType::PNG),
+        detail: None,
+        additional_params: None,
+    }
+}
+
 fn tool_content(result: ToolResult, vision: bool) -> Vec<ToolResultContent> {
     let mut content: Vec<ToolResultContent> = result
         .content
@@ -691,14 +729,7 @@ fn tool_content(result: ToolResult, vision: bool) -> Vec<ToolResultContent> {
                 "(A picture, left out: this model cannot see pictures. Read the text with \
                  page_text or search instead.)",
             ),
-            Content::Png(png) => ToolResultContent::Image(Image {
-                data: DocumentSourceKind::Base64(
-                    base64::engine::general_purpose::STANDARD.encode(png),
-                ),
-                media_type: Some(ImageMediaType::PNG),
-                detail: None,
-                additional_params: None,
-            }),
+            Content::Png(png) => ToolResultContent::Image(png_image(png)),
         })
         .collect();
     if content.is_empty() {
