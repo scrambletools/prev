@@ -9,11 +9,11 @@
 # bundle attached to each release.
 id: io.github.scrambletools.prev
 runtime: org.freedesktop.Platform
-runtime-version: '24.08'
+runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
-  - org.freedesktop.Sdk.Extension.llvm18
+  - org.freedesktop.Sdk.Extension.llvm20
 command: prev
 finish-args:
   - --share=ipc
@@ -75,12 +75,12 @@ modules:
   - name: prev
     buildsystem: simple
     build-options:
-      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin
-      prepend-ld-library-path: /usr/lib/sdk/llvm18/lib
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm20/lib
       env:
         CARGO_HOME: /run/build/prev/cargo
         CARGO_NET_OFFLINE: 'true'
-        LIBCLANG_PATH: /usr/lib/sdk/llvm18/lib
+        LIBCLANG_PATH: /usr/lib/sdk/llvm20/lib
         PREV_PRODUCTION: '1'
     build-commands:
       - cargo --offline build --release --locked -p prev
