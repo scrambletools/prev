@@ -303,6 +303,9 @@ pub enum Message {
     OpenSettings,
     /// Open or close the assistant panel, which the app keeps.
     ToggleAssistant,
+    /// A message from the app's panel in this window's side, which the
+    /// app takes back.
+    Side(crate::ui::Outside),
     Loaded(usize, Result<LoadedImage, String>),
     LevelReady(usize, u32, Option<Handle>),
     LevelAllocated(usize, u32, Option<Allocation>),
@@ -657,6 +660,17 @@ impl ImageWindow {
     /// Shows the assistant button pressed, or not.
     pub fn set_assistant_shown(&mut self, shown: bool) {
         self.assistant_shown = shown;
+        // One panel at a time on the right: the assistant takes the place
+        // of the inspector or Adjust Color.
+        if shown {
+            self.panel = None;
+        }
+    }
+
+    /// Whether the window shows a panel of its own on the right, which the
+    /// app's assistant would otherwise share the side with.
+    pub fn has_side_panel(&self) -> bool {
+        self.panel.is_some()
     }
 
     /// The panel shown beside the image, if any.
@@ -786,9 +800,10 @@ impl ImageWindow {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ToggleFloatingBars | Message::OpenSettings | Message::ToggleAssistant => {
-                Task::none()
-            }
+            Message::ToggleFloatingBars
+            | Message::OpenSettings
+            | Message::ToggleAssistant
+            | Message::Side(_) => Task::none(),
             Message::Loaded(index, result) => {
                 let near = index.abs_diff(self.current) <= KEEP_AROUND;
                 let Some(item) = self.items.get_mut(index) else {
@@ -2023,11 +2038,22 @@ impl ImageWindow {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
+        self.view_with(None)
+    }
+
+    /// The window, with `side` in the place of a panel on the right: below
+    /// the toolbar, as the inspector is.
+    pub fn view_with<'a>(&'a self, side: Option<Element<'a, Message>>) -> Element<'a, Message> {
         let index = self.current;
         if let Some(parts) = self.markup_parts() {
             let wrap = markup::wrap(index);
             let bar = parts.bar.map(|bar| bar.map(wrap.clone()));
-            return self.frame_view(parts.canvas.map(wrap.clone()), bar, parts.overlay.map(wrap));
+            return self.frame_view(
+                parts.canvas.map(wrap.clone()),
+                bar,
+                parts.overlay.map(wrap),
+                side,
+            );
         }
         let canvas: Element<'_, Message> = match &self.items[self.current].state {
             ItemState::Failed(error) => component::empty_state(
@@ -2060,7 +2086,7 @@ impl ImageWindow {
                 None => component::empty_state(Icon::Image, crate::fl!("image-opening"), ""),
             },
         };
-        self.frame_view(canvas, None, space().into())
+        self.frame_view(canvas, None, space().into(), side)
     }
 
     /// The window around `canvas`: bars, sidebar, panel, notices and
@@ -2070,6 +2096,7 @@ impl ImageWindow {
         canvas: Element<'a, Message>,
         markup_bar: Option<Element<'a, Message>>,
         overlay: Element<'a, Message>,
+        side: Option<Element<'a, Message>>,
     ) -> Element<'a, Message> {
         let bottom = markup_bar.is_some();
         // The panels keep their sides in every language.
@@ -2094,6 +2121,9 @@ impl ImageWindow {
         content = content.push(canvas);
         if let Some(panel) = self.panel {
             content = content.push(below_bars(self.panel_view(panel), bottom));
+        }
+        if let Some(side) = side {
+            content = content.push(below_bars(side, bottom));
         }
         let shown = self.pointer_inside
             || self.overflow_open
@@ -2381,8 +2411,12 @@ impl ImageWindow {
         let markup_bar = self
             .markup()
             .is_some_and(|markup| markup.window.markup_bar_shown());
-        let undo = !markup_bar;
-        if undo {
+        // Their room stays, so the bar does not shift as the markup bar
+        // comes and goes; they sit between Export and the bar's own
+        // buttons, as in a PDF window.
+        let undo: Element<'a, Message> = if markup_bar {
+            space().width(tools(2.0)).into()
+        } else {
             let (can_undo, can_redo) = match self.markup() {
                 Some(markup) => markup.window.can_undo(),
                 None => (
@@ -2390,26 +2424,21 @@ impl ImageWindow {
                     editor.is_some_and(|editor| editor.stack.can_redo()),
                 ),
             };
-            slots.push((
-                component::group([
-                    when(
-                        Icon::Undo,
-                        crate::fl!("image-undo"),
-                        can_undo,
-                        Message::Undo,
-                    ),
-                    when(
-                        Icon::Redo,
-                        crate::fl!("image-redo"),
-                        can_redo,
-                        Message::Redo,
-                    ),
-                ]),
-                tools(2.0),
-                None,
-                false,
-            ));
-        }
+            component::group([
+                when(
+                    Icon::Undo,
+                    crate::fl!("image-undo"),
+                    can_undo,
+                    Message::Undo,
+                ),
+                when(
+                    Icon::Redo,
+                    crate::fl!("image-redo"),
+                    can_redo,
+                    Message::Redo,
+                ),
+            ])
+        };
         slots.push((
             component::group([
                 when(
@@ -2437,9 +2466,9 @@ impl ImageWindow {
                     Message::Edit(Edit::FlipVertical),
                 ),
             ]),
-            DIVIDER_WIDTH + tools(4.0) + 8.0,
+            tools(4.0),
             Some(2),
-            undo,
+            false,
         ));
         slots.push((
             component::group([
@@ -2477,6 +2506,12 @@ impl ImageWindow {
                     Panel::AdjustColor,
                 ),
                 panel(Icon::Info, crate::fl!("image-inspector"), Panel::Inspector),
+                component::toggle_tool(
+                    Icon::SmartToy,
+                    crate::fl!("assistant-title"),
+                    self.assistant_shown,
+                    Message::ToggleAssistant,
+                ),
                 if markable {
                     component::toggle_tool(
                         Icon::EditDocument,
@@ -2488,12 +2523,6 @@ impl ImageWindow {
                 } else {
                     component::tool(Icon::EditDocument, crate::fl!("image-markup"), None)
                 },
-                component::toggle_tool(
-                    Icon::SmartToy,
-                    crate::fl!("assistant-title"),
-                    self.assistant_shown,
-                    Message::ToggleAssistant,
-                ),
             ]),
             DIVIDER_WIDTH + tools(5.0) + 8.0,
             Some(5),
@@ -2510,6 +2539,7 @@ impl ImageWindow {
             Some(6),
             false,
         ));
+        slots.push((undo, tools(2.0), None, false));
         slots.push((
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
@@ -2904,7 +2934,7 @@ impl ImageWindow {
                     .width(Length::Fill),
             )
             .on_press(Message::SidebarPressed(index))
-            .interaction(iced::mouse::Interaction::Pointer)
+            .interaction(iced::mouse::Interaction::Idle)
             .into()
         });
         let list = mouse_area(column(entries).spacing(12).padding(12).width(Fill))

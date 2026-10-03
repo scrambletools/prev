@@ -705,13 +705,13 @@ impl Prev {
                 bottom: 8.0,
                 left: 24.0,
             });
-        Some(
+        // It slides in from the right, as the inspector does.
+        Some(prev::ui::enter::from_right(
             container(column![header, entries, input, model_row])
                 .width(WIDTH)
                 .height(Fill)
-                .style(style::chrome)
-                .into(),
-        )
+                .style(style::chrome),
+        ))
     }
 }
 

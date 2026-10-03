@@ -3,6 +3,31 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Changed
+
+- The pointer stays the plain arrow over buttons, links, annotations and
+  form fields, and while panning; it changes only to resize, to select
+  text and to draw. prev no longer has hand cursors of its own.
+- The assistant opens below the toolbar, where the inspector does, and
+  takes its place: a window shows one panel on its right at a time, so
+  opening the inspector or Adjust Color closes the assistant.
+- A selected annotation's box and handles follow its own outline, which
+  a thick line straddles, for every kind of shape, ink and redaction
+  mark, and a note's box is its icon.
+
+### Fixed
+
+- Dragging an annotation's handles hides it where it was and draws it as
+  it will be: lines keep their width, text boxes wrap their text, and
+  rounded corners and arrow heads keep their size.
+- A loupe shows what is under it while it is moved or resized, and no
+  longer magnifies itself.
+- Dragging past the view's edge scrolls the page, and dragged
+  annotations stay on their page.
+- A note can be dragged to move it; a click still opens it.
+
 ## [2.0.0] - 2026-10-03
 
 ### Added
@@ -262,6 +287,7 @@ The first release.
 - Material 3 design, light and dark, with colors from the desktop theme,
   an optional floating toolbar, and reduced motion.
 
+[Unreleased]: https://github.com/scrambletools/prev/compare/v2.0.0...HEAD
 [2.0.0]: https://github.com/scrambletools/prev/releases/tag/v2.0.0
 [1.6.0]: https://github.com/scrambletools/prev/releases/tag/v1.6.0
 [1.5.0]: https://github.com/scrambletools/prev/releases/tag/v1.5.0

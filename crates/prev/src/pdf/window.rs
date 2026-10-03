@@ -169,6 +169,9 @@ pub enum Message {
     OpenSettings,
     /// Open or close the assistant panel, which the app keeps.
     ToggleAssistant,
+    /// A message from the app's panel in this window's side, which the
+    /// app takes back.
+    Side(crate::ui::Outside),
     ToggleInspector,
     MetadataLoaded(prev_pdf::engine::Metadata),
     /// What the clipboard held when Paste was pressed.
@@ -414,6 +417,11 @@ impl PdfWindow {
     /// Shows the assistant button pressed, or not.
     pub fn set_assistant_shown(&mut self, shown: bool) {
         self.assistant_shown = shown;
+        // One panel at a time on the right: the assistant takes the
+        // inspector's place.
+        if shown {
+            self.inspector = None;
+        }
     }
 
     pub fn inspector_shown(&self) -> bool {
@@ -963,9 +971,10 @@ impl PdfWindow {
             Message::AnnotationRendered(result, gap, page, id, moving) => {
                 self.annotation_rendered(result, gap, page, id, moving)
             }
-            Message::ToggleFloatingBars | Message::OpenSettings | Message::ToggleAssistant => {
-                Task::none()
-            }
+            Message::ToggleFloatingBars
+            | Message::OpenSettings
+            | Message::ToggleAssistant
+            | Message::Side(_) => Task::none(),
             Message::ToggleInspector => self.toggle_inspector(),
             Message::MetadataLoaded(metadata) => {
                 if let Some(inspector) = self.inspector.as_mut() {
@@ -1321,7 +1330,19 @@ impl PdfWindow {
         Some(self.viewer_update(message))
     }
 
+    /// Whether the window shows a panel of its own on the right, which the
+    /// app's assistant would otherwise share the side with.
+    pub fn has_side_panel(&self) -> bool {
+        self.inspector.is_some()
+    }
+
     pub fn view(&self) -> Element<'_, Message> {
+        self.view_with(None)
+    }
+
+    /// The window, with `side` in the place of a panel on the right: below
+    /// the toolbar, as the inspector is.
+    pub fn view_with<'a>(&'a self, side: Option<Element<'a, Message>>) -> Element<'a, Message> {
         let name = self
             .path
             .file_name()
@@ -1376,6 +1397,9 @@ impl PdfWindow {
                         top,
                         bottom,
                     ));
+                }
+                if let Some(side) = side {
+                    content = content.push(component::between_bars(side, top, bottom));
                 }
                 component::window_bars(
                     self.toolbar(viewer),
@@ -1670,31 +1694,25 @@ impl PdfWindow {
             ),
             (modes, 3.0 * 32.0 + 4.0, Some(0)),
         ];
-        // Undo and redo, unless the markup bar shows its own.
-        let undo = !self.markup_bar;
-        if undo {
+        // Undo and redo, unless the markup bar shows its own; their room
+        // stays, so the bar does not shift as the markup bar comes and goes.
+        let undo: Element<'a, Message> = if self.markup_bar {
+            space().width(TOOL_WIDTH * 2.0 + 4.0).into()
+        } else {
             let history = &viewer.edit.history;
-            slots.push((
-                row![
-                    component::tool(
-                        Icon::Undo,
-                        crate::fl!("pdf-undo"),
-                        history.can_undo().then(|| Message::Edit(EditMessage::Undo)),
-                    ),
-                    component::tool(
-                        Icon::Redo,
-                        crate::fl!("pdf-redo"),
-                        history.can_redo().then(|| Message::Edit(EditMessage::Redo)),
-                    ),
-                    component::toolbar_divider(),
-                ]
-                .spacing(4)
-                .align_y(Center)
-                .into(),
-                TOOL_WIDTH * 2.0 + DIVIDER_WIDTH + 8.0,
-                None,
-            ));
-        }
+            component::group([
+                component::tool(
+                    Icon::Undo,
+                    crate::fl!("pdf-undo"),
+                    history.can_undo().then(|| Message::Edit(EditMessage::Undo)),
+                ),
+                component::tool(
+                    Icon::Redo,
+                    crate::fl!("pdf-redo"),
+                    history.can_redo().then(|| Message::Edit(EditMessage::Redo)),
+                ),
+            ])
+        };
         slots.extend([
             (
                 component::group([
@@ -1722,16 +1740,16 @@ impl PdfWindow {
                         Message::ToggleInspector,
                     ),
                     component::toggle_tool(
-                        Icon::EditDocument,
-                        crate::fl!("pdf-markup"),
-                        self.markup_bar,
-                        Message::ToggleMarkupBar,
-                    ),
-                    component::toggle_tool(
                         Icon::SmartToy,
                         crate::fl!("assistant-title"),
                         self.assistant_shown,
                         Message::ToggleAssistant,
+                    ),
+                    component::toggle_tool(
+                        Icon::EditDocument,
+                        crate::fl!("pdf-markup"),
+                        self.markup_bar,
+                        Message::ToggleMarkupBar,
                     ),
                 ]),
                 DIVIDER_WIDTH + TOOL_WIDTH * 3.0 + 16.0,
@@ -1749,6 +1767,7 @@ impl PdfWindow {
                 component::TOOL_WIDTH,
                 Some(5),
             ),
+            (undo, TOOL_WIDTH * 2.0 + 4.0, None),
             (
                 component::group([
                     component::floating_bars_toggle(Message::ToggleFloatingBars),
@@ -1787,10 +1806,10 @@ impl PdfWindow {
         {
             slot.0 = search_bar(search_width);
         }
-        // The right side: undo, page tools, then the panels, set apart
-        // from the page tools while both are shown.
+        // The right side: page tools, then the panels, set apart from the
+        // page tools while both are shown.
         let right = 5;
-        let page_tools = right + usize::from(undo);
+        let page_tools = right;
         let page_tools_shown = shown[page_tools];
         let mut bar = crate::line![].spacing(8).align_y(Center);
         let mut hidden = Vec::new();
@@ -2101,7 +2120,7 @@ fn thumbnail<'a>(
         pages_ui::drop_marker(marker),
         mouse_area(column![framed, label].align_x(Center).spacing(4))
             .on_press(Message::ThumbnailPressed(page))
-            .interaction(iced::mouse::Interaction::Pointer),
+            .interaction(iced::mouse::Interaction::Idle),
     ]
     .align_x(Center)
     .spacing(4)

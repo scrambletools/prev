@@ -667,7 +667,46 @@ impl Prev {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         let task = self.update_inner(message);
+        self.one_side_panel();
         Task::batch([task, self.time_notices()])
+    }
+
+    /// A window shows one panel on its right at a time: one of its own,
+    /// such as the inspector, opened while the assistant was open, closes
+    /// the assistant. Opening the assistant closes the window's own.
+    fn one_side_panel(&mut self) {
+        for window in self.windows.values_mut() {
+            let Content::Document(document) = &mut window.content else {
+                continue;
+            };
+            let Some(panel) = window.assistant.as_mut().filter(|panel| panel.open) else {
+                continue;
+            };
+            let own = document
+                .pdf
+                .as_ref()
+                .is_some_and(|pdf| pdf.has_side_panel())
+                || document
+                    .images
+                    .as_ref()
+                    .is_some_and(|images| images.has_side_panel())
+                || document
+                    .markdown
+                    .as_ref()
+                    .is_some_and(|markdown| markdown.has_side_panel());
+            if own {
+                panel.open = false;
+                if let Some(pdf) = document.pdf.as_mut() {
+                    pdf.set_assistant_shown(false);
+                }
+                if let Some(images) = document.images.as_mut() {
+                    images.set_assistant_shown(false);
+                }
+                if let Some(markdown) = document.markdown.as_mut() {
+                    markdown.set_assistant_shown(false);
+                }
+            }
+        }
     }
 
     /// Every window's notices, as they show now.
@@ -838,6 +877,15 @@ impl Prev {
             | Message::ToggleAssistant(id) => self.toggle_assistant(id),
             Message::Assistant(id, message) => self.panel_update(id, message),
             Message::Nothing => Task::none(),
+            // The assistant's messages, back from the window's side.
+            Message::Pdf(_, pdf_window::Message::Side(outside))
+            | Message::Image(_, image_window::Message::Side(outside))
+            | Message::Markdown(_, markdown::Message::Side(outside)) => {
+                match outside.take::<Message>() {
+                    Some(message) => self.update_inner(message),
+                    None => Task::none(),
+                }
+            }
             Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
             Message::Image(id, message) => {
                 // An export with markup finishes as MarkupExported.
@@ -1571,22 +1619,35 @@ impl Prev {
         let Some(window) = self.windows.get(&id) else {
             return text("").into();
         };
+        // The assistant goes in the window's side, below its toolbar, where
+        // the inspector goes; the window carries its messages back.
+        let side = || {
+            self.panel_view(id)
+                .map(|panel| panel.map(prev::ui::Outside::new))
+        };
+        let mut beside = None;
         let body = match &window.content {
-            Content::Start => start_view(id),
-            Content::Document(Document { pdf: Some(pdf), .. }) => {
-                pdf.view().map(move |message| Message::Pdf(id, message))
+            Content::Start => {
+                beside = self.panel_view(id);
+                start_view(id)
             }
+            Content::Document(Document { pdf: Some(pdf), .. }) => pdf
+                .view_with(side().map(|panel| panel.map(pdf_window::Message::Side)))
+                .map(move |message| Message::Pdf(id, message)),
             Content::Document(Document {
                 images: Some(images),
                 ..
             }) => images
-                .view()
+                .view_with(side().map(|panel| panel.map(image_window::Message::Side)))
                 .map(move |message| Message::Image(id, message)),
             Content::Document(Document {
                 markdown: Some(document),
                 ..
             }) => document
-                .view(&self.theme)
+                .view_with(
+                    &self.theme,
+                    side().map(|panel| panel.map(markdown::Message::Side)),
+                )
                 .map(move |message| Message::Markdown(id, message)),
             Content::Document(document) => document_view(document),
         };
@@ -1609,7 +1670,7 @@ impl Prev {
             full()
         };
         // The panel keeps its side in every language, as the inspector does.
-        let body = match self.panel_view(id) {
+        let body = match beside {
             Some(panel) => iced::widget::row![body, panel].into(),
             None => body,
         };

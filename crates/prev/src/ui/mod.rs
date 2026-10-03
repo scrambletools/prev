@@ -22,6 +22,29 @@ pub use font::{Type, aligned, aligned_to, styled};
 pub use icon::{Icon, icon};
 pub use scheme::Scheme;
 
+/// A message from a panel the app puts in a window's side, such as the
+/// assistant, carried through the window's own messages untouched for the
+/// app to take back.
+#[derive(Clone)]
+pub struct Outside(std::sync::Arc<dyn std::any::Any + Send + Sync>);
+
+impl Outside {
+    pub fn new<M: Send + Sync + 'static>(message: M) -> Self {
+        Self(std::sync::Arc::new(message))
+    }
+
+    /// The message, if it is an `M`.
+    pub fn take<M: Clone + 'static>(&self) -> Option<M> {
+        self.0.downcast_ref::<M>().cloned()
+    }
+}
+
+impl std::fmt::Debug for Outside {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Outside")
+    }
+}
+
 /// Opacity of the state layer drawn over an element in each state.
 pub mod state_layer {
     pub const HOVERED: f32 = 0.08;

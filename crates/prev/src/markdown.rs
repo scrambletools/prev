@@ -59,6 +59,9 @@ pub enum Message {
     OpenSettings,
     /// Open or close the assistant panel, which the app keeps.
     ToggleAssistant,
+    /// A message from the app's panel in this window's side, which the
+    /// app takes back.
+    Side(crate::ui::Outside),
     /// Exporting the document as a picture: the dialog and its choices,
     /// the save dialog, and the result.
     Export,
@@ -241,8 +244,19 @@ impl MarkdownWindow {
     }
 
     /// Shows the assistant button pressed, or not.
+    /// Whether the window shows a panel of its own on the right, which the
+    /// app's assistant would otherwise share the side with.
+    pub fn has_side_panel(&self) -> bool {
+        self.inspector
+    }
+
     pub fn set_assistant_shown(&mut self, shown: bool) {
         self.assistant_shown = shown;
+        // One panel at a time on the right: the assistant takes the
+        // inspector's place.
+        if shown {
+            self.inspector = false;
+        }
     }
 
     pub fn inspector_shown(&self) -> bool {
@@ -377,9 +391,10 @@ impl MarkdownWindow {
                 self.inspector = !self.inspector;
                 Task::none()
             }
-            Message::ToggleFloatingBars | Message::OpenSettings | Message::ToggleAssistant => {
-                Task::none()
-            }
+            Message::ToggleFloatingBars
+            | Message::OpenSettings
+            | Message::ToggleAssistant
+            | Message::Side(_) => Task::none(),
             Message::Export => {
                 if self.items.is_empty() {
                     return Task::none();
@@ -509,6 +524,16 @@ impl MarkdownWindow {
     }
 
     pub fn view(&self, theme: &Theme) -> Element<'_, Message> {
+        self.view_with(theme, None)
+    }
+
+    /// The window, with `side` in the place of a panel on the right: below
+    /// the toolbar, as the inspector is.
+    pub fn view_with<'a>(
+        &'a self,
+        theme: &Theme,
+        side: Option<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
         let body: Element<'_, Message> = match &self.error {
             Some(error) => container(component::empty_state(
                 Icon::Error,
@@ -530,6 +555,13 @@ impl MarkdownWindow {
                     Message::ToggleInspector,
                     self.inspector_view(),
                 ),
+                component::floating_room(true),
+                0.0,
+            ));
+        }
+        if let Some(side) = side {
+            content = content.push(component::between_bars(
+                side,
                 component::floating_room(true),
                 0.0,
             ));
@@ -805,8 +837,8 @@ impl MarkdownWindow {
             iced::widget::space::horizontal(),
             search,
             component::toolbar_divider(),
-            // The assistant sits beside the inspector, where PDF and image
-            // windows have it after their markup button.
+            // The assistant sits beside the inspector, as in PDF and image
+            // windows, where it comes before the markup button.
             component::group([
                 component::toggle_tool(
                     Icon::Info,
