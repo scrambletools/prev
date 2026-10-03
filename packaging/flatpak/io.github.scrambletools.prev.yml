@@ -46,6 +46,9 @@ modules:
       - -DENABLE_SDL=OFF
       - -DENABLE_DECODER=OFF
       - -DENABLE_ENCODER=OFF
+      # Its CMakeLists asks for a CMake older than 3.5, which CMake 4 in
+      # the 25.08 SDK no longer configures without this.
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     cleanup:
       - /bin
     sources:
