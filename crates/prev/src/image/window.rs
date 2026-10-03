@@ -863,6 +863,9 @@ impl ImageWindow {
             Message::ActualSize if self.marked() => {
                 self.markup_zoom_to(1.0).unwrap_or_else(Task::none)
             }
+            Message::ZoomTo(zoom) if self.marked() => {
+                self.markup_zoom_to(zoom).unwrap_or_else(Task::none)
+            }
             Message::ZoomIn => self.zoom_to(self.zoom() * ZOOM_STEP, None),
             Message::ZoomOut => self.zoom_to(self.zoom() / ZOOM_STEP, None),
             Message::ActualSize => self.zoom_to(1.0, None),
