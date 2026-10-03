@@ -6,9 +6,7 @@
 use std::collections::VecDeque;
 
 use base64::Engine;
-use iced::widget::{
-    Id, column, container, image, markdown, operation, pick_list, row, space, text,
-};
+use iced::widget::{Id, column, container, image, markdown, operation, row, space, text};
 use iced::{Center, Element, Fill, Length, Padding, Task, window};
 use prev::control::{Call, Error};
 use prev::ui::button::Kind;
@@ -17,8 +15,9 @@ use prev_assist::{Chat, Content, Event, ToolCall, ToolResult};
 use serde_json::{Value, json};
 
 use super::super::{Message, Prev, tools};
-use super::{choice_of, key_of};
+use super::{choice_of, key_of, shown_name};
 use crate::External;
+use prev_store::settings::AssistantModel;
 
 /// The panel's width.
 const WIDTH: f32 = 380.0;
@@ -29,7 +28,8 @@ const PICTURE_WIDTH: f32 = 300.0;
 /// What the model is told about prev and the panel.
 const INSTRUCTIONS: &str = "You are the assistant in prev, a PDF, image and Markdown viewer, \
 chatting with the user in a panel beside their file. Use the tools to look at the file and act on \
-it; they act on the user's window unless you give another window's number. You get only what you \
+it; they act on the user's window unless you give another window's number, so you need \
+list_windows only when the user speaks of other windows. You get only what you \
 ask for, so read the file with page_text, search or render_page before you answer about it. \
 Positions on PDF pages are in points from the page's top-left corner, with y growing down; on an \
 image's markup, in image pixels. Every change saves to the file by itself, as edits in prev do, \
@@ -53,31 +53,31 @@ pub(crate) enum PanelMessage {
     Send,
     Stop,
     NewChat,
-    Model(ModelPick),
+    /// Talk to the model with this id from now on.
+    Model(String),
+    /// Open or close the model menu.
+    Menu(bool),
     /// The key for a chat about to start: the chat's number, the model's
     /// id, and the key, if it has one.
     Keyed(u64, String, Result<Option<String>, String>),
     /// The key for the model the chat changes to.
     Switched(u64, String, Result<Option<String>, String>),
     Link(markdown::Uri),
+    /// Unfold or fold the reasoning at this entry.
+    ToggleReasoning(usize),
     OpenSettings,
-}
-
-/// A model in the panel's menu.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ModelPick {
-    id: String,
-    name: String,
-}
-
-impl std::fmt::Display for ModelPick {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.name)
-    }
 }
 
 enum Entry {
     User(String),
+    /// What a reasoning model thought before it replied: shown faintly as
+    /// it streams, then folded away once the reply or a tool call comes,
+    /// unless the user opens it.
+    Reasoning {
+        text: String,
+        done: bool,
+        open: bool,
+    },
     Reply(Box<markdown::Content>),
     Tool {
         id: String,
@@ -101,6 +101,7 @@ enum ToolState {
 /// it opens again.
 pub(crate) struct Panel {
     pub(crate) open: bool,
+    menu_open: bool,
     input_id: Id,
     entries: Vec<Entry>,
     input: String,
@@ -127,6 +128,7 @@ impl Panel {
     pub(crate) fn new(model: Option<String>) -> Self {
         Self {
             open: true,
+            menu_open: false,
             input_id: Id::unique(),
             entries: Vec::new(),
             input: String::new(),
@@ -201,6 +203,40 @@ impl Prev {
         }
     }
 
+    /// What the model is told of the panel's window: its number and the
+    /// file it shows, so it does not have to ask.
+    fn window_context(&self, id: window::Id) -> String {
+        use prev::filetype::FileKind;
+        let number = tools::number(id);
+        let file = self
+            .windows
+            .get(&id)
+            .and_then(|window| match &window.content {
+                super::super::Content::Document(document) => {
+                    let path = document
+                        .images
+                        .as_ref()
+                        .map_or(document.path.as_path(), |images| images.current_path());
+                    let name = path.file_name()?.to_string_lossy().into_owned();
+                    let kind = match &document.kind {
+                        Ok(Some(FileKind::Pdf)) => "a PDF",
+                        Ok(Some(FileKind::Image(_) | FileKind::Svg)) => "an image",
+                        Ok(Some(FileKind::Markdown)) => "a Markdown document",
+                        _ => "a file",
+                    };
+                    Some(format!("{name}, {kind}"))
+                }
+                super::super::Content::Start => None,
+            });
+        match file {
+            Some(file) => format!(
+                "The user's window is number {number} and shows {file}; the user means it unless \
+                 they say otherwise."
+            ),
+            None => format!("The user's window is number {number}, with no file open yet."),
+        }
+    }
+
     /// The model the panel of window `id` uses: its own, if Settings still
     /// has it, else the one in use.
     fn panel_model(&self, panel: &Panel) -> Option<&prev_store::settings::AssistantModel> {
@@ -258,9 +294,7 @@ impl Prev {
                 panel.model = Some(model.id.clone());
                 let number = panel.chat_number;
                 return Task::perform(
-                    prev::image::editor::spawn(move || {
-                        key_of(&model.id).map(|key| (model.id, key))
-                    }),
+                    prev::image::editor::spawn(move || key_of(&model).map(|key| (model.id, key))),
                     move |result| {
                         let (model, key) = match result {
                             Ok(Ok((model, key))) => (model, Ok(key)),
@@ -287,7 +321,7 @@ impl Prev {
                     Chat::start(
                         model,
                         key,
-                        INSTRUCTIONS.to_owned(),
+                        format!("{INSTRUCTIONS} {}", self.window_context(id)),
                         tools::specs(&self.settings.ask_before),
                         move |event| {
                             crate::post(External::Assistant(id, Heard::Chat(number, event)));
@@ -332,24 +366,36 @@ impl Prev {
                 };
                 return operation::focus(panel.input_id.clone());
             }
-            PanelMessage::Model(pick) => {
-                if panel.model.as_deref() == Some(pick.id.as_str()) {
+            PanelMessage::Menu(open) => panel.menu_open = open,
+            PanelMessage::Model(chosen) => {
+                panel.menu_open = false;
+                let Some(model) = self
+                    .settings
+                    .assistant_models
+                    .iter()
+                    .find(|model| model.id == chosen)
+                    .cloned()
+                else {
+                    return Task::none();
+                };
+                if self.panel_model(panel).map(|model| &model.id) == Some(&chosen) {
+                    panel.model = Some(chosen);
                     return Task::none();
                 }
-                panel.model = Some(pick.id.clone());
+                panel.model = Some(chosen.clone());
                 // The next panel opened starts with it too.
-                self.settings.assistant_model = Some(pick.id.clone());
+                self.settings.assistant_model = Some(chosen);
                 self.save_settings();
                 if panel.chat.is_none() {
                     return Task::none();
                 }
                 panel.entries.push(Entry::Note(prev::fl!(
                     "assistant-switched",
-                    model = pick.name
+                    model = super::shown_name(&model)
                 )));
                 let number = panel.chat_number;
                 return Task::perform(
-                    prev::image::editor::spawn(move || key_of(&pick.id).map(|key| (pick.id, key))),
+                    prev::image::editor::spawn(move || key_of(&model).map(|key| (model.id, key))),
                     move |result| {
                         let (model, key) = match result {
                             Ok(Ok((model, key))) => (model, Ok(key)),
@@ -374,6 +420,11 @@ impl Prev {
                     (Ok(key), Some(choice), Some(chat)) => chat.set_model(choice, key),
                     (Err(error), ..) => panel.entries.push(Entry::Problem(error)),
                     _ => {}
+                }
+            }
+            PanelMessage::ToggleReasoning(index) => {
+                if let Some(Entry::Reasoning { open, .. }) = panel.entries.get_mut(index) {
+                    *open = !*open;
                 }
             }
             PanelMessage::Link(uri) => {
@@ -410,7 +461,25 @@ impl Prev {
     }
 
     fn chat_event(&mut self, id: window::Id, panel: &mut Panel, event: Event) -> Task<Message> {
+        if let Event::Reasoning(more) = &event {
+            match panel.entries.last_mut() {
+                Some(Entry::Reasoning {
+                    text, done: false, ..
+                }) => text.push_str(more),
+                _ => panel.entries.push(Entry::Reasoning {
+                    text: more.trim_start().to_owned(),
+                    done: false,
+                    open: false,
+                }),
+            }
+            return Task::none();
+        }
+        // Anything else ends the thinking.
+        if let Some(Entry::Reasoning { done, .. }) = panel.entries.last_mut() {
+            *done = true;
+        }
         match event {
+            Event::Reasoning(_) => {}
             Event::Text(more) => match panel.entries.last_mut() {
                 Some(Entry::Reply(reply)) => reply.push_str(&more),
                 _ => panel
@@ -536,19 +605,6 @@ impl Prev {
             .as_ref()
             .filter(|panel| panel.open)?;
         let message = move |message: PanelMessage| Message::Assistant(id, message);
-        let picks: Vec<ModelPick> = self
-            .settings
-            .assistant_models
-            .iter()
-            .map(|model| ModelPick {
-                id: model.id.clone(),
-                name: model.model.clone(),
-            })
-            .collect();
-        let chosen = self.panel_model(panel).map(|model| ModelPick {
-            id: model.id.clone(),
-            name: model.model.clone(),
-        });
         let header = row![
             ui::styled(prev::fl!("assistant-title"), Type::TitleLarge),
             space::horizontal(),
@@ -566,7 +622,7 @@ impl Prev {
         .spacing(4)
         .align_y(Center)
         .padding(ui::dir::padding(12.0, 12.0, 4.0, 24.0));
-        let has_models = !picks.is_empty();
+        let has_models = !self.settings.assistant_models.is_empty();
         let model_row: Element<'_, Message> = if !has_models {
             column![
                 ui::aligned(
@@ -579,20 +635,20 @@ impl Prev {
             .spacing(8)
             .into()
         } else {
-            pick_list(picks, chosen, move |pick| {
-                message(PanelMessage::Model(pick))
-            })
-            .width(Fill)
-            .into()
+            self.model_menu(id, panel)
         };
         let model_row = container(model_row).padding([0, 24]);
 
         let theme = &self.theme;
         let mut entries = column![].spacing(12);
-        for entry in &panel.entries {
-            entries = entries.push(entry_view(entry, theme, id));
+        for (index, entry) in panel.entries.iter().enumerate() {
+            entries = entries.push(entry_view(entry, index, theme, id));
         }
-        if panel.busy && !panel.running {
+        let thinking = matches!(
+            panel.entries.last(),
+            Some(Entry::Reasoning { done: false, .. })
+        );
+        if panel.busy && !panel.running && !thinking {
             entries = entries.push(ui::aligned(
                 ui::styled(prev::fl!("assistant-thinking"), Type::BodySmall)
                     .style(style::on_surface_variant),
@@ -652,12 +708,183 @@ impl Prev {
     }
 }
 
+impl Prev {
+    /// The menu of models, grouped by who serves them, under a button
+    /// showing the one in use.
+    fn model_menu<'a>(&'a self, id: window::Id, panel: &'a Panel) -> Element<'a, Message> {
+        use prev::ui::popover::{self, popover};
+        let message = move |message: PanelMessage| Message::Assistant(id, message);
+        let models = &self.settings.assistant_models;
+        let chosen = self.panel_model(panel);
+        let group = |model: &AssistantModel| (model.provider.clone(), model.address.clone());
+        // Names two models share, which then show their ids too.
+        let clashes = |model: &AssistantModel| {
+            models
+                .iter()
+                .filter(|other| shown_name(other) == shown_name(model))
+                .count()
+                > 1
+        };
+        let anchor_label = chosen.map_or_else(String::new, shown_name);
+        let anchor_detail = chosen.map_or_else(String::new, group_label);
+        let anchor = ui::button::custom(
+            Kind::Outlined,
+            row![
+                column![
+                    ui::styled(anchor_label, Type::LabelLarge).style(on_surface),
+                    ui::styled(anchor_detail, Type::BodySmall).style(style::on_surface_variant),
+                ]
+                .spacing(2)
+                .width(Fill),
+                ui::icon(Icon::ArrowDropDown, 20.0),
+            ]
+            .spacing(8)
+            .align_y(Center),
+        )
+        .shape(ui::button::Shape::Square)
+        .width(Fill)
+        .height(52.0)
+        .on_press(message(PanelMessage::Menu(!panel.menu_open)));
+        let mut items = column![].width(WIDTH - 48.0);
+        let mut groups: Vec<(String, Option<String>)> = Vec::new();
+        for model in models {
+            if !groups.contains(&group(model)) {
+                groups.push(group(model));
+            }
+        }
+        for (provider, address) in groups {
+            let members: Vec<&AssistantModel> = models
+                .iter()
+                .filter(|model| model.provider == provider && model.address == address)
+                .collect();
+            items = items.push(menu_heading(group_label(members[0])));
+            for model in members {
+                let mut label = shown_name(model);
+                if clashes(model) {
+                    label = format!("{label} ({})", model.model);
+                }
+                items = items.push(component::list_row(
+                    None,
+                    label,
+                    0.0,
+                    chosen.is_some_and(|chosen| chosen.id == model.id),
+                    Some(message(PanelMessage::Model(model.id.clone()))),
+                ));
+            }
+        }
+        items = items.push(iced::widget::rule::horizontal(1));
+        items = items.push(component::list_row(
+            Some(Icon::Settings),
+            prev::fl!("assistant-add-another"),
+            0.0,
+            false,
+            Some(message(PanelMessage::OpenSettings)),
+        ));
+        popover(
+            anchor,
+            panel
+                .menu_open
+                .then(|| popover::surface(component::scroll(items).height(Length::Shrink))),
+            message(PanelMessage::Menu(false)),
+        )
+        .close_on_choice()
+        .into()
+    }
+}
+
+fn on_surface(theme: &iced::Theme) -> text::Style {
+    text::Style {
+        color: Some(ui::Scheme::of(theme).on_surface),
+    }
+}
+
+/// A group's heading in the model menu: the provider, and for a server on
+/// this computer, that it is on this computer.
+fn group_label(model: &AssistantModel) -> String {
+    let Some(provider) = super::provider_of(&model.provider) else {
+        return model.provider.clone();
+    };
+    let label = super::provider_label(provider);
+    if provider.needs_key() {
+        label
+    } else {
+        prev::fl!("assistant-group-local", provider = label)
+    }
+}
+
+fn menu_heading<'a>(label: String) -> Element<'a, Message> {
+    container(ui::styled(label, Type::LabelMedium).style(style::on_surface_variant))
+        .padding(Padding {
+            top: 8.0,
+            right: 16.0,
+            bottom: 4.0,
+            left: 16.0,
+        })
+        .into()
+}
+
 fn entry_view<'a>(
     entry: &'a Entry,
+    index: usize,
     theme: &'a iced::Theme,
     id: window::Id,
 ) -> Element<'a, Message> {
     match entry {
+        Entry::Reasoning {
+            text: thought,
+            done,
+            open,
+        } => {
+            let label = if *done {
+                prev::fl!("assistant-thoughts")
+            } else {
+                prev::fl!("assistant-thinking")
+            };
+            let shown = *open || !*done;
+            let header = ui::button::custom(
+                Kind::Row,
+                row![
+                    ui::icon(
+                        if shown {
+                            Icon::ExpandLess
+                        } else {
+                            Icon::ExpandMore
+                        },
+                        16.0
+                    )
+                    .style(style::on_surface_variant),
+                    ui::styled(label, Type::LabelMedium).style(style::on_surface_variant),
+                ]
+                .spacing(6)
+                .align_y(Center),
+            )
+            .height(28.0)
+            .on_press(Message::Assistant(id, PanelMessage::ToggleReasoning(index)));
+            let mut lines = column![header].spacing(4);
+            if shown {
+                // While it streams, only the latest of it, so the panel
+                // does not fill with thinking.
+                let text = if *done {
+                    thought.as_str()
+                } else {
+                    tail(thought, 600)
+                };
+                lines = lines.push(
+                    container(
+                        ui::styled(text.trim(), Type::BodySmall)
+                            .style(style::on_surface_variant)
+                            .wrapping(text::Wrapping::WordOrGlyph),
+                    )
+                    .padding(Padding {
+                        top: 0.0,
+                        right: 0.0,
+                        bottom: 0.0,
+                        left: 22.0,
+                    }),
+                );
+            }
+            lines.into()
+        }
         Entry::User(said) => container(
             container(
                 ui::styled(said.as_str(), Type::BodyMedium).wrapping(text::Wrapping::WordOrGlyph),
@@ -755,6 +982,21 @@ fn markdown_settings(theme: &iced::Theme) -> markdown::Settings {
         ..markdown::Style::from(theme)
     };
     markdown::Settings::with_text_size(14.0, style)
+}
+
+/// The last `chars` characters of `text`, from a word's start.
+fn tail(text: &str, chars: usize) -> &str {
+    let count = text.chars().count();
+    if count <= chars {
+        return text;
+    }
+    let start = text
+        .char_indices()
+        .nth(count - chars)
+        .map_or(0, |(index, _)| index);
+    let rest = &text[start..];
+    rest.find(char::is_whitespace)
+        .map_or(rest, |space| &rest[space..])
 }
 
 fn set_state(panel: &mut Panel, call: &str, new: ToolState) {

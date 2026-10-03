@@ -45,6 +45,7 @@ fn a_local_model_calls_a_tool_and_answers() {
             model,
             address: None,
             context: None,
+            vision: None,
         },
         None,
         "You help with documents in prev. Use the tools to answer.".to_owned(),
@@ -57,9 +58,11 @@ fn a_local_model_calls_a_tool_and_answers() {
     chat.say("How many pages does the open document have? Answer with the number.");
     let mut called = false;
     let mut reply = String::new();
+    let mut thought = String::new();
     loop {
         match received.recv_timeout(Duration::from_secs(300)).unwrap() {
             Event::Text(text) => reply.push_str(&text),
+            Event::Reasoning(text) => thought.push_str(&text),
             Event::ToolCalls(calls) => {
                 assert!(
                     calls.iter().all(|call| call.name == "page_count"),
@@ -82,6 +85,31 @@ fn a_local_model_calls_a_tool_and_answers() {
             Event::Stopped => panic!("nothing stopped the chat"),
         }
     }
+    eprintln!("thought {} characters", thought.len());
     assert!(called, "the model answered without the tool: {reply}");
     assert!(reply.contains("12"), "{reply}");
+}
+
+#[test]
+#[ignore = "needs a local Ollama"]
+fn local_models_are_found_with_what_they_can_do() {
+    let address = prev_assist::find_server(Provider::Ollama, None).expect("Ollama is running");
+    let models = prev_assist::list(Provider::Ollama, None, Some(&address)).unwrap();
+    for model in &models {
+        eprintln!(
+            "{} ({}): tools {:?}, vision {:?}, context {:?}{}",
+            model.name,
+            model.id,
+            model.tools,
+            model.vision,
+            model.context,
+            if model.recommended {
+                ", recommended"
+            } else {
+                ""
+            }
+        );
+    }
+    assert!(!models.is_empty());
+    assert!(models[0].recommended);
 }

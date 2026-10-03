@@ -91,6 +91,12 @@ pub struct AssistantModel {
     /// How much a local model reads at once, in tokens, when prev sets it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<u32>,
+    /// The provider's name for the model, when it gives one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Whether the model sees pictures, when the provider said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision: Option<bool>,
 }
 
 impl Default for Settings {
@@ -302,6 +308,8 @@ mod tests {
                 model: "qwen3.8".to_owned(),
                 address: None,
                 context: Some(65_536),
+                name: None,
+                vision: Some(true),
             }],
             assistant_model: Some("ollama-qwen3.8".to_owned()),
             ..Settings::default()

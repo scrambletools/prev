@@ -870,7 +870,7 @@ settings-tab-general = General
 settings-tab-agents = Agents
 settings-tab-assistant = Assistant
 settings-assistant-note = The models the assistant panel can talk to. Keys are kept in the system's keychain.
-settings-assistant-none = No models yet. Add one below: a cloud model needs an API key from its provider, and a local one, such as Ollama's, its address.
+settings-assistant-none = No models yet. Add one below: a local one, such as Ollama's, stays on this computer; a cloud one needs an API key from its provider.
 settings-assistant-in-use = In use
 settings-assistant-use = Use
 settings-assistant-remove = Remove
@@ -887,10 +887,29 @@ settings-assistant-context = Context
 # $thousands is the size in thousands of tokens, such as 32.
 settings-assistant-context-size = { $thousands }K tokens
 settings-assistant-context-note = More lets the assistant read more of a file in one chat, but the model takes more memory and may answer more slowly.
-settings-assistant-test = Test
 settings-assistant-add-button = Add
-settings-assistant-works = The model answered.
-settings-assistant-name-needed = Give the model's name.
+settings-assistant-use-key = Continue
+# $provider is a cloud provider, such as Anthropic.
+settings-assistant-key-where = Make a key on { $provider }'s site and paste it here.
+settings-assistant-get-key = Get an API key
+settings-assistant-key-kept = Your { $provider } key is kept in the system's keychain.
+settings-assistant-change-key = Change key
+settings-assistant-key-refused = { $provider } turned down this key. Check that it was copied whole, from the right account.
+# $provider is a local server, such as Ollama; $address is where it answered.
+settings-assistant-found-at = { $provider } is running at { $address }.
+settings-assistant-no-server = prev found no { $provider } running on this computer. Start it, or give its address below.
+settings-assistant-get-server = Get { $provider }
+settings-assistant-look-again = Look again
+settings-assistant-looking = Looking for models…
+settings-assistant-found-none = { $provider } has no models yet. Download one with it, then look again.
+settings-assistant-recommended = Recommended
+settings-assistant-uses-tools = Uses tools
+settings-assistant-sees = Sees pictures
+settings-assistant-no-tools = Can't use tools, which the assistant needs
+settings-assistant-added-tag = Added
+settings-assistant-trying = Trying…
+# $model is the model's name.
+settings-assistant-added = { $model } answered and is added.
 settings-assistant-key-needed = This model needs an API key.
 # $error is what the keychain said.
 settings-assistant-key-failed = The key could not be kept in the keychain: { $error }
@@ -933,6 +952,8 @@ assistant-ask = Ask about this file
 assistant-send = Send
 assistant-stop = Stop
 assistant-thinking = Thinking…
+# Folded away above a reply: what the model thought before it.
+assistant-thoughts = Thoughts
 assistant-running = Running…
 assistant-stopped = Stopped.
 assistant-no-model = Add a model in Settings first.
@@ -940,6 +961,10 @@ assistant-add-model = The assistant needs a model: a cloud one with its API key,
 assistant-open-settings = Add a model
 # $model is the model's name, such as claude-sonnet-5.
 assistant-switched = Now talking to { $model }.
+assistant-add-another = Add a model…
+# A heading in the model menu for models on this computer; $provider is
+# the server, such as Ollama.
+assistant-group-local = { $provider } on this computer
 # Why the assistant's model did not answer. $model is the model's name,
 # such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
 assistant-problem-context = The conversation no longer fits in what { $model } can read at once. Start a new chat, or choose a model that can read more.

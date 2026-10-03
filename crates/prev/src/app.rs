@@ -1145,7 +1145,7 @@ impl Prev {
             Message::ModelSettings(message) => self.model_settings(message),
             Message::SettingsTab(tab) => {
                 self.settings_tab = tab;
-                Task::none()
+                self.assistant_tab_shown()
             }
             Message::OutsideControlToggled(enabled) => {
                 self.settings.outside_control = enabled;
@@ -1402,7 +1402,7 @@ impl Prev {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.settings_open = true;
                 }
-                refresh_default_app_status()
+                Task::batch([refresh_default_app_status(), self.assistant_tab_shown()])
             }
             Action::ToggleFullscreen => self.set_fullscreen(id, None),
             Action::Escape => self.set_fullscreen(id, Some(false)),

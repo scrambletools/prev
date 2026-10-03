@@ -7,6 +7,8 @@
 //! rig-core is the only model library here, and nothing outside this crate
 //! knows it, so a new rig version touches only this file.
 
+mod models;
+
 use std::collections::HashMap;
 use std::sync::{Arc, mpsc};
 
@@ -23,6 +25,8 @@ use rig_core::operation::Completion;
 use rig_core::streaming::{Item, StreamEvent};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+pub use models::{ModelInfo, find_server, friendly_name, key_page, list, server_page};
 
 /// Who serves a model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,6 +93,10 @@ pub struct ModelChoice {
     /// takes it from prev: [`DEFAULT_CONTEXT`] when not given.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<u32>,
+    /// Whether the model sees pictures: `Some(false)` gets the render
+    /// tools' text without their pictures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision: Option<bool>,
 }
 
 /// The context a local model gets unless Settings gives another, in
@@ -97,10 +105,22 @@ pub struct ModelChoice {
 /// server keeps room for all of it.
 pub const DEFAULT_CONTEXT: u32 = 32_768;
 
+/// The longest reply asked of an Anthropic model rig does not know, in
+/// tokens: within every current Claude model's limit.
+const ANTHROPIC_REPLY: u64 = 8_192;
+
 /// The context sizes Settings offers.
 pub const CONTEXT_SIZES: [u32; 6] = [8_192, 16_384, 32_768, 65_536, 131_072, 262_144];
 
 impl ModelChoice {
+    /// The longest reply to ask for, where rig sets none: Anthropic needs
+    /// one in every request, and rig knows the limits of the models it was
+    /// released with only.
+    fn max_tokens(&self) -> Option<u64> {
+        let known = rig_core::providers::anthropic::ANTHROPIC.default_max_tokens(self.model.trim());
+        (self.provider == Provider::Anthropic && known.is_none()).then_some(ANTHROPIC_REPLY)
+    }
+
     /// What the provider needs in each request besides the messages.
     fn request_params(&self) -> Option<Value> {
         match self.provider {
@@ -128,9 +148,29 @@ impl ModelChoice {
             return Err("Give the model's name.".to_owned());
         }
         Ok(match self.provider {
-            Provider::Anthropic => anthropic::Anthropic::new(key).completion(model).erase(),
-            Provider::OpenAi => openai::OpenAI::new(key).completion(model).erase(),
-            Provider::Gemini => gemini::Gemini::new(key).completion(model).erase(),
+            // A cloud provider takes an address only to be reached
+            // another way, as through a proxy or the recorded tests' server.
+            Provider::Anthropic => {
+                let mut config = anthropic::AnthropicConfig::new(key);
+                if let Some(address) = address {
+                    config.base_url = address;
+                }
+                config.client().completion(model).erase()
+            }
+            Provider::OpenAi => {
+                let mut config = openai::OpenAIConfig::new(key);
+                if let Some(address) = address {
+                    config.base_url = address;
+                }
+                config.client().completion(model).erase()
+            }
+            Provider::Gemini => {
+                let mut config = gemini::GeminiConfig::new(key);
+                if let Some(address) = address {
+                    config.base_url = address;
+                }
+                config.client().completion(model).erase()
+            }
             Provider::Ollama => {
                 let mut config = ollama::OllamaConfig::new();
                 if let Some(address) = address {
@@ -138,12 +178,14 @@ impl ModelChoice {
                 }
                 config.client().completion(model).erase()
             }
+            // Chat Completions, which compatible servers speak, rather than
+            // the Responses API rig picks for OpenAI's own.
             Provider::OpenAiCompatible => {
                 let mut config = openai::OpenAIConfig::new(key);
                 if let Some(address) = address {
                     config.base_url = address;
                 }
-                config.client().completion(model).erase()
+                config.client().chat(model).erase()
             }
         })
     }
@@ -228,6 +270,9 @@ pub struct ToolResult {
 pub enum Event {
     /// More of the model's reply.
     Text(String),
+    /// More of what the model thinks before it replies, from models that
+    /// reason.
+    Reasoning(String),
     /// Tools to run; the chat waits for their results.
     ToolCalls(Vec<ToolCall>),
     /// The model finished its turn.
@@ -364,6 +409,8 @@ impl Chat {
                 let conversation = Conversation {
                     model,
                     params: choice.request_params(),
+                    max_tokens: choice.max_tokens(),
+                    vision: choice.vision != Some(false),
                     instructions,
                     tools: tools
                         .into_iter()
@@ -415,9 +462,15 @@ pub fn test(choice: &ModelChoice, key: Option<&str>) -> Result<(), Problem> {
         .enable_all()
         .build()
         .map_err(|error| Problem::Other(error.to_string()))?;
+    // With the chat's own parameters, so Ollama loads the model at the
+    // context the chat will use, and does not load it again for it.
+    let mut request = CompletionRequest::new(Message::user("Reply with OK.")).max_tokens(16);
+    if let Some(params) = choice.request_params() {
+        request = request.additional_params(params);
+    }
     runtime.block_on(async move {
         model
-            .call(CompletionRequest::new(Message::user("Reply with OK.")).max_tokens(16))
+            .call(request)
             .await
             .map(|_| ())
             .map_err(|error| Problem::of(&error))
@@ -427,6 +480,9 @@ pub fn test(choice: &ModelChoice, key: Option<&str>) -> Result<(), Problem> {
 struct Conversation {
     model: DynModel<Completion>,
     params: Option<Value>,
+    max_tokens: Option<u64>,
+    /// Whether the model gets the tools' pictures.
+    vision: bool,
     instructions: String,
     tools: Vec<ToolDefinition>,
     history: Vec<Message>,
@@ -456,6 +512,8 @@ impl Conversation {
                         Ok(model) => {
                             self.model = model;
                             self.params = choice.request_params();
+                            self.max_tokens = choice.max_tokens();
+                            self.vision = choice.vision != Some(false);
                             self.forget_reasoning();
                         }
                         Err(error) => on_event(Event::Failed(Problem::Other(error))),
@@ -470,7 +528,7 @@ impl Conversation {
                             Some(UserContent::tool_result(
                                 call.id,
                                 call.function.name,
-                                tool_content(result),
+                                tool_content(result, self.vision),
                             ))
                         })
                         .collect();
@@ -531,6 +589,9 @@ impl Conversation {
         if let Some(params) = &self.params {
             request = request.additional_params(params.clone());
         }
+        if let Some(tokens) = self.max_tokens {
+            request = request.max_tokens(tokens);
+        }
         let mut stream = match self.model.stream(request) {
             Ok(stream) => stream,
             Err(error) => {
@@ -541,6 +602,9 @@ impl Conversation {
         while let Some(item) = stream.next().await {
             match item {
                 Ok(Item::Event(StreamEvent::Text { text, .. })) => on_event(Event::Text(text)),
+                Ok(Item::Event(StreamEvent::Reasoning { text, .. })) => {
+                    on_event(Event::Reasoning(text));
+                }
                 Ok(_) => {}
                 Err(error) => {
                     on_event(Event::Failed(Problem::of(&error)));
@@ -584,12 +648,16 @@ impl Conversation {
 }
 
 /// A tool's result as rig sends it on.
-fn tool_content(result: ToolResult) -> Vec<ToolResultContent> {
+fn tool_content(result: ToolResult, vision: bool) -> Vec<ToolResultContent> {
     let mut content: Vec<ToolResultContent> = result
         .content
         .into_iter()
         .map(|part| match part {
             Content::Text(text) => ToolResultContent::text(text),
+            Content::Png(_) if !vision => ToolResultContent::text(
+                "(A picture, left out: this model cannot see pictures. Read the text with \
+                 page_text or search instead.)",
+            ),
             Content::Png(png) => ToolResultContent::Image(Image {
                 data: DocumentSourceKind::Base64(
                     base64::engine::general_purpose::STANDARD.encode(png),
@@ -633,6 +701,7 @@ mod tests {
             model: "qwen3.8".to_owned(),
             address: Some("http://localhost:11434".to_owned()),
             context: None,
+            vision: None,
         };
         let text = serde_json::to_string(&choice).unwrap();
         assert!(text.contains("\"ollama\""), "{text}");
@@ -646,6 +715,7 @@ mod tests {
             model: model.to_owned(),
             address: None,
             context: None,
+            vision: None,
         };
         assert!(choice("claude").connect(None).is_err());
         assert!(choice("").connect(Some("key")).is_err());
@@ -659,6 +729,7 @@ mod tests {
             model: "qwen3.8".to_owned(),
             address: None,
             context: None,
+            vision: None,
         };
         assert_eq!(
             choice.request_params(),
@@ -715,21 +786,23 @@ mod tests {
 
     #[test]
     fn tool_results_keep_text_and_pictures() {
-        let content = tool_content(ToolResult {
+        let result = ToolResult {
             id: "a".to_owned(),
             content: vec![Content::Text("hi".to_owned()), Content::Png(vec![1, 2, 3])],
             failed: false,
-        });
+        };
+        let content = tool_content(result.clone(), true);
         assert_eq!(content.len(), 2);
         assert!(matches!(&content[1], ToolResultContent::Image(_)));
-        assert_eq!(
-            tool_content(ToolResult {
-                id: "b".to_owned(),
-                content: Vec::new(),
-                failed: true,
-            })
-            .len(),
-            1
-        );
+        // A model that cannot see gets a line in the picture's place.
+        let content = tool_content(result, false);
+        assert_eq!(content.len(), 2);
+        assert!(!matches!(&content[1], ToolResultContent::Image(_)));
+        let failed = ToolResult {
+            id: "b".to_owned(),
+            content: Vec::new(),
+            failed: true,
+        };
+        assert_eq!(tool_content(failed, true).len(), 1);
     }
 }

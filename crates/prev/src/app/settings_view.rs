@@ -324,7 +324,15 @@ impl Prev {
     /// The models the assistant panel can use, and adding one.
     fn assistant_settings(&self) -> iced::widget::Column<'_, Message> {
         use super::assistant::{
-            ContextSize, ModelMessage, ProviderChoice, choice_of, context_sizes, provider_label,
+            ContextSize, Found, ModelMessage, ProviderChoice, choice_of, context_sizes,
+            provider_label, shown_name,
+        };
+        let send = |message: ModelMessage| Message::ModelSettings(message);
+        let note = |text: String| {
+            ui::aligned(ui::styled(text, Type::BodyMedium).style(style::on_surface_variant))
+        };
+        let small = |text: String| {
+            ui::aligned(ui::styled(text, Type::BodySmall).style(style::on_surface_variant))
         };
         let context_menu = |size: u32, on_pick: Box<dyn Fn(ContextSize) -> Message>| {
             iced::widget::pick_list(context_sizes(), Some(ContextSize(size)), on_pick)
@@ -334,21 +342,14 @@ impl Prev {
                 .style(style::outlined_select)
                 .menu_style(style::select_menu)
         };
-        let send = |message: ModelMessage| Message::ModelSettings(message);
-        let mut models = column![ui::aligned(
-            ui::styled(prev::fl!("settings-assistant-note"), Type::BodyMedium)
-                .style(style::on_surface_variant)
-        )]
-        .spacing(8);
+        let mut models = column![note(prev::fl!("settings-assistant-note"))].spacing(8);
         if self.settings.assistant_models.is_empty() {
-            models = models.push(ui::aligned(
-                ui::styled(prev::fl!("settings-assistant-none"), Type::BodyMedium)
-                    .style(style::on_surface_variant),
-            ));
+            models = models.push(note(prev::fl!("settings-assistant-none")));
         }
         for model in &self.settings.assistant_models {
             let used = self.settings.assistant_model.as_deref() == Some(model.id.as_str());
-            let provider = choice_of(model).map_or_else(
+            let choice = choice_of(model);
+            let provider = choice.as_ref().map_or_else(
                 || model.provider.clone(),
                 |choice| provider_label(choice.provider),
             );
@@ -356,7 +357,7 @@ impl Prev {
                 Some(address) => format!("{provider} · {address}"),
                 None => provider,
             };
-            let context: Element<'_, Message> = match choice_of(model) {
+            let context: Element<'_, Message> = match &choice {
                 Some(choice) if choice.provider.sets_context() => {
                     let id = model.id.clone();
                     component::tip(
@@ -378,10 +379,14 @@ impl Prev {
                     .on_press(send(ModelMessage::Use(model.id.clone())))
                     .into()
             };
+            // One width, so the context menus line up.
+            let action = container(action)
+                .width(72)
+                .align_x(iced::alignment::Horizontal::Center);
             models = models.push(
                 row![
                     column![
-                        ui::styled(model.model.clone(), Type::BodyLarge),
+                        ui::styled(shown_name(model), Type::BodyLarge),
                         ui::styled(detail, Type::BodyMedium).style(style::on_surface_variant),
                     ]
                     .spacing(2)
@@ -398,10 +403,13 @@ impl Prev {
                 .align_y(Center),
             );
         }
+
         let form = &self.model_form;
-        let provider = iced::widget::pick_list(
+        let provider = form.provider;
+        let label = provider_label(provider);
+        let provider_menu = iced::widget::pick_list(
             prev_assist::Provider::ALL.map(ProviderChoice).to_vec(),
-            Some(ProviderChoice(form.provider)),
+            Some(ProviderChoice(provider)),
             |choice| Message::ModelSettings(ModelMessage::Provider(choice)),
         )
         .font(ui::font::TEXT)
@@ -412,44 +420,140 @@ impl Prev {
         .menu_style(style::select_menu);
         let mut add = column![
             component::section(prev::fl!("settings-assistant-add")),
-            provider,
-            component::text_field(
-                prev::fl!(
-                    "settings-assistant-model",
-                    example = prev_assist::example_model(form.provider)
-                ),
-                &form.model,
-                Backdrop::ContainerHigh,
-                |input| input.on_input(|model| Message::ModelSettings(ModelMessage::Model(model))),
-            ),
+            provider_menu,
         ]
         .spacing(12);
-        if form.provider.needs_key() {
-            add = add.push(component::text_field(
-                prev::fl!("settings-assistant-key"),
-                &form.key,
-                Backdrop::ContainerHigh,
-                |input| {
-                    input
-                        .secure(true)
-                        .on_input(|key| Message::ModelSettings(ModelMessage::Key(key)))
-                },
-            ));
+
+        // How prev reaches the provider: its key, or its server.
+        if provider.needs_key() {
+            if form.asks_for_key() {
+                add = add.push(
+                    row![
+                        container(component::text_field(
+                            prev::fl!("settings-assistant-key"),
+                            &form.key,
+                            Backdrop::ContainerHigh,
+                            |input| {
+                                input
+                                    .secure(true)
+                                    .on_input(move |key| send(ModelMessage::Key(key)))
+                                    .on_submit(send(ModelMessage::UseKey))
+                            },
+                        ))
+                        .width(Fill),
+                        ui::button(Kind::Filled, prev::fl!("settings-assistant-use-key"))
+                            .on_press(send(ModelMessage::UseKey)),
+                    ]
+                    .spacing(8)
+                    .align_y(Center),
+                );
+                if let Some(page) = prev_assist::key_page(provider) {
+                    add = add.push(
+                        row![
+                            container(small(prev::fl!(
+                                "settings-assistant-key-where",
+                                provider = label.clone()
+                            )))
+                            .width(Fill),
+                            ui::button(Kind::Text, prev::fl!("settings-assistant-get-key"))
+                                .on_press(send(ModelMessage::OpenLink(page))),
+                        ]
+                        .spacing(8)
+                        .align_y(Center),
+                    );
+                }
+            } else if form.key_kept == Some(true) {
+                add = add.push(
+                    row![
+                        container(note(prev::fl!(
+                            "settings-assistant-key-kept",
+                            provider = label.clone()
+                        )))
+                        .width(Fill),
+                        ui::button(Kind::Text, prev::fl!("settings-assistant-change-key"))
+                            .on_press(send(ModelMessage::ChangeKey)),
+                    ]
+                    .spacing(8)
+                    .align_y(Center),
+                );
+            }
+        } else {
+            // The address field shows when no server answered, or one was
+            // found at the address typed; it has its own Look again.
+            let found = matches!(form.found, Found::Models(..) | Found::Looking);
+            let field_shown = !(found && form.address.is_empty());
+            let server: Element<'_, Message> = match &form.found {
+                Found::Models(Some(address), _) => {
+                    let mut line = row![
+                        container(small(prev::fl!(
+                            "settings-assistant-found-at",
+                            provider = label.clone(),
+                            address = address.clone()
+                        )))
+                        .width(Fill),
+                    ]
+                    .spacing(8)
+                    .align_y(Center);
+                    if !field_shown {
+                        line = line.push(
+                            ui::button(Kind::Text, prev::fl!("settings-assistant-look-again"))
+                                .on_press(send(ModelMessage::Search)),
+                        );
+                    }
+                    line.into()
+                }
+                Found::NoServer => {
+                    let mut lines = column![note(prev::fl!(
+                        "settings-assistant-no-server",
+                        provider = label.clone()
+                    ))]
+                    .spacing(8);
+                    if let Some(page) = prev_assist::server_page(provider) {
+                        lines = lines.push(
+                            ui::button(
+                                Kind::Tonal,
+                                prev::fl!(
+                                    "settings-assistant-get-server",
+                                    provider = label.clone()
+                                ),
+                            )
+                            .on_press(send(ModelMessage::OpenLink(page))),
+                        );
+                    }
+                    lines.into()
+                }
+                _ => space().into(),
+            };
+            add = add.push(server);
+            if field_shown {
+                add = add.push(
+                    row![
+                        container(component::text_field(
+                            prev::fl!(
+                                "settings-assistant-address",
+                                example = provider.default_address().unwrap_or_default()
+                            ),
+                            &form.address,
+                            Backdrop::ContainerHigh,
+                            |input| {
+                                input
+                                    .on_input(move |address| send(ModelMessage::Address(address)))
+                                    .on_submit(send(ModelMessage::Search))
+                            },
+                        ))
+                        .width(Fill),
+                        ui::button(Kind::Text, prev::fl!("settings-assistant-look-again"))
+                            .on_press_maybe(
+                                (!matches!(form.found, Found::Looking))
+                                    .then_some(send(ModelMessage::Search)),
+                            ),
+                    ]
+                    .spacing(8)
+                    .align_y(Center),
+                );
+            }
         }
-        if form.provider.needs_address() {
-            add = add.push(component::text_field(
-                prev::fl!(
-                    "settings-assistant-address",
-                    example = form.provider.default_address().unwrap_or_default()
-                ),
-                &form.address,
-                Backdrop::ContainerHigh,
-                |input| {
-                    input.on_input(|address| Message::ModelSettings(ModelMessage::Address(address)))
-                },
-            ));
-        }
-        if form.provider.sets_context() {
+        if provider.sets_context() && matches!(form.found, Found::Models(..)) {
             add = add.push(
                 column![
                     row![
@@ -465,38 +569,133 @@ impl Prev {
                     ]
                     .spacing(8)
                     .align_y(Center),
-                    ui::aligned(
-                        ui::styled(
-                            prev::fl!("settings-assistant-context-note"),
-                            Type::BodySmall
-                        )
-                        .style(style::on_surface_variant)
-                    ),
+                    small(prev::fl!("settings-assistant-context-note")),
                 ]
                 .spacing(4),
             );
         }
-        let status: Element<'_, Message> = match &form.status {
-            Some(Ok(note)) => ui::aligned(
-                ui::styled(note.clone(), Type::BodyMedium).style(style::on_surface_variant),
-            ),
-            Some(Err(problem)) => {
-                ui::aligned(ui::styled(problem.clone(), Type::BodyMedium).style(style::error_text))
+
+        // The models found, to add with one click.
+        match &form.found {
+            Found::Looking => add = add.push(note(prev::fl!("settings-assistant-looking"))),
+            Found::Failed(problem) => {
+                add = add.push(ui::aligned(
+                    ui::styled(problem.clone(), Type::BodyMedium).style(style::error_text),
+                ));
             }
-            None => space().into(),
+            Found::Models(address, found) => {
+                if found.is_empty() {
+                    add = add.push(note(prev::fl!(
+                        "settings-assistant-found-none",
+                        provider = label.clone()
+                    )));
+                }
+                for info in found {
+                    // Ollama answers to a name with or without `:latest`.
+                    let bare = info.id.strip_suffix(":latest").unwrap_or(&info.id);
+                    let added = self.settings.assistant_models.iter().any(|model| {
+                        let saved = model.model.strip_suffix(":latest").unwrap_or(&model.model);
+                        saved == bare
+                            && choice_of(model).is_some_and(|choice| choice.provider == provider)
+                            && (model.address == *address
+                                || model.address.is_none()
+                                    && address.as_deref() == provider.default_address())
+                    });
+                    let mut tags = Vec::new();
+                    if info.recommended {
+                        tags.push(prev::fl!("settings-assistant-recommended"));
+                    }
+                    match info.tools {
+                        Some(false) => tags.push(prev::fl!("settings-assistant-no-tools")),
+                        Some(true) if !provider.needs_key() => {
+                            tags.push(prev::fl!("settings-assistant-uses-tools"));
+                        }
+                        _ => {}
+                    }
+                    if info.vision == Some(true) && !provider.needs_key() {
+                        tags.push(prev::fl!("settings-assistant-sees"));
+                    }
+                    let mut detail = info.id.clone();
+                    if !tags.is_empty() {
+                        detail = format!("{detail} · {}", tags.join(" · "));
+                    }
+                    let usable = info.tools != Some(false);
+                    let button: Element<'_, Message> = if added {
+                        ui::styled(prev::fl!("settings-assistant-added-tag"), Type::LabelLarge)
+                            .style(style::on_surface_variant)
+                            .into()
+                    } else if form.adding.as_deref() == Some(info.id.as_str()) {
+                        ui::styled(prev::fl!("settings-assistant-trying"), Type::LabelLarge)
+                            .style(style::on_surface_variant)
+                            .into()
+                    } else {
+                        ui::button(Kind::Tonal, prev::fl!("settings-assistant-add-button"))
+                            .on_press_maybe(
+                                (usable && form.adding.is_none())
+                                    .then(|| send(ModelMessage::Add(info.id.clone()))),
+                            )
+                            .into()
+                    };
+                    let name = ui::styled(info.name.clone(), Type::BodyLarge);
+                    let name = if usable {
+                        name
+                    } else {
+                        name.style(style::on_surface_variant)
+                    };
+                    add = add.push(
+                        row![column![name, small(detail)].spacing(2).width(Fill), button,]
+                            .spacing(8)
+                            .align_y(Center),
+                    );
+                }
+            }
+            Found::Nothing | Found::NoServer => {}
+        }
+
+        // A model the provider does not list, by its name.
+        let reachable = match &form.found {
+            Found::Models(..) => true,
+            Found::NoServer | Found::Looking => false,
+            Found::Nothing | Found::Failed(_) => {
+                !provider.needs_key() || form.key_kept == Some(true)
+            }
         };
-        let idle = !form.busy;
-        add = add.push(
-            row![
-                container(status).width(Fill),
-                ui::button(Kind::Text, prev::fl!("settings-assistant-test"))
-                    .on_press_maybe(idle.then_some(send(ModelMessage::Test))),
-                ui::button(Kind::Filled, prev::fl!("settings-assistant-add-button"))
-                    .on_press_maybe(idle.then_some(send(ModelMessage::Add))),
-            ]
-            .spacing(8)
-            .align_y(Center),
-        );
+        if reachable {
+            add = add.push(
+                row![
+                    container(component::text_field(
+                        prev::fl!(
+                            "settings-assistant-model",
+                            example = prev_assist::example_model(provider)
+                        ),
+                        &form.typed,
+                        Backdrop::ContainerHigh,
+                        |input| {
+                            input
+                                .on_input(move |name| send(ModelMessage::Typed(name)))
+                                .on_submit(send(ModelMessage::Add(form.typed.clone())))
+                        },
+                    ))
+                    .width(Fill),
+                    ui::button(Kind::Text, prev::fl!("settings-assistant-add-button"))
+                        .on_press_maybe(
+                            (!form.typed.trim().is_empty() && form.adding.is_none())
+                                .then(|| send(ModelMessage::Add(form.typed.clone()))),
+                        ),
+                ]
+                .spacing(8)
+                .align_y(Center),
+            );
+        }
+        match &form.status {
+            Some(Ok(done)) => add = add.push(note(done.clone())),
+            Some(Err(problem)) => {
+                add = add.push(ui::aligned(
+                    ui::styled(problem.clone(), Type::BodyMedium).style(style::error_text),
+                ));
+            }
+            None => {}
+        }
         column![models, add].spacing(20)
     }
 
