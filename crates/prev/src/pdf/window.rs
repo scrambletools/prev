@@ -2109,6 +2109,10 @@ fn thumbnail<'a>(
     .into()
 }
 
+/// The height of an outline entry: 15% less from one line to the next
+/// than other list rows, which are 40 tall with 2 between.
+const OUTLINE_ROW_HEIGHT: f32 = 34.0;
+
 fn outline_entries<'a>(
     items: &'a [OutlineItem],
     depth: usize,
@@ -2130,6 +2134,8 @@ fn outline_entries<'a>(
                 selected,
                 message,
             )
+            // Closer than other lists, as the contents run long.
+            .height(OUTLINE_ROW_HEIGHT)
             .into(),
         );
         outline_entries(&item.children, depth + 1, current, entries);
