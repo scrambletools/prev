@@ -3,7 +3,10 @@
 Run with: uv run --with fonttools scripts/build-fonts.py
 
 - Roboto Flex: every axis pinned to its default except weight, which
-  iced's text stack drives.
+  iced's text stack drives, and a static bold instance beside it, as iced
+  picks a face only at a weight it was registered with, and the variable
+  font registers as regular alone. Without it, bold text, as in Markdown,
+  falls back to a system font (a monospaced one on macOS).
 - Dancing Script: a static semibold instance, for typed signatures.
 - Material Symbols Rounded: static outlined and filled instances at 24 px
   optical size, subset to the icons listed in crates/prev/src/ui/icon.rs.
@@ -136,6 +139,20 @@ def build_roboto_flex(source: Path, out: Path) -> None:
     font.save(out)
 
 
+def build_roboto_flex_bold(variable: Path, out: Path) -> None:
+    font = TTFont(variable)
+    instantiateVariableFont(font, {"wght": 700}, inplace=True, updateFontNames=False)
+    font["OS/2"].usWeightClass = 700
+    # Bold, not regular, in the style bits.
+    font["OS/2"].fsSelection = (font["OS/2"].fsSelection & ~0x40) | 0x20
+    font["head"].macStyle |= 0x1
+    names = {2: "Bold", 4: "Roboto Flex Bold", 6: "RobotoFlex-Bold", 17: "Bold"}
+    for record in font["name"].names:
+        if record.nameID in names:
+            record.string = names[record.nameID]
+    font.save(out)
+
+
 def build_dancing_script(source: Path, out: Path) -> None:
     font = TTFont(source)
     instantiateVariableFont(font, {"wght": 600}, inplace=True)
@@ -147,6 +164,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as scratch:
         scratch = Path(scratch)
         build_roboto_flex(fetch(ROBOTO_FLEX, scratch), OUT / "RobotoFlex.ttf")
+        build_roboto_flex_bold(OUT / "RobotoFlex.ttf", OUT / "RobotoFlexBold.ttf")
         (OUT / "OFL.txt").write_bytes(fetch(ROBOTO_FLEX_LICENSE, scratch).read_bytes())
         build_dancing_script(fetch(DANCING_SCRIPT, scratch), OUT / "DancingScript.ttf")
         (OUT / "OFL-DancingScript.txt").write_bytes(

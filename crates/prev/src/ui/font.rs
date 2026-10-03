@@ -24,8 +24,10 @@ pub const SIGNATURE: Font = Font {
 pub const SIGNATURE_FILE: &[u8] = include_bytes!("../../assets/fonts/DancingScript.ttf");
 
 /// Font files to load at startup.
-pub const FILES: [&[u8]; 4] = [
+pub const FILES: [&[u8]; 5] = [
     include_bytes!("../../assets/fonts/RobotoFlex.ttf"),
+    // Bold text finds Roboto Flex only at a weight a face registers.
+    include_bytes!("../../assets/fonts/RobotoFlexBold.ttf"),
     include_bytes!("../../assets/fonts/MaterialSymbolsRounded.ttf"),
     include_bytes!("../../assets/fonts/MaterialSymbolsRoundedFilled.ttf"),
     SIGNATURE_FILE,
