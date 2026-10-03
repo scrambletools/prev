@@ -46,9 +46,32 @@ mod linux {
     /// desktop sets one (GNOME, KDE).
     pub async fn accent_color() -> Option<(u8, u8, u8)> {
         let settings = ashpd::desktop::settings::Settings::new().await.ok()?;
-        let color = settings.accent_color().await.ok()?;
+        rgb(settings.accent_color().await.ok()?)
+    }
+
+    /// The accent color each time the desktop changes it.
+    pub fn accent_changes() -> impl iced::futures::Stream<Item = Option<(u8, u8, u8)>> {
+        use iced::futures::{SinkExt, StreamExt};
+        iced::stream::channel(1, async |mut output| {
+            let Ok(settings) = ashpd::desktop::settings::Settings::new().await else {
+                return;
+            };
+            let Ok(changes) = settings.receive_accent_color_changed().await else {
+                return;
+            };
+            let mut changes = std::pin::pin!(changes);
+            while let Some(color) = changes.next().await {
+                if output.send(rgb(color)).await.is_err() {
+                    return;
+                }
+            }
+        })
+    }
+
+    /// A portal color as 8-bit channels, or `None` for the color outside 0
+    /// to 1 the portal sends when none is set.
+    fn rgb(color: ashpd::desktop::Color) -> Option<(u8, u8, u8)> {
         let channel = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
-        // The portal sends a color outside 0 to 1 when none is set.
         [color.red(), color.green(), color.blue()]
             .iter()
             .all(|value| (0.0..=1.0).contains(value))
@@ -156,7 +179,7 @@ mod other {
     /// the DWM's `AccentColor`, stored as 0xAABBGGRR.
     #[cfg(windows)]
     #[allow(unsafe_code)]
-    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+    fn read_accent() -> Option<(u8, u8, u8)> {
         use windows_sys::Win32::System::Registry::{
             HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW,
         };
@@ -189,7 +212,7 @@ mod other {
 
     /// macOS's accent color, as System Settings, Appearance sets it.
     #[cfg(target_os = "macos")]
-    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+    fn read_accent() -> Option<(u8, u8, u8)> {
         use objc2_app_kit::{NSColor, NSColorSpace};
         let color =
             NSColor::controlAccentColor().colorUsingColorSpace(&NSColorSpace::sRGBColorSpace())?;
@@ -202,8 +225,40 @@ mod other {
     }
 
     #[cfg(not(any(windows, target_os = "macos")))]
-    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+    fn read_accent() -> Option<(u8, u8, u8)> {
         None
+    }
+
+    /// The system's accent color.
+    pub async fn accent_color() -> Option<(u8, u8, u8)> {
+        read_accent()
+    }
+
+    /// How often the accent color is looked at again: neither Windows nor
+    /// macOS tells iced's apps when it changes.
+    const ACCENT_POLL: std::time::Duration = std::time::Duration::from_secs(2);
+
+    /// The accent color each time it changes, from a thread that looks at
+    /// it every [`ACCENT_POLL`].
+    pub fn accent_changes() -> impl iced::futures::Stream<Item = Option<(u8, u8, u8)>> {
+        let (mut sender, receiver) = iced::futures::channel::mpsc::channel(1);
+        let _ = std::thread::Builder::new()
+            .name("prev-accent".into())
+            .spawn(move || {
+                let mut last = read_accent();
+                loop {
+                    std::thread::sleep(ACCENT_POLL);
+                    if sender.is_closed() {
+                        return;
+                    }
+                    let now = read_accent();
+                    if now != last {
+                        last = now;
+                        let _ = sender.try_send(now);
+                    }
+                }
+            });
+        receiver
     }
 
     /// Prints through the Windows print dialog, on a thread of its own:

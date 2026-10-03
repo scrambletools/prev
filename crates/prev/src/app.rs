@@ -1509,6 +1509,7 @@ impl Prev {
         Subscription::batch([
             frames,
             iced::system::theme_changes().map(Message::SystemTheme),
+            Subscription::run(portal::accent_changes).map(Message::SystemAccent),
             Subscription::run(crate::external_events).map(Message::External),
             Subscription::run(prev::input::keyboard_changes).map(Message::KeyboardDirection),
             window::close_events().map(Message::WindowClosed),
