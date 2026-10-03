@@ -263,7 +263,7 @@ pub fn selection(frame: &mut Frame, annotation: &Annotation, mapping: &Mapping, 
         }
         return;
     }
-    let (origin, size) = mapping.rect(markup::shown_rect(annotation));
+    let (origin, size) = mapping.rect(markup::frame(annotation));
     let (left, top) = (snap(origin.x), snap(origin.y));
     let (right, bottom) = (snap(origin.x + size.width), snap(origin.y + size.height));
     // Top and bottom run the full width; the sides fill in between, so no

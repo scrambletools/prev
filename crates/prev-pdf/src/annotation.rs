@@ -225,6 +225,40 @@ impl Annotation {
         resized
     }
 
+    /// The annotation's own outline: the bounds of a drawing's points,
+    /// which its line straddles, or its rect. MuPDF keeps a drawing's rect
+    /// larger, with room for its line.
+    pub fn frame(&self) -> Rect {
+        let rect = self.rect;
+        match self.kind {
+            // MuPDF draws a redaction mark's outline inside its rect,
+            // centred this far in.
+            Kind::Redact
+                if rect.width() > 2.0 * REDACT_INSET && rect.height() > 2.0 * REDACT_INSET =>
+            {
+                Rect::new(
+                    rect.x0 + REDACT_INSET,
+                    rect.y0 + REDACT_INSET,
+                    rect.x1 - REDACT_INSET,
+                    rect.y1 - REDACT_INSET,
+                )
+            }
+            _ => self.point_bounds().unwrap_or(rect),
+        }
+    }
+
+    /// The annotation resized so its frame is `target`, its rect keeping
+    /// the room it had around the frame.
+    pub fn reframed(&self, target: Rect) -> Self {
+        let (frame, rect) = (self.frame(), self.rect);
+        self.resized(Rect::new(
+            target.x0 - (frame.x0 - rect.x0),
+            target.y0 - (frame.y0 - rect.y0),
+            target.x1 + (rect.x1 - frame.x1),
+            target.y1 + (rect.y1 - frame.y1),
+        ))
+    }
+
     /// The bounds of a drawing's points, inside its rect.
     fn point_bounds(&self) -> Option<Rect> {
         let points: Vec<Point> = match &self.kind {
@@ -368,6 +402,10 @@ pub fn new_id() -> String {
     format!("prev-{nanos:x}-{count}")
 }
 
+/// How far inside a redaction mark's rect MuPDF centres its outline, in
+/// points.
+const REDACT_INSET: f32 = 1.0;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,6 +444,23 @@ mod tests {
             resized.kind,
             Kind::Ink(vec![vec![Point::new(12.0, 12.0), Point::new(42.0, 72.0)]])
         );
+    }
+
+    #[test]
+    fn reframing_puts_the_outline_on_the_target() {
+        let polygon = Annotation::new(
+            "a",
+            Kind::Polygon(vec![
+                Point::new(13.0, 13.0),
+                Point::new(23.0, 13.0),
+                Point::new(18.0, 33.0),
+            ]),
+            Rect::new(10.0, 10.0, 26.0, 36.0),
+        );
+        assert_eq!(polygon.frame(), Rect::new(13.0, 13.0, 23.0, 33.0));
+        let reframed = polygon.reframed(Rect::new(13.0, 13.0, 43.0, 73.0));
+        assert_eq!(reframed.frame(), Rect::new(13.0, 13.0, 43.0, 73.0));
+        assert_eq!(reframed.rect, Rect::new(10.0, 10.0, 46.0, 76.0));
     }
 
     #[test]

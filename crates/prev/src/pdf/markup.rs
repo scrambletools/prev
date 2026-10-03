@@ -122,9 +122,10 @@ pub const NOTE_SIZE: f32 = 24.0;
 /// corner of its rect, which it keeps larger.
 pub const NOTE_ICON: f32 = 16.0;
 
-/// The part of the page `annotation` shows on: its rect, or for a note
-/// just its icon.
-pub fn shown_rect(annotation: &Annotation) -> Rect {
+/// The box the selection draws and the handles resize: an annotation's
+/// own outline, which a thick line straddles, as a drawing app frames a
+/// shape; for a note, just its icon.
+pub fn frame(annotation: &Annotation) -> Rect {
     let rect = annotation.rect;
     match annotation.kind {
         Kind::Note => Rect::new(
@@ -133,7 +134,7 @@ pub fn shown_rect(annotation: &Annotation) -> Rect {
             rect.x0 + rect.width().min(NOTE_ICON),
             rect.y0 + rect.height().min(NOTE_ICON),
         ),
-        _ => rect,
+        _ => annotation.frame(),
     }
 }
 
@@ -159,10 +160,10 @@ fn distance_to_segment(point: Point, a: Point, b: Point) -> f32 {
 
 /// Whether `point` touches the annotation, with `slop` points of reach.
 pub fn hits(annotation: &Annotation, point: Point, slop: f32) -> bool {
-    if !expand(shown_rect(annotation), slop).contains(point) {
+    let reach = slop + annotation.style.line_width / 2.0;
+    if !expand(frame(annotation), reach).contains(point) {
         return false;
     }
-    let reach = slop + annotation.style.line_width / 2.0;
     match &annotation.kind {
         Kind::Ink(strokes) => strokes.iter().any(|stroke| {
             stroke
@@ -218,12 +219,12 @@ pub fn hit_handle(annotation: &Annotation, point: Point, handle: f32) -> Option<
     }
     if resizable(annotation) {
         for (x, y) in handle_positions() {
-            if near(handle_point(annotation.rect, x, y)) {
+            if near(handle_point(frame(annotation), x, y)) {
                 return Some(Handle::Edge { x, y });
             }
         }
     }
-    expand(shown_rect(annotation), handle / 2.0)
+    expand(frame(annotation), handle / 2.0)
         .contains(point)
         .then_some(Handle::Body)
 }
@@ -296,7 +297,7 @@ pub fn dragged(
             line
         }
         Handle::Edge { x, y } => {
-            let rect = annotation.rect;
+            let rect = frame(annotation);
             let mut target = rect;
             match x {
                 -1 => target.x0 = (rect.x0 + dx).min(rect.x1 - 4.0),
@@ -317,7 +318,7 @@ pub fn dragged(
                     target.y1 = target.y0 + height;
                 }
             }
-            annotation.resized(target)
+            annotation.reframed(target)
         }
     }
 }
