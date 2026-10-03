@@ -610,6 +610,14 @@ impl<'a, Message: Clone + 'a> Widget<Message, Theme, iced::Renderer> for Built<'
         } else {
             0.0
         };
+        // A look that changed needs drawing again, even with reduced
+        // motion, where the springs jump and so never ask for a frame.
+        let changed = state.layer.target != layer
+            || state
+                .corners
+                .iter()
+                .zip(corners)
+                .any(|(spring, radius)| spring.target != radius);
         if !state.started {
             state.started = true;
             for (spring, radius) in state.corners.iter_mut().zip(corners) {
@@ -621,6 +629,9 @@ impl<'a, Message: Clone + 'a> Widget<Message, Theme, iced::Renderer> for Built<'
                 spring.go_to(radius);
             }
             state.layer.go_to(layer);
+            if changed {
+                shell.request_redraw();
+            }
         }
 
         match event {
