@@ -1,5 +1,6 @@
---- a/Cargo.toml	2026-10-01 18:34:02.653746267 -0700
-+++ b/Cargo.toml	2026-10-01 18:34:02.661482504 -0700
+diff -ruN '--exclude=hand_cursors' a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml	2026-10-02 21:36:58.658326594 -0700
++++ b/Cargo.toml	2026-10-02 21:36:58.668174365 -0700
 @@ -509,6 +509,7 @@
      "NSRunLoop",
      "NSString",
@@ -8,9 +9,9 @@
      "NSValue",
  ]
  
-diff -ruN a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
+diff -ruN '--exclude=hand_cursors' a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
 --- a/src/platform/drag_drop.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/drag_drop.rs	2026-10-01 18:34:02.656174508 -0700
++++ b/src/platform/drag_drop.rs	2026-10-02 21:36:58.660374637 -0700
 @@ -0,0 +1,37 @@
 +//! prev: drags over a window, for the application to handle itself.
 +//!
@@ -49,9 +50,9 @@ diff -ruN a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
 +    let hook = HOOK.read().unwrap_or_else(|e| e.into_inner());
 +    hook.as_ref().map(|hook| hook(phase, window, info))
 +}
-diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
+diff -ruN '--exclude=hand_cursors' a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 --- a/src/platform/keyboard_layout.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/keyboard_layout.rs	2026-10-01 18:34:02.655797956 -0700
++++ b/src/platform/keyboard_layout.rs	2026-10-02 21:36:58.660068746 -0700
 @@ -0,0 +1,20 @@
 +//! prev: the keyboard layout the user is typing with.
 +//!
@@ -73,9 +74,9 @@ diff -ruN a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 +pub(crate) fn publish(letters: String) {
 +    *LETTERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(letters);
 +}
-diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
---- a/src/platform/mod.rs	2026-10-01 18:34:02.631588364 -0700
-+++ b/src/platform/mod.rs	2026-10-01 18:34:02.655850454 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform/mod.rs b/src/platform/mod.rs
+--- a/src/platform/mod.rs	2026-10-02 21:36:58.652668012 -0700
++++ b/src/platform/mod.rs	2026-10-02 21:36:58.660116585 -0700
 @@ -11,6 +11,12 @@
  #[cfg(any(orbital_platform, docsrs))]
  pub mod orbital;
@@ -89,9 +90,9 @@ diff -ruN a/src/platform/mod.rs b/src/platform/mod.rs
  pub mod startup_notify;
  #[cfg(any(wayland_platform, docsrs))]
  pub mod wayland;
-diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
+diff -ruN '--exclude=hand_cursors' a/src/platform/open_files.rs b/src/platform/open_files.rs
 --- a/src/platform/open_files.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/open_files.rs	2026-10-01 18:34:02.655894736 -0700
++++ b/src/platform/open_files.rs	2026-10-02 21:36:58.660151170 -0700
 @@ -0,0 +1,35 @@
 +//! prev: files macOS asks the application to open.
 +//!
@@ -128,13 +129,14 @@ diff -ruN a/src/platform/open_files.rs b/src/platform/open_files.rs
 +        None => PENDING.lock().unwrap_or_else(|e| e.into_inner()).extend(paths),
 +    }
 +}
-diff -ruN a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.rs
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.rs
 --- a/src/platform_impl/hand_cursors.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform_impl/hand_cursors.rs	2026-10-01 18:34:02.661367880 -0700
-@@ -0,0 +1,51 @@
-+//! Open and closed hands for `CursorIcon::Grab` and `CursorIcon::Grabbing`
-+//! where the system has none (Windows) or its cursor theme draws them
-+//! unlike macOS (Linux): Abdulkaiz Khatri's, under the GPL-3.0 (see
++++ b/src/platform_impl/hand_cursors.rs	2026-10-02 21:36:58.668065592 -0700
+@@ -0,0 +1,60 @@
++//! The pointing, open and closed hands for `CursorIcon::Pointer`,
++//! `CursorIcon::Grab` and `CursorIcon::Grabbing` where the system has no
++//! open or closed hand (Windows) or its cursor theme draws them unlike
++//! macOS (Linux): Abdulkaiz Khatri's, under the GPL-3.0 (see
 +//! `hand_cursors/README.md`).
 +
 +use crate::cursor::CursorImage;
@@ -145,6 +147,13 @@ diff -ruN a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.r
 +/// image.
 +type Hand = [(u16, u16, &'static [u8], u16, u16); 5];
 +
++const POINTER: Hand = [
++    (24, 32, include_bytes!("hand_cursors/pointer-24.rgba"), 7, 4),
++    (32, 32, include_bytes!("hand_cursors/pointer-32.rgba"), 11, 6),
++    (48, 48, include_bytes!("hand_cursors/pointer-48.rgba"), 15, 8),
++    (64, 64, include_bytes!("hand_cursors/pointer-64.rgba"), 22, 13),
++    (96, 96, include_bytes!("hand_cursors/pointer-96.rgba"), 30, 17),
++];
 +const GRAB: Hand = [
 +    (24, 32, include_bytes!("hand_cursors/grab-24.rgba"), 11, 6),
 +    (32, 32, include_bytes!("hand_cursors/grab-32.rgba"), 16, 10),
@@ -164,6 +173,7 @@ diff -ruN a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.r
 +/// that is at least that, or the largest; `None` for any other cursor.
 +pub(crate) fn image(icon: CursorIcon, size: u16) -> Option<CursorImage> {
 +    let sizes = match icon {
++        CursorIcon::Pointer => &POINTER,
 +        CursorIcon::Grab => &GRAB,
 +        CursorIcon::Grabbing => &GRABBING,
 +        _ => return None,
@@ -183,9 +193,9 @@ diff -ruN a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.r
 +        .filter(|size| *size > 0.0)
 +        .unwrap_or(24.0)
 +}
-diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
---- a/src/platform_impl/linux/common/xkb/state.rs	2026-10-01 18:34:02.635487481 -0700
-+++ b/src/platform_impl/linux/common/xkb/state.rs	2026-10-01 18:34:02.656740625 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
+--- a/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:36:58.653494886 -0700
++++ b/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:36:58.661328968 -0700
 @@ -7,7 +7,8 @@
  #[cfg(x11_platform)]
  use x11_dl::xlib_xcb::xcb_connection_t;
@@ -274,14 +284,15 @@ diff -ruN a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linu
      }
  
      /// Reload the modifiers.
-diff -ruN a/src/platform_impl/linux/wayland/window/state.rs b/src/platform_impl/linux/wayland/window/state.rs
---- a/src/platform_impl/linux/wayland/window/state.rs	2026-10-01 18:34:02.638153015 -0700
-+++ b/src/platform_impl/linux/wayland/window/state.rs	2026-10-01 18:34:02.657371903 -0700
-@@ -727,6 +727,20 @@
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/wayland/window/state.rs b/src/platform_impl/linux/wayland/window/state.rs
+--- a/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:36:58.654423359 -0700
++++ b/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:36:58.662079679 -0700
+@@ -727,6 +727,21 @@
  
      /// Set the cursor icon.
      pub fn set_cursor(&mut self, cursor_icon: CursorIcon) {
-+        // The open and closed hands are prev's, drawn at the window's scale.
++        // The pointing, open and closed hands are prev's, drawn at the
++        // window's scale.
 +        let size =
 +            (crate::platform_impl::hand_cursors::linux_size() * self.scale_factor()).round() as u16;
 +        if let Some(image) = crate::platform_impl::hand_cursors::image(cursor_icon, size) {
@@ -298,9 +309,9 @@ diff -ruN a/src/platform_impl/linux/wayland/window/state.rs b/src/platform_impl/
          self.selected_cursor = SelectedCursor::Named(cursor_icon);
  
          if !self.cursor_visible {
-diff -ruN a/src/platform_impl/linux/x11/util/cursor.rs b/src/platform_impl/linux/x11/util/cursor.rs
---- a/src/platform_impl/linux/x11/util/cursor.rs	2026-10-01 18:34:02.641063307 -0700
-+++ b/src/platform_impl/linux/x11/util/cursor.rs	2026-10-01 18:34:02.657832262 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/util/cursor.rs b/src/platform_impl/linux/x11/util/cursor.rs
+--- a/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:36:58.655272674 -0700
++++ b/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:36:58.662536803 -0700
 @@ -125,30 +125,34 @@
          event_loop: &ActiveEventLoop,
          cursor: PlatformCustomCursorSource,
@@ -348,14 +359,14 @@ diff -ruN a/src/platform_impl/linux/x11/util/cursor.rs b/src/platform_impl/linux
          }
      }
  }
-diff -ruN a/src/platform_impl/linux/x11/window.rs b/src/platform_impl/linux/x11/window.rs
---- a/src/platform_impl/linux/x11/window.rs	2026-10-01 18:34:02.642516429 -0700
-+++ b/src/platform_impl/linux/x11/window.rs	2026-10-01 18:34:02.658167898 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/window.rs b/src/platform_impl/linux/x11/window.rs
+--- a/src/platform_impl/linux/x11/window.rs	2026-10-02 21:36:58.655595416 -0700
++++ b/src/platform_impl/linux/x11/window.rs	2026-10-02 21:36:58.663028450 -0700
 @@ -1463,6 +1463,19 @@
      pub fn set_cursor(&self, cursor: Cursor) {
          match cursor {
              Cursor::Icon(icon) => {
-+                // The open and closed hands are prev's.
++                // The pointing, open and closed hands are prev's.
 +                let size = (crate::platform_impl::hand_cursors::linux_size()
 +                    * self.scale_factor())
 +                .round() as u16;
@@ -371,9 +382,9 @@ diff -ruN a/src/platform_impl/linux/x11/window.rs b/src/platform_impl/linux/x11/
                  let old_cursor = replace(
                      &mut *self.selected_cursor.lock().unwrap(),
                      SelectedCursor::Named(icon),
-diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
---- a/src/platform_impl/macos/app_state.rs	2026-10-01 18:34:02.643116228 -0700
-+++ b/src/platform_impl/macos/app_state.rs	2026-10-01 18:34:02.658331163 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
+--- a/src/platform_impl/macos/app_state.rs	2026-10-02 21:36:58.655740036 -0700
++++ b/src/platform_impl/macos/app_state.rs	2026-10-02 21:36:58.663167049 -0700
 @@ -8,7 +8,9 @@
  use objc2_app_kit::{
      NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
@@ -416,9 +427,9 @@ diff -ruN a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_s
              // The menubar initialization should be before the `NewEvents` event, to allow
              // overriding of the default menu even if it's created
              menu::initialize(&app);
-diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
---- a/src/platform_impl/macos/view.rs	2026-10-01 18:34:02.645283443 -0700
-+++ b/src/platform_impl/macos/view.rs	2026-10-01 18:34:02.658609072 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
+--- a/src/platform_impl/macos/view.rs	2026-10-02 21:36:58.656018867 -0700
++++ b/src/platform_impl/macos/view.rs	2026-10-02 21:36:58.663924022 -0700
 @@ -524,6 +524,29 @@
              self.update_modifiers(event, true);
          }
@@ -511,9 +522,9 @@ diff -ruN a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
      pub(super) fn set_cursor_icon(&self, icon: Retained<NSCursor>) {
          let mut cursor_state = self.ivars().cursor_state.borrow_mut();
          cursor_state.cursor = icon;
-diff -ruN a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos/window_delegate.rs
---- a/src/platform_impl/macos/window_delegate.rs	2026-10-01 18:34:02.645558566 -0700
-+++ b/src/platform_impl/macos/window_delegate.rs	2026-10-01 18:34:02.658695243 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos/window_delegate.rs
+--- a/src/platform_impl/macos/window_delegate.rs	2026-10-02 21:36:58.656094818 -0700
++++ b/src/platform_impl/macos/window_delegate.rs	2026-10-02 21:36:58.668794837 -0700
 @@ -367,15 +367,19 @@
      unsafe impl NSDraggingDestination for WindowDelegate {
          /// Invoked when the dragged image enters destination bounds or frame
@@ -618,9 +629,9 @@ diff -ruN a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos
      }
  
      #[inline]
-diff -ruN a/src/platform_impl/mod.rs b/src/platform_impl/mod.rs
---- a/src/platform_impl/mod.rs	2026-10-01 18:34:02.645619480 -0700
-+++ b/src/platform_impl/mod.rs	2026-10-01 18:34:02.658736550 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/mod.rs b/src/platform_impl/mod.rs
+--- a/src/platform_impl/mod.rs	2026-10-02 21:36:58.656134913 -0700
++++ b/src/platform_impl/mod.rs	2026-10-02 21:36:58.664050688 -0700
 @@ -1,6 +1,8 @@
  use crate::monitor::{MonitorHandle as RootMonitorHandle, VideoModeHandle as RootVideoModeHandle};
  use crate::window::Fullscreen as RootFullscreen;
@@ -630,9 +641,9 @@ diff -ruN a/src/platform_impl/mod.rs b/src/platform_impl/mod.rs
  #[cfg(android_platform)]
  mod android;
  #[cfg(ios_platform)]
-diff -ruN a/src/platform_impl/windows/event_loop.rs b/src/platform_impl/windows/event_loop.rs
---- a/src/platform_impl/windows/event_loop.rs	2026-10-01 18:34:02.651384849 -0700
-+++ b/src/platform_impl/windows/event_loop.rs	2026-10-01 18:34:02.660229746 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/event_loop.rs b/src/platform_impl/windows/event_loop.rs
+--- a/src/platform_impl/windows/event_loop.rs	2026-10-02 21:36:58.657691409 -0700
++++ b/src/platform_impl/windows/event_loop.rs	2026-10-02 21:36:58.666768541 -0700
 @@ -44,7 +44,7 @@
  use windows_sys::Win32::UI::Input::{RAWINPUT, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE};
  use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -653,9 +664,9 @@ diff -ruN a/src/platform_impl/windows/event_loop.rs b/src/platform_impl/windows/
                          SelectedCursor::Custom(cursor) => cursor.as_raw_handle(),
                      };
                      unsafe { SetCursor(hcursor) };
-diff -ruN a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.rs
---- a/src/platform_impl/windows/util.rs	2026-10-01 18:34:02.652808106 -0700
-+++ b/src/platform_impl/windows/util.rs	2026-10-01 18:34:02.660119290 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.rs
+--- a/src/platform_impl/windows/util.rs	2026-10-02 21:36:58.658087989 -0700
++++ b/src/platform_impl/windows/util.rs	2026-10-02 21:36:58.666445689 -0700
 @@ -18,9 +18,9 @@
  use windows_sys::Win32::UI::Input::Pointer::{POINTER_INFO, POINTER_PEN_INFO, POINTER_TOUCH_INFO};
  use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -668,7 +679,7 @@ diff -ruN a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.r
      WINDOWPLACEMENT,
  };
  
-@@ -159,6 +159,36 @@
+@@ -159,6 +159,38 @@
      unsafe { &__ImageBase as *const _ as _ }
  }
  
@@ -680,6 +691,7 @@ diff -ruN a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.r
 +
 +    use super::icon::{RaiiCursor, WinCursor};
 +
++    static POINTER: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
 +    static GRAB: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
 +    static GRABBING: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
 +    let hand = || {
@@ -692,6 +704,7 @@ diff -ruN a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.r
 +        }
 +    };
 +    let custom = match cursor {
++        CursorIcon::Pointer => POINTER.get_or_init(hand).as_ref(),
 +        CursorIcon::Grab => GRAB.get_or_init(hand).as_ref(),
 +        CursorIcon::Grabbing => GRABBING.get_or_init(hand).as_ref(),
 +        _ => None,
@@ -705,9 +718,9 @@ diff -ruN a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.r
  pub(crate) fn to_windows_cursor(cursor: CursorIcon) -> PCWSTR {
      match cursor {
          CursorIcon::Default => IDC_ARROW,
-diff -ruN a/src/platform_impl/windows/window.rs b/src/platform_impl/windows/window.rs
---- a/src/platform_impl/windows/window.rs	2026-10-01 18:34:02.653044687 -0700
-+++ b/src/platform_impl/windows/window.rs	2026-10-01 18:34:02.660819968 -0700
+diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/window.rs b/src/platform_impl/windows/window.rs
+--- a/src/platform_impl/windows/window.rs	2026-10-02 21:36:58.658133714 -0700
++++ b/src/platform_impl/windows/window.rs	2026-10-02 21:36:58.667155363 -0700
 @@ -33,7 +33,7 @@
  use windows_sys::Win32::UI::WindowsAndMessaging::{
      CreateWindowExW, EnableMenuItem, FlashWindowEx, GetClientRect, GetCursorPos,

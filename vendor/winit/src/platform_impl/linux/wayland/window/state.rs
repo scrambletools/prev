@@ -727,7 +727,8 @@ impl WindowState {
 
     /// Set the cursor icon.
     pub fn set_cursor(&mut self, cursor_icon: CursorIcon) {
-        // The open and closed hands are prev's, drawn at the window's scale.
+        // The pointing, open and closed hands are prev's, drawn at the
+        // window's scale.
         let size =
             (crate::platform_impl::hand_cursors::linux_size() * self.scale_factor()).round() as u16;
         if let Some(image) = crate::platform_impl::hand_cursors::image(cursor_icon, size) {

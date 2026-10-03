@@ -1463,7 +1463,7 @@ impl UnownedWindow {
     pub fn set_cursor(&self, cursor: Cursor) {
         match cursor {
             Cursor::Icon(icon) => {
-                // The open and closed hands are prev's.
+                // The pointing, open and closed hands are prev's.
                 let size = (crate::platform_impl::hand_cursors::linux_size()
                     * self.scale_factor())
                 .round() as u16;

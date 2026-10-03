@@ -145,15 +145,16 @@ keeps to itself:
   when the mouse moves and not while a button is held, so the hand prev
   shows when ⌘ is pressed, or the closed hand when a pan starts, waited
   for the pointer to move.
-- `src/platform_impl/hand_cursors.rs` (new) and `hand_cursors/`: open
-  and closed hand cursors by Abdulkaiz Khatri (GPL-3.0, see the README
-  there), which `CursorIcon::Grab` and `CursorIcon::Grabbing` use on
-  Windows (`windows/util.rs`, `window.rs`, `event_loop.rs`), which has no
-  hands of its own and fell back to the move cursor, and on Wayland and
-  X11 (`linux/wayland/window/state.rs`, `linux/x11/window.rs`,
-  `linux/x11/util/cursor.rs`), where they would come from the cursor
-  theme; macOS keeps its own. Their size follows the system's cursor
-  size and the window's scale.
+- `src/platform_impl/hand_cursors.rs` (new) and `hand_cursors/`:
+  pointing, open and closed hand cursors by Abdulkaiz Khatri (GPL-3.0,
+  see the README there), which `CursorIcon::Pointer`, `CursorIcon::Grab`
+  and `CursorIcon::Grabbing` use on Windows (`windows/util.rs`,
+  `window.rs`, `event_loop.rs`), whose pointing hand is drawn unlike
+  macOS's and which has no open or closed hand, falling back to the move
+  cursor, and on Wayland and X11 (`linux/wayland/window/state.rs`,
+  `linux/x11/window.rs`, `linux/x11/util/cursor.rs`), where they would
+  come from the cursor theme; macOS keeps its own. Their size follows
+  the system's cursor size and the window's scale.
 
 The full diff is `winit.patch` (`diff -ruN` of `src/` and `Cargo.toml`
 against the crates.io release), which leaves out the cursor images in

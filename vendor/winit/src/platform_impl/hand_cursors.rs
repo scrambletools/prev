@@ -1,6 +1,7 @@
-//! Open and closed hands for `CursorIcon::Grab` and `CursorIcon::Grabbing`
-//! where the system has none (Windows) or its cursor theme draws them
-//! unlike macOS (Linux): Abdulkaiz Khatri's, under the GPL-3.0 (see
+//! The pointing, open and closed hands for `CursorIcon::Pointer`,
+//! `CursorIcon::Grab` and `CursorIcon::Grabbing` where the system has no
+//! open or closed hand (Windows) or its cursor theme draws them unlike
+//! macOS (Linux): Abdulkaiz Khatri's, under the GPL-3.0 (see
 //! `hand_cursors/README.md`).
 
 use crate::cursor::CursorImage;
@@ -11,6 +12,13 @@ use crate::window::CursorIcon;
 /// image.
 type Hand = [(u16, u16, &'static [u8], u16, u16); 5];
 
+const POINTER: Hand = [
+    (24, 32, include_bytes!("hand_cursors/pointer-24.rgba"), 7, 4),
+    (32, 32, include_bytes!("hand_cursors/pointer-32.rgba"), 11, 6),
+    (48, 48, include_bytes!("hand_cursors/pointer-48.rgba"), 15, 8),
+    (64, 64, include_bytes!("hand_cursors/pointer-64.rgba"), 22, 13),
+    (96, 96, include_bytes!("hand_cursors/pointer-96.rgba"), 30, 17),
+];
 const GRAB: Hand = [
     (24, 32, include_bytes!("hand_cursors/grab-24.rgba"), 11, 6),
     (32, 32, include_bytes!("hand_cursors/grab-32.rgba"), 16, 10),
@@ -30,6 +38,7 @@ const GRABBING: Hand = [
 /// that is at least that, or the largest; `None` for any other cursor.
 pub(crate) fn image(icon: CursorIcon, size: u16) -> Option<CursorImage> {
     let sizes = match icon {
+        CursorIcon::Pointer => &POINTER,
         CursorIcon::Grab => &GRAB,
         CursorIcon::Grabbing => &GRABBING,
         _ => return None,

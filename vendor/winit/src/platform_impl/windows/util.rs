@@ -167,6 +167,7 @@ pub(crate) fn named_cursor(cursor: CursorIcon) -> HCURSOR {
 
     use super::icon::{RaiiCursor, WinCursor};
 
+    static POINTER: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
     static GRAB: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
     static GRABBING: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
     let hand = || {
@@ -179,6 +180,7 @@ pub(crate) fn named_cursor(cursor: CursorIcon) -> HCURSOR {
         }
     };
     let custom = match cursor {
+        CursorIcon::Pointer => POINTER.get_or_init(hand).as_ref(),
         CursorIcon::Grab => GRAB.get_or_init(hand).as_ref(),
         CursorIcon::Grabbing => GRABBING.get_or_init(hand).as_ref(),
         _ => None,
