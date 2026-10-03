@@ -3,7 +3,7 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [2.1.0] - 2026-10-03
 
 ### Changed
 
@@ -13,6 +13,9 @@ All notable changes to prev. Versions follow
 - The assistant opens below the toolbar, where the inspector does, and
   takes its place: a window shows one panel on its right at a time, so
   opening the inspector or Adjust Color closes the assistant.
+- In the toolbar the assistant button comes before the markup button,
+  and undo and redo sit beside Export, keeping their place while the
+  markup bar is open, so the toolbar no longer shifts as it opens.
 - A selected annotation's box and handles follow its own outline, which
   a thick line straddles, for every kind of shape, ink and redaction
   mark, and a note's box is its icon.
@@ -287,7 +290,7 @@ The first release.
 - Material 3 design, light and dark, with colors from the desktop theme,
   an optional floating toolbar, and reduced motion.
 
-[Unreleased]: https://github.com/scrambletools/prev/compare/v2.0.0...HEAD
+[2.1.0]: https://github.com/scrambletools/prev/releases/tag/v2.1.0
 [2.0.0]: https://github.com/scrambletools/prev/releases/tag/v2.0.0
 [1.6.0]: https://github.com/scrambletools/prev/releases/tag/v1.6.0
 [1.5.0]: https://github.com/scrambletools/prev/releases/tag/v1.5.0

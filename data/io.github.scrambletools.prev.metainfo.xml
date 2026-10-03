@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="2.1.0" date="2026-10-03">
+      <description>
+        <p>Markup feels like a drawing app: dragging a handle shows the annotation as it will be, with lines keeping their width and text boxes rewrapping, dragging past the edge scrolls the page, a loupe shows what is under it as it moves, notes can be dragged, and every shape is framed by its own outline. The assistant now opens where the inspector does and takes its place, the toolbar no longer shifts as the markup bar opens, and the pointer stays the plain arrow except to resize, select text and draw.</p>
+      </description>
+    </release>
     <release version="2.0.0" date="2026-10-03">
       <description>
         <p>prev now has an assistant: a chat panel beside the document that answers about the file and works in it, finding and pointing at things, marking up, filling in, editing, signing and redacting, asking first where you choose. It talks to a local model, such as Ollama's, or to a cloud model from Anthropic, OpenAI or Google with your API key, kept in the system keychain. AI agents such as Claude Code can also control prev over MCP. Also: Settings in tabs, colors that follow the system accent as it changes, toolbars matching the title bar on Windows and macOS, and bold text drawn in prev's own font.</p>
