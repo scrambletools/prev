@@ -805,12 +805,22 @@ impl MarkdownWindow {
             iced::widget::space::horizontal(),
             search,
             component::toolbar_divider(),
-            component::group([component::toggle_tool(
-                Icon::Info,
-                crate::fl!("markdown-inspector"),
-                self.inspector,
-                Message::ToggleInspector,
-            )]),
+            // The assistant sits beside the inspector, where PDF and image
+            // windows have it after their markup button.
+            component::group([
+                component::toggle_tool(
+                    Icon::Info,
+                    crate::fl!("markdown-inspector"),
+                    self.inspector,
+                    Message::ToggleInspector,
+                ),
+                component::toggle_tool(
+                    Icon::SmartToy,
+                    crate::fl!("assistant-title"),
+                    self.assistant_shown,
+                    Message::ToggleAssistant,
+                ),
+            ]),
             component::tip(
                 ui::icon_button(Icon::FileExport)
                     .kind(button::Kind::Tonal)
@@ -819,12 +829,6 @@ impl MarkdownWindow {
             ),
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
-                component::toggle_tool(
-                    Icon::AutoAwesome,
-                    crate::fl!("assistant-title"),
-                    self.assistant_shown,
-                    Message::ToggleAssistant,
-                ),
                 component::tool(
                     Icon::Settings,
                     crate::fl!("markdown-settings"),

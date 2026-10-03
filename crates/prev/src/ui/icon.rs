@@ -32,7 +32,6 @@ icons! {
     ArrowRightAlt = 0xe941, "arrow_right_alt";
     ArrowSelector = 0xf82f, "arrow_selector_tool";
     ArrowUpward = 0xe5d8, "arrow_upward";
-    AutoAwesome = 0xe65f, "auto_awesome";
     AutoStories = 0xe666, "auto_stories";
     Bookmark = 0xe8e7, "bookmark";
     BookmarkAdd = 0xe598, "bookmark_add";
@@ -115,6 +114,7 @@ icons! {
     Sell = 0xf05b, "sell";
     Settings = 0xe8b8, "settings";
     Shapes = 0xe602, "shapes";
+    SmartToy = 0xf06c, "smart_toy";
     Signature = 0xf74c, "signature";
     Stacks = 0xf500, "stacks";
     Star = 0xf09a, "star";

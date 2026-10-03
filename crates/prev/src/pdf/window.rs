@@ -1727,8 +1727,14 @@ impl PdfWindow {
                         self.markup_bar,
                         Message::ToggleMarkupBar,
                     ),
+                    component::toggle_tool(
+                        Icon::SmartToy,
+                        crate::fl!("assistant-title"),
+                        self.assistant_shown,
+                        Message::ToggleAssistant,
+                    ),
                 ]),
-                DIVIDER_WIDTH + TOOL_WIDTH * 2.0 + 12.0,
+                DIVIDER_WIDTH + TOOL_WIDTH * 3.0 + 16.0,
                 None,
             ),
             // Made once the room left over is known.
@@ -1746,19 +1752,13 @@ impl PdfWindow {
             (
                 component::group([
                     component::floating_bars_toggle(Message::ToggleFloatingBars),
-                    component::toggle_tool(
-                        Icon::AutoAwesome,
-                        crate::fl!("assistant-title"),
-                        self.assistant_shown,
-                        Message::ToggleAssistant,
-                    ),
                     component::tool(
                         Icon::Settings,
                         crate::fl!("pdf-settings"),
                         Some(Message::OpenSettings),
                     ),
                 ]),
-                TOOL_WIDTH * 3.0 + 8.0,
+                TOOL_WIDTH * 2.0 + 4.0,
                 None,
             ),
         ]);

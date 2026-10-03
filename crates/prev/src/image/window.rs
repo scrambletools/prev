@@ -2485,8 +2485,14 @@ impl ImageWindow {
                 } else {
                     component::tool(Icon::EditDocument, crate::fl!("image-markup"), None)
                 },
+                component::toggle_tool(
+                    Icon::SmartToy,
+                    crate::fl!("assistant-title"),
+                    self.assistant_shown,
+                    Message::ToggleAssistant,
+                ),
             ]),
-            DIVIDER_WIDTH + tools(4.0) + 8.0,
+            DIVIDER_WIDTH + tools(5.0) + 8.0,
             Some(5),
             true,
         ));
@@ -2504,19 +2510,13 @@ impl ImageWindow {
         slots.push((
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
-                component::toggle_tool(
-                    Icon::AutoAwesome,
-                    crate::fl!("assistant-title"),
-                    self.assistant_shown,
-                    Message::ToggleAssistant,
-                ),
                 component::tool(
                     Icon::Settings,
                     crate::fl!("image-settings"),
                     Some(Message::OpenSettings),
                 ),
             ]),
-            TOOL_WIDTH * 3.0 + 8.0,
+            TOOL_WIDTH * 2.0 + 4.0,
             None,
             false,
         ));
