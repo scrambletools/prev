@@ -481,7 +481,7 @@ impl Prev {
             // The address field shows when no server answered, or one was
             // found at the address typed; it has its own Look again.
             let found = matches!(form.found, Found::Models(..) | Found::Looking);
-            let field_shown = !(found && form.address.is_empty());
+            let field_shown = !(found && form.address.is_empty()) || form.other_address;
             let server: Element<'_, Message> = match &form.found {
                 Found::Models(Some(address), _) => {
                     let mut line = row![
@@ -495,10 +495,18 @@ impl Prev {
                     .spacing(8)
                     .align_y(Center);
                     if !field_shown {
-                        line = line.push(
-                            ui::button(Kind::Text, prev::fl!("settings-assistant-look-again"))
-                                .on_press(send(ModelMessage::Search)),
-                        );
+                        line = line
+                            .push(
+                                ui::button(
+                                    Kind::Text,
+                                    prev::fl!("settings-assistant-other-address"),
+                                )
+                                .on_press(send(ModelMessage::OtherAddress)),
+                            )
+                            .push(
+                                ui::button(Kind::Text, prev::fl!("settings-assistant-look-again"))
+                                    .on_press(send(ModelMessage::Search)),
+                            );
                     }
                     line.into()
                 }
@@ -647,6 +655,28 @@ impl Prev {
                             .spacing(8)
                             .align_y(Center),
                     );
+                    // Why its trial failed, on the row tried.
+                    if let Some((_, why, help)) =
+                        form.failed.as_ref().filter(|(id, ..)| *id == info.id)
+                    {
+                        let mut line = row![
+                            container(ui::aligned(
+                                ui::styled(why.clone(), Type::BodySmall)
+                                    .style(style::error_text)
+                                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+                            ))
+                            .width(Fill)
+                        ]
+                        .spacing(8)
+                        .align_y(Center);
+                        if let Some(page) = help {
+                            line = line.push(
+                                ui::button(Kind::Text, prev::fl!("settings-assistant-fix-it"))
+                                    .on_press(send(ModelMessage::OpenLink(page))),
+                            );
+                        }
+                        add = add.push(line);
+                    }
                 }
             }
             Found::Nothing | Found::NoServer => {}

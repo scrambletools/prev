@@ -103,12 +103,18 @@ pub(super) struct ModelForm {
     pub(super) changing_key: bool,
     /// An address typed for a local server.
     pub(super) address: String,
+    /// The address field shows although a server was found, to find one
+    /// elsewhere, such as on another computer.
+    pub(super) other_address: bool,
     pub(super) found: Found,
     /// A model name typed, for one the provider does not list.
     pub(super) typed: String,
     pub(super) context: u32,
     /// The model being tried before it is added.
     pub(super) adding: Option<String>,
+    /// The model whose trial failed, why, and a page that helps, shown on
+    /// its row.
+    pub(super) failed: Option<(String, String, Option<&'static str>)>,
     /// What the last add said: `Ok` with a note, or the problem.
     pub(super) status: Option<Result<String, String>>,
     /// Counts the searches, so an old one's answer is dropped.
@@ -123,10 +129,12 @@ impl Default for ModelForm {
             key_kept: None,
             changing_key: false,
             address: String::new(),
+            other_address: false,
             found: Found::Nothing,
             typed: String::new(),
             context: prev_assist::DEFAULT_CONTEXT,
             adding: None,
+            failed: None,
             status: None,
             search: 0,
         }
@@ -161,6 +169,8 @@ pub(crate) enum ModelMessage {
     /// search, and the key.
     KeyChecked(u64, Result<Option<String>, String>),
     Address(String),
+    /// Show the address field, to find a server elsewhere.
+    OtherAddress,
     /// Look again, at the address typed or the usual ones.
     Search,
     /// The models found, with the address they were found at, and the
@@ -351,6 +361,7 @@ impl Prev {
                 }
             }
             ModelMessage::Address(address) => form.address = address,
+            ModelMessage::OtherAddress => form.other_address = true,
             ModelMessage::Search => return self.search_models(),
             ModelMessage::Searched(search, address, key, models) => {
                 if search != form.search {
@@ -439,6 +450,7 @@ impl Prev {
                     vision: info.as_ref().and_then(|info| info.vision),
                 };
                 form.adding = Some(id);
+                form.failed = None;
                 form.status = None;
                 let tried = model.clone();
                 return off_thread(
@@ -456,7 +468,21 @@ impl Prev {
                 form.adding = None;
                 if let Err(problem) = result {
                     let provider = form.provider;
-                    form.status = Some(Err(problem_text(&problem, provider, &model.model)));
+                    let text = problem_text(&problem, provider, &model.model);
+                    // On the row tried, when the provider listed it; else
+                    // below the name typed.
+                    let listed = matches!(&form.found, Found::Models(_, models)
+                        if models.iter().any(|info| info.id == model.model));
+                    let help = match problem {
+                        Problem::NoCredit => prev_assist::billing_page(provider),
+                        Problem::Key => prev_assist::key_page(provider),
+                        _ => None,
+                    };
+                    if listed {
+                        form.failed = Some((model.model.clone(), text, help));
+                    } else {
+                        form.status = Some(Err(text));
+                    }
                     return Task::none();
                 }
                 form.status = Some(Ok(prev::fl!(
@@ -550,7 +576,15 @@ pub(super) fn problem_text(problem: &Problem, provider: Provider, model: &str) -
     match problem {
         Problem::ContextTooSmall => prev::fl!("assistant-problem-context", model = model),
         Problem::Key => prev::fl!("assistant-problem-key", provider = provider),
-        Problem::RateLimited => prev::fl!("assistant-problem-rate", provider = provider),
+        Problem::RateLimited(said) if said.trim().is_empty() || said.trim() == "{}" => {
+            prev::fl!("assistant-problem-rate", provider = provider)
+        }
+        Problem::RateLimited(said) => prev::fl!(
+            "assistant-problem-rate-said",
+            provider = provider,
+            message = said.as_str()
+        ),
+        Problem::NoCredit => prev::fl!("assistant-problem-credit", provider = provider),
         Problem::NoSuchModel => {
             prev::fl!(
                 "assistant-problem-model",

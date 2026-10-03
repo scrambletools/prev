@@ -637,7 +637,14 @@ impl Prev {
         } else {
             self.model_menu(id, panel)
         };
-        let model_row = container(model_row).padding([0, 24]);
+        // Under the field, as the model goes with what is typed; its menu
+        // opens upward.
+        let model_row = container(model_row).padding(Padding {
+            top: 0.0,
+            right: 16.0,
+            bottom: 16.0,
+            left: 24.0,
+        });
 
         let theme = &self.theme;
         let mut entries = column![].spacing(12);
@@ -695,11 +702,11 @@ impl Prev {
             .padding(Padding {
                 top: 8.0,
                 right: 16.0,
-                bottom: 16.0,
+                bottom: 8.0,
                 left: 24.0,
             });
         Some(
-            container(column![header, model_row, entries, input])
+            container(column![header, entries, input, model_row])
                 .width(WIDTH)
                 .height(Fill)
                 .style(style::surface_container_low)
@@ -782,9 +789,9 @@ impl Prev {
         ));
         popover(
             anchor,
-            panel
-                .menu_open
-                .then(|| popover::surface(component::scroll(items).height(Length::Shrink))),
+            // No scroll area: one in a popover loses track of the pointer
+            // near its end, and a hovered row stays lit after it leaves.
+            panel.menu_open.then(|| popover::surface(items)),
             message(PanelMessage::Menu(false)),
         )
         .close_on_choice()
@@ -806,10 +813,34 @@ fn group_label(model: &AssistantModel) -> String {
     };
     let label = super::provider_label(provider);
     if provider.needs_key() {
-        label
-    } else {
-        prev::fl!("assistant-group-local", provider = label)
+        return label;
     }
+    match model.address.as_deref().map(host_of) {
+        Some(host) if !is_local(host) => {
+            prev::fl!(
+                "assistant-group-remote",
+                provider = label,
+                host = host.to_owned()
+            )
+        }
+        _ => prev::fl!("assistant-group-local", provider = label),
+    }
+}
+
+/// The host in an address such as `http://192.168.4.61:11434/v1`.
+fn host_of(address: &str) -> &str {
+    let rest = address.split_once("://").map_or(address, |(_, rest)| rest);
+    let authority = rest.split('/').next().unwrap_or(rest);
+    match authority.strip_prefix('[') {
+        // An IPv6 address, in brackets.
+        Some(inner) => inner.split(']').next().unwrap_or(inner),
+        None => authority.split(':').next().unwrap_or(authority),
+    }
+}
+
+/// Whether `host` is this computer.
+fn is_local(host: &str) -> bool {
+    matches!(host, "localhost" | "127.0.0.1" | "::1" | "0.0.0.0") || host.ends_with(".localhost")
 }
 
 fn menu_heading<'a>(label: String) -> Element<'a, Message> {
@@ -1064,6 +1095,16 @@ fn tool_result(id: String, outcome: Result<Value, Error>) -> ToolResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn servers_elsewhere_show_their_host() {
+        assert_eq!(host_of("http://192.168.4.61:11434"), "192.168.4.61");
+        assert_eq!(host_of("http://localhost:1234/v1"), "localhost");
+        assert_eq!(host_of("http://[::1]:8080/v1"), "::1");
+        assert_eq!(host_of("studio.lan:1234"), "studio.lan");
+        assert!(is_local("localhost") && is_local("::1") && is_local("127.0.0.1"));
+        assert!(!is_local("192.168.4.61"));
+    }
 
     #[test]
     fn tool_results_keep_text_pictures_and_errors() {

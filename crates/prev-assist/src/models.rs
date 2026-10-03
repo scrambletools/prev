@@ -49,6 +49,16 @@ pub fn key_page(provider: Provider) -> Option<&'static str> {
     }
 }
 
+/// Where to buy credit for `provider`.
+pub fn billing_page(provider: Provider) -> Option<&'static str> {
+    match provider {
+        Provider::Anthropic => Some("https://console.anthropic.com/settings/billing"),
+        Provider::OpenAi => Some("https://platform.openai.com/settings/organization/billing"),
+        // Gemini's keys start on a free tier, which needs no credit.
+        Provider::Gemini | Provider::Ollama | Provider::OpenAiCompatible => None,
+    }
+}
+
 /// Where to get the server for a local provider.
 pub fn server_page(provider: Provider) -> Option<&'static str> {
     match provider {
@@ -58,22 +68,23 @@ pub fn server_page(provider: Provider) -> Option<&'static str> {
     }
 }
 
-/// The address of the local server for `provider` that answers, trying
-/// `given` first: Ollama's own, or the usual ones of OpenAI-compatible
-/// servers. Blocks: call it off the interface thread.
+/// The address of the server for `provider` that answers: `given` alone,
+/// when the user gave one, else Ollama's usual one, or those of
+/// OpenAI-compatible servers. Blocks: call it off the interface thread.
 pub fn find_server(provider: Provider, given: Option<&str>) -> Option<String> {
-    let mut addresses: Vec<String> = given
-        .filter(|address| !address.trim().is_empty())
-        .map(|address| address.trim().trim_end_matches('/').to_owned())
-        .into_iter()
-        .collect();
-    match provider {
-        Provider::Ollama => addresses.extend(provider.default_address().map(str::to_owned)),
-        Provider::OpenAiCompatible => {
-            addresses.extend(COMPATIBLE_ADDRESSES.map(str::to_owned));
-        }
-        _ => return None,
-    }
+    let given = given
+        .map(|address| address.trim().trim_end_matches('/'))
+        .filter(|address| !address.is_empty());
+    let addresses: Vec<String> = match (given, provider) {
+        (Some(address), _) => vec![address.to_owned()],
+        (None, Provider::Ollama) => provider
+            .default_address()
+            .map(str::to_owned)
+            .into_iter()
+            .collect(),
+        (None, Provider::OpenAiCompatible) => COMPATIBLE_ADDRESSES.map(str::to_owned).to_vec(),
+        (None, _) => return None,
+    };
     let client = reqwest::blocking::Client::builder()
         .timeout(LOCAL_WAIT)
         .build()

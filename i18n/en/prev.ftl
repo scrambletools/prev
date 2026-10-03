@@ -900,6 +900,8 @@ settings-assistant-found-at = { $provider } is running at { $address }.
 settings-assistant-no-server = prev found no { $provider } running on this computer. Start it, or give its address below.
 settings-assistant-get-server = Get { $provider }
 settings-assistant-look-again = Look again
+# Shows the address field, to use a server on another computer.
+settings-assistant-other-address = Use another address
 settings-assistant-looking = Looking for models…
 settings-assistant-found-none = { $provider } has no models yet. Download one with it, then look again.
 settings-assistant-recommended = Recommended
@@ -908,6 +910,8 @@ settings-assistant-sees = Sees pictures
 settings-assistant-no-tools = Can't use tools, which the assistant needs
 settings-assistant-added-tag = Added
 settings-assistant-trying = Trying…
+# Opens the provider's page that fixes the problem shown, such as billing.
+settings-assistant-fix-it = Open the page
 # $model is the model's name.
 settings-assistant-added = { $model } answered and is added.
 settings-assistant-key-needed = This model needs an API key.
@@ -965,11 +969,18 @@ assistant-add-another = Add a model…
 # A heading in the model menu for models on this computer; $provider is
 # the server, such as Ollama.
 assistant-group-local = { $provider } on this computer
+# A heading for models on another computer; $host is its address, such
+# as 192.168.4.61.
+assistant-group-remote = { $provider } at { $host }
 # Why the assistant's model did not answer. $model is the model's name,
 # such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
 assistant-problem-context = The conversation no longer fits in what { $model } can read at once. Start a new chat, or choose a model that can read more.
 assistant-problem-key = { $provider } turned down the API key. Check it in Settings.
-assistant-problem-rate = { $provider } asks to slow down, or the account is out of credit. Try again in a moment.
+assistant-problem-rate = { $provider } asks to slow down. Try again in a moment.
+# $message is the provider's own words, untranslated, such as which limit
+# was reached and when to try again.
+assistant-problem-rate-said = { $provider } asks to slow down: { $message }
+assistant-problem-credit = { $provider } says the account has no credit. A new account needs some bought on { $provider }'s site before its key works; then try again.
 assistant-problem-model = { $provider } has no model named { $model }. Check its name in Settings.
 assistant-problem-unavailable = { $provider } is busy or having trouble. Try again in a moment.
 assistant-problem-unreachable = prev could not reach { $provider }. Check your connection, or that the server is running.

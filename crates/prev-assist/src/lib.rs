@@ -26,7 +26,9 @@ use rig_core::streaming::{Item, StreamEvent};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub use models::{ModelInfo, find_server, friendly_name, key_page, list, server_page};
+pub use models::{
+    ModelInfo, billing_page, find_server, friendly_name, key_page, list, server_page,
+};
 
 /// Who serves a model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,6 +106,9 @@ pub struct ModelChoice {
 /// definitions alone take about 9000; a larger one costs memory, as the
 /// server keeps room for all of it.
 pub const DEFAULT_CONTEXT: u32 = 32_768;
+
+/// How long a trial waits before trying again after a rate limit.
+const RATE_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The longest reply asked of an Anthropic model rig does not know, in
 /// tokens: within every current Claude model's limit.
@@ -290,8 +295,12 @@ pub enum Problem {
     ContextTooSmall,
     /// The provider turned the API key down.
     Key,
-    /// The provider asks to slow down, or the account is out of credit.
-    RateLimited,
+    /// The provider asks to slow down, with what it said: which limit,
+    /// and often how long to wait.
+    RateLimited(String),
+    /// The account has no credit left, or never had any: a new OpenAI or
+    /// Anthropic account needs some bought before its key works.
+    NoCredit,
     /// The provider has no model by that name.
     NoSuchModel,
     /// The provider's servers are busy or failing.
@@ -322,9 +331,18 @@ impl Problem {
         if response.refusal {
             return Problem::Refused;
         }
+        // OpenAI's 429 insufficient_quota, Anthropic's 400 about the
+        // credit balance, and anyone's 402.
+        if body.contains("insufficient_quota")
+            || body.contains("credit balance")
+            || body.contains("billing")
+            || response.status.is_some_and(|status| status.as_u16() == 402)
+        {
+            return Problem::NoCredit;
+        }
         match response.status.map(|status| status.as_u16()) {
             Some(401 | 403) => Problem::Key,
-            Some(402 | 429) => Problem::RateLimited,
+            Some(429) => Problem::RateLimited(provider_message(&response.body)),
             Some(404) => Problem::NoSuchModel,
             Some(500..=599) => Problem::Unavailable,
             _ => Problem::Other(provider_message(&response.body)),
@@ -462,18 +480,33 @@ pub fn test(choice: &ModelChoice, key: Option<&str>) -> Result<(), Problem> {
         .enable_all()
         .build()
         .map_err(|error| Problem::Other(error.to_string()))?;
+    // No small cap on the reply: a reasoning model may think before its
+    // OK, and one cut off before it says anything reads as a failure.
+    let mut request = CompletionRequest::new(Message::user("Reply with OK."));
+    if let Some(tokens) = choice.max_tokens() {
+        request = request.max_tokens(tokens);
+    }
     // With the chat's own parameters, so Ollama loads the model at the
     // context the chat will use, and does not load it again for it.
-    let mut request = CompletionRequest::new(Message::user("Reply with OK.")).max_tokens(16);
     if let Some(params) = choice.request_params() {
         request = request.additional_params(params);
     }
     runtime.block_on(async move {
-        model
-            .call(request)
-            .await
-            .map(|_| ())
-            .map_err(|error| Problem::of(&error))
+        let mut tries = 0;
+        loop {
+            match model.call(request.clone()).await {
+                Ok(_) => return Ok(()),
+                Err(error) => match Problem::of(&error) {
+                    // A new account's first requests often meet a limit
+                    // that lifts within seconds: wait once and try again.
+                    Problem::RateLimited(_) if tries == 0 => {
+                        tries += 1;
+                        tokio::time::sleep(RATE_WAIT).await;
+                    }
+                    problem => return Err(problem),
+                },
+            }
+        }
     })
 }
 
@@ -764,7 +797,20 @@ mod tests {
             Problem::ContextTooSmall
         );
         assert_eq!(reply(401, "{}"), Problem::Key);
-        assert_eq!(reply(429, "{}"), Problem::RateLimited);
+        let limited = r#"{"error":{"message":"Rate limit reached for gpt-6.1-sol on requests per min (RPM): Limit 3, Used 3. Please try again in 20s.","type":"requests","code":"rate_limit_exceeded"}}"#;
+        assert_eq!(
+            reply(429, limited),
+            Problem::RateLimited(
+                "Rate limit reached for gpt-6.1-sol on requests per min (RPM): Limit 3, Used 3. \
+                 Please try again in 20s."
+                    .to_owned()
+            )
+        );
+        // OpenAI's new accounts, before any credit is bought.
+        let quota = r#"{"error":{"message":"You exceeded your current quota, please check your plan and billing details.","type":"insufficient_quota","code":"insufficient_quota"}}"#;
+        assert_eq!(reply(429, quota), Problem::NoCredit);
+        let anthropic = r#"{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}"#;
+        assert_eq!(reply(400, anthropic), Problem::NoCredit);
         assert_eq!(
             reply(404, r#"{"error":"model 'qwen9' not found"}"#),
             Problem::NoSuchModel
