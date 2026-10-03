@@ -213,7 +213,7 @@ statistics.
 | Open a PDF to its first page drawn | < 100 ms | 20 ms (499 pages), 93 ms (7,025 pages) |
 | Scroll and zoom | 60 fps, no dropped frames | 120 fps, no slow frames |
 | Idle memory, one 100-page PDF | < 150 MB | 61 MB heap, 179 MB resident with GPU drivers |
-| Release binary | < 30 MB without RAW | 29.9 MB (36.1 MB with RAW) |
+| Release binary | < 60 MB, self-contained | 58.3 MB (52.4 MB without RAW); 44.2 MB for 1.6.0, before the MCP server (+2.9 MB) and the assistant (+11.2 MB), stripped x86_64 Linux builds |
 
 On the CPU renderer prev manages about 60 fps scrolling and 30 fps zooming,
 at four times the CPU. wgpu's OpenGL backend cannot draw to iced's

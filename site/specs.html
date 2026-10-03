@@ -107,6 +107,7 @@
 <tr><th>SVG and Markdown</th><td>resvg; pulldown-cmark with syntect for highlighting</td></tr>
 <tr><th>Translations</th><td>Project Fluent</td></tr>
 <tr><th>AI agents</th><td>An MCP server, <code>prev --mcp</code>, on standard input and output, through rmcp; it relays to the running prev over a private local socket (a named pipe on Windows), with JSON-RPC 2.0</td></tr>
+<tr><th>Assistant</th><td>rig-core, pinned and kept to one crate (<code>prev-assist</code>), for Anthropic, OpenAI, Google Gemini, Ollama and OpenAI-compatible servers; API keys in the system keychain through keyring (the Secret Service on Linux, the Credential Manager on Windows, the Keychain on macOS)</td></tr>
 <tr><th>Fonts</th><td>Roboto Flex, Material Symbols Rounded and Dancing Script, bundled</td></tr>
 <tr><th>System integration</th><td>XDG desktop portals on Linux; Win32 and OLE on Windows; AppKit and Launch Services on macOS, with a menu bar through muda</td></tr>
 <tr><th>Dependencies</th><td>All open source, with licenses checked by cargo-deny in CI; GPL-2.0-only is refused</td></tr>
@@ -121,7 +122,7 @@
 <tr><td>Open a PDF to its first page drawn</td><td>under 100 ms</td><td>20 ms for 499 pages, 93 ms for 7,025 pages</td></tr>
 <tr><td>Scroll and zoom</td><td>60 fps without dropped frames</td><td>120 fps, no slow frames</td></tr>
 <tr><td>Memory with one 100-page PDF open</td><td>under 150 MB</td><td>61 MB heap, 179 MB resident with GPU drivers</td></tr>
-<tr><td>Program size</td><td>under 30 MB without RAW</td><td>29.9 MB, 36.1 MB with RAW</td></tr>
+<tr><td>Program size</td><td>under 60 MB, with everything it needs inside</td><td>58.3 MB, 52.4 MB without camera RAW</td></tr>
 </tbody>
 </table></div>
 <p>Pages render in tiles on background threads, with a 128 MB tile cache. On the CPU renderer prev scrolls at about 60 fps and zooms at about 30 fps.</p>
@@ -141,8 +142,9 @@
 <table class="spec"><tbody>
 <tr><th>License</th><td>GNU AGPL-3.0 or later, as MuPDF requires; the bundled fonts keep their own licenses (SIL Open Font License 1.1, Apache 2.0)</td></tr>
 <tr><th>Source</th><td><a href="https://github.com/scrambletools/prev">github.com/scrambletools/prev</a></td></tr>
-<tr><th>Network</th><td>None of its own: prev goes online only to fetch a picture dropped onto it as a web address, and to open links you click. No accounts, no telemetry</td></tr>
+<tr><th>Network</th><td>None of its own: prev goes online only to fetch a picture dropped onto it as a web address, to open links you click, and, when you use the assistant, to talk to the model you added. No accounts, no telemetry</td></tr>
 <tr><th>AI agents</th><td>Only those you allow, through <code>prev --mcp</code>; no bundled model. What an agent reads goes to the model it uses</td></tr>
+<tr><th>Assistant</th><td>Talks only to the model you add: a local model stays on your computer, and a cloud model gets what it asks to read, never the whole file up front. API keys stay in the system keychain</td></tr>
 <tr><th>Code signing</th><td>Windows and macOS releases are not yet signed; see the <a href="./#code-signing">code signing policy</a></td></tr>
 </tbody></table>
 </main>

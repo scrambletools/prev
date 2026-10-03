@@ -145,12 +145,24 @@ For a walkthrough of every feature with more screenshots, see
   - Optionally, the toolbar floats over the document as an M3 floating
     toolbar, with the markup bar along the bottom, and hides while the
     pointer is outside the window.
-- **Settings** (the gear button or Ctrl+,): appearance, the system accent color,
-  the floating toolbar and its transparency, animations, corner radius,
-  the interface and input languages, and where signatures, version
-  history and bookmarks are kept. They are saved in `~/.config/prev.toml`
+- **Settings** (the gear button or Ctrl+,), in tabs: appearance, the
+  system accent color, the floating toolbar and its transparency,
+  animations, corner radius, the interface and input languages, the
+  assistant's models, the agents allowed to control prev, and where
+  signatures, version history and bookmarks are kept. They are saved in `~/.config/prev.toml`
   (`%APPDATA%\prev\prev.toml` on Windows,
   `~/Library/Application Support/prev/prev.toml` on macOS).
+- **Assistant**: a chat panel beside the document (the robot head on
+  the toolbar) that answers about the file and works in it with the
+  same tools as an outside agent: finding and pointing at things,
+  marking up, editing, signing, redacting and exporting, asking you
+  first where Settings says to. It talks to a model you add in
+  Settings: a local model, such as Ollama's, that stays on your
+  computer, or a cloud model from Anthropic, OpenAI or Google with your
+  API key,
+  kept in the system's keychain. Each window has its own chat, and the
+  model can be changed mid-chat. See
+  [Using the assistant](#using-the-assistant).
 - **AI agents**: `prev --mcp` serves prev's tools over MCP, so Claude
   Code or a local model in an MCP client can read, show, mark up, edit,
   sign, redact and export in the prev you are using, asking you first
@@ -163,7 +175,10 @@ For a walkthrough of every feature with more screenshots, see
     macOS.
   - On macOS, a menu bar laid out like Preview's, ⌘ shortcuts, and files
     opened from Finder and the Dock go to the running prev.
-  - Follows the system light or dark setting and reduced motion setting.
+  - Follows the system light or dark setting, accent color and reduced
+    motion setting as they change.
+  - On Windows and macOS, the toolbars, panels and dialogs take the
+    system's title bar color, which runs on into prev's toolbar.
 
 ### Planned
 
@@ -277,6 +292,28 @@ opaque; with a package, add it to `~/.config/hypr/hyprland.lua`:
 ```lua
 o.window("^io\\.github\\.scrambletools\\.prev$", { tag = "-default-opacity", opacity = "1 1" })
 ```
+
+## Using the assistant
+
+Open Settings, Assistant, and pick a provider:
+
+- **Ollama** (or another server on your computer, such as LM Studio or
+  llama.cpp's): prev finds the running server and lists its models, with
+  whether each can use tools, which the assistant needs, and see
+  pictures. Add one, and choose how much it reads at once (more takes
+  more memory). Use another address reaches a server on another
+  computer.
+- **Anthropic, OpenAI or Google Gemini**: make an API key on the
+  provider's site (Get an API key opens the page) and paste it; prev
+  lists the provider's chat models, the recommended one first. The key
+  is kept once for all that provider's models. A new OpenAI or Anthropic
+  account needs some credit bought before its key works; prev says so.
+
+Adding a model sends it one short message first, and adds it once it
+answers. Then the robot head on the toolbar opens the panel. The model
+gets only what it asks for through the tools, never the whole file up
+front; with a cloud model, that goes to the provider. Thinking models
+show their reasoning as they work, folded away once they answer.
 
 ## Using prev with AI agents
 

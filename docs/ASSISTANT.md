@@ -276,6 +276,33 @@ Each step ends with its tests passing and is usable on its own.
 
 ## Stage 2: assistant panel
 
+Stage 2 is built: steps 1 to 4 and 6 are done, and step 5 in part. The
+panel chatted with tool calls from a local model (qwen3.8 and qwen3-vl
+through ollama) on Linux, Windows and macOS, from Claude on macOS and
+from GPT on Windows; recorded replies test each provider's streaming
+format in CI, including Gemini's, which no one has tried with a key yet.
+Not every use case has been tried from the panel. Where it came out
+differently from this plan:
+
+- Settings finds the models to add rather than asking for their names:
+  a running Ollama or compatible server and what each model can do, or
+  a cloud provider's chat models once its key works. Adding a model
+  tries it first. A cloud provider's key is kept once for all its
+  models.
+- Ollama models get a context size, 32K tokens unless set, as Ollama's
+  own 4096 is too small for prev's tools.
+- The panel's model menu, under the field, groups models by provider and
+  changes the model mid-chat, keeping the conversation.
+- Models that reason show their reasoning as it streams, folded away
+  once they answer.
+- The model is told which window and file the panel belongs to.
+- A model's errors read as plain sentences: a context too small, a key
+  turned down, no credit, a rate limit in the provider's words.
+- The OpenAI-compatible provider uses Chat Completions, not the
+  Responses API OpenAI's own models use.
+
+The plan as written:
+
 - A toolbar button opens an **Assistant** panel on the right, as the
   inspector does, in document and image windows: a plain chat with the
   model in use, which calls the same tools.

@@ -36,6 +36,7 @@
 <li><a href="#svg-and-markdown">SVG and Markdown</a></li>
 <li><a href="#inspector">Inspector</a></li>
 <li><a href="#drag-and-drop">Drag and drop</a></li>
+<li><a href="#assistant">The assistant</a></li>
 <li><a href="#ai-agents">Working with AI agents</a></li>
 <li><a href="#saving-and-versions">Saving and versions</a></li>
 <li><a href="#settings">Settings</a></li>
@@ -420,6 +421,52 @@ starts and when prev quits.</p>
 <li>The page thumbnails do not scroll by themselves while dragging near
   their top or bottom; the scroll wheel scrolls them during a drag.</li>
 </ul>
+<h2 id="assistant">The assistant</h2>
+<p>The assistant is a chat beside your document: ask about the file and it
+reads what it needs, shows you where things are, and works in the file
+for you with the same tools as an <a href="#ai-agents">AI agent</a>. The
+robot head on the toolbar, after the markup button, opens it on the
+right. Each window has its own chat, kept while the panel is closed;
+New Chat starts over, and Stop ends an answer under way.</p>
+<p>The model gets only what it asks for through the tools, never the whole
+file up front. With a local model nothing leaves your computer; with a
+cloud model, what it reads goes to the provider, so use one you trust with
+those files.</p>
+<h3 id="assistant-models">Adding a model</h3>
+<p>Open Settings, the Assistant tab, and pick a provider under Add a
+model:</p>
+<ul>
+<li><strong>Ollama</strong>, or another server on your computer that speaks OpenAI's
+  API, such as LM Studio or llama.cpp's: prev finds the running server
+  and lists its models, with whether each can use tools, which the
+  assistant needs, and whether it sees pictures. For Ollama, Context sets
+  how much the model reads at once: more lets it take in more of a file,
+  but takes more memory and can answer more slowly. Use another address
+  reaches a server on another computer. With no server running, prev
+  says so and links to its download.</li>
+<li><strong>Anthropic, OpenAI or Google Gemini</strong>: a cloud model needs an API
+  key from the provider; Get an API key opens the page that makes one.
+  Paste it and Continue, and prev lists the provider's chat models, the
+  recommended one first. The key is kept in the system's keychain (the
+  Keychain on macOS, the Credential Manager on Windows, the Secret Service
+  on Linux), never in prev's settings file, and once for all that
+  provider's models; Change key replaces it. A new OpenAI or Anthropic
+  account needs some credit bought before its key works.</li>
+</ul>
+<p>Add sends the model one short message, and adds it once it answers; if
+it does not, the reason shows under it, with a link to the page that fixes
+it where there is one, such as billing. A model the list leaves out can be
+added by its name. The Assistant tab lists the models added, with the one
+in use; the panel's menu under the field switches model at any time, even
+mid-chat, grouped by provider.</p>
+<h3 id="assistant-chat">Chatting</h3>
+<p>Type in the field and press Enter. The answer streams in as Markdown,
+with each tool the model uses as a line of its own, and a small picture
+for the tools that look at a page. Models that think before they answer
+show their reasoning faintly as it comes, folded under Thoughts once they
+answer. The switches that make prev ask before an agent acts apply to the
+assistant too, and a change it makes is one step of Undo, as yours are.
+A model that cannot see pictures gets the page's text instead.</p>
 <h2 id="ai-agents">Working with AI agents</h2>
 <p>An AI agent, such as Claude Code or a local model in an MCP client, can
 work in prev for you: read a document, show you something in it, mark it
@@ -491,9 +538,10 @@ list puts an earlier version back; Revert To for PDFs is still to come.</p>
 <figure><img class="shot" src="screenshots/settings.png" alt="The Appearance tab of Settings: light or dark, the accent color, and how windows look" width="1360" height="791" loading="lazy"></figure>
 <p>Settings opens over the current window, from the gear button at the end
 of the toolbar or Ctrl+,. Close it with its close button, Escape or a
-click outside it. Changes apply to every window at once. Its four tabs
+click outside it. Changes apply to every window at once. Its five tabs
 are General, with the languages and the default app; Appearance, with
-light or dark, colors and how windows look; Agents, for
+light or dark, colors and how windows look; Assistant, with the models
+for <a href="#assistant">the assistant</a>; Agents, for
 <a href="#ai-agents">AI agents</a>; and Storage, with where prev keeps your
 files:</p>
 <ul>
@@ -543,6 +591,8 @@ files:</p>
   <li>Windows lets only you choose default apps, so there the button opens
     prev's page in Settings, Apps, Default apps.</li>
   </ul></li>
+<li><strong>Assistant</strong>: the models the assistant can talk to, and adding
+  one; see <a href="#assistant-models">Adding a model</a>.</li>
 <li><strong>Outside control</strong>: whether AI agents may control prev, the
   agents you allowed, and what prev asks you about before an agent acts;
   see <a href="#ai-agents">Working with AI agents</a>.</li>

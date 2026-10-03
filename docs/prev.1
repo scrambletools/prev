@@ -16,6 +16,12 @@ window. A single instance runs per user: running
 .B prev
 again opens the files in the running instance and exits.
 .PP
+The assistant, a chat panel beside a document, answers about the file
+and works in it with prev's own tools. It talks to a model added in the
+Assistant tab of Settings: a local model served by Ollama or another
+OpenAI-compatible server, or a cloud model from Anthropic, OpenAI or
+Google Gemini, whose API key is kept in the system keychain.
+.PP
 Edits to PDFs and images are saved in place a moment after they are
 made. Before the first save, the original is kept in the version
 history, from which the image inspector's Revert To restores it.
@@ -48,6 +54,9 @@ Earlier versions of edited files.
 .TP
 .I ~/.local/share/prev/bookmarks.toml
 PDF bookmarks.
+.PP
+API keys for the assistant's cloud models are kept in the Secret Service,
+not in these files.
 .SH ENVIRONMENT
 .TP
 .B XDG_CONFIG_HOME\fR, \fBXDG_DATA_HOME\fR, \fBXDG_RUNTIME_DIR

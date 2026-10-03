@@ -870,7 +870,7 @@ settings-tab-general = General
 settings-tab-agents = Agents
 settings-tab-assistant = Assistant
 settings-assistant-note = The models the assistant panel can talk to. Keys are kept in the system's keychain.
-settings-assistant-none = No models yet. Add one below: a local one, such as Ollama's, stays on this computer; a cloud one needs an API key from its provider.
+settings-assistant-none = No models yet. Add one below: a local model, such as Ollama's, stays on this computer; a cloud model needs an API key from its provider.
 settings-assistant-in-use = In use
 settings-assistant-use = Use
 settings-assistant-remove = Remove
@@ -961,7 +961,7 @@ assistant-thoughts = Thoughts
 assistant-running = Running…
 assistant-stopped = Stopped.
 assistant-no-model = Add a model in Settings first.
-assistant-add-model = The assistant needs a model: a cloud one with its API key, or a local one.
+assistant-add-model = The assistant needs a model: a cloud model with its API key, or a local model.
 assistant-open-settings = Add a model
 # $model is the model's name, such as claude-sonnet-5.
 assistant-switched = Now talking to { $model }.

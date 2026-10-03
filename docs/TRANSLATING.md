@@ -23,6 +23,16 @@ show in English. A regional variant needs only the messages that differ:
 `i18n/en-GB` holds British spellings (colour, dialogue) and takes the rest
 from the US English source.
 
+## Words
+
+- Use the technical terms the language's own software and documentation
+  use, such as for API key, token, model, server, address and the
+  system's keychain, rather than a word-for-word coinage, and the same
+  term each time it comes up.
+- Keep names as they are: prev, Anthropic, OpenAI, Google Gemini, Ollama
+  and the like.
+- Short labels, such as buttons and menu entries, stay short.
+
 ## The format
 
 ```
