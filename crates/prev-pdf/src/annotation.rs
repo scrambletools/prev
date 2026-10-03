@@ -195,17 +195,56 @@ impl Annotation {
 
     /// The same annotation stretched from its rect to `target`.
     pub fn resized(&self, target: Rect) -> Self {
-        let from = self.rect;
-        let scale_x = target.width() / from.width().max(0.01);
-        let scale_y = target.height() / from.height().max(0.01);
+        // Drawings keep room for their line between their points and their
+        // rect, which MuPDF works out again from the points. The points
+        // scale inside that room, so the rect it works out is `target`.
+        let rect = self.rect;
+        let (from, to) = match self.point_bounds() {
+            Some(inner) => {
+                let (left, top) = (inner.x0 - rect.x0, inner.y0 - rect.y0);
+                let (right, bottom) = (rect.x1 - inner.x1, rect.y1 - inner.y1);
+                let to = Rect::new(
+                    target.x0 + left,
+                    target.y0 + top,
+                    (target.x1 - right).max(target.x0 + left + 0.01),
+                    (target.y1 - bottom).max(target.y0 + top + 0.01),
+                );
+                (inner, to)
+            }
+            None => (rect, target),
+        };
+        let scale_x = to.width() / from.width().max(0.01);
+        let scale_y = to.height() / from.height().max(0.01);
         let mut resized = self.mapped(|point| {
             Point::new(
-                target.x0 + (point.x - from.x0) * scale_x,
-                target.y0 + (point.y - from.y0) * scale_y,
+                to.x0 + (point.x - from.x0) * scale_x,
+                to.y0 + (point.y - from.y0) * scale_y,
             )
         });
         resized.rect = target;
         resized
+    }
+
+    /// The bounds of a drawing's points, inside its rect.
+    fn point_bounds(&self) -> Option<Rect> {
+        let points: Vec<Point> = match &self.kind {
+            Kind::Ink(strokes) => strokes.iter().flatten().copied().collect(),
+            Kind::Polygon(points) | Kind::PolyLine(points) => points.clone(),
+            _ => return None,
+        };
+        let first = points.first()?;
+        let bounds = points.iter().fold(
+            Rect::new(first.x, first.y, first.x, first.y),
+            |bounds, point| {
+                Rect::new(
+                    bounds.x0.min(point.x),
+                    bounds.y0.min(point.y),
+                    bounds.x1.max(point.x),
+                    bounds.y1.max(point.y),
+                )
+            },
+        );
+        (bounds.width() > 0.0 && bounds.height() > 0.0).then_some(bounds)
     }
 
     fn mapped(&self, map: impl Fn(Point) -> Point) -> Self {
@@ -350,6 +389,23 @@ mod tests {
         );
         let moved = ink.translated(5.0, -5.0);
         assert_eq!(moved.rect, Rect::new(15.0, 5.0, 25.0, 25.0));
+    }
+
+    #[test]
+    fn resizing_keeps_the_room_for_the_line() {
+        // A stroke with 2 points of room on each side, as MuPDF gives it.
+        let ink = Annotation::new(
+            "a",
+            Kind::Ink(vec![vec![Point::new(12.0, 12.0), Point::new(22.0, 32.0)]]),
+            Rect::new(10.0, 10.0, 24.0, 34.0),
+        );
+        let resized = ink.resized(Rect::new(10.0, 10.0, 44.0, 74.0));
+        assert_eq!(resized.rect, Rect::new(10.0, 10.0, 44.0, 74.0));
+        // The room stays 2 points, so MuPDF's rect comes out as the target.
+        assert_eq!(
+            resized.kind,
+            Kind::Ink(vec![vec![Point::new(12.0, 12.0), Point::new(42.0, 72.0)]])
+        );
     }
 
     #[test]

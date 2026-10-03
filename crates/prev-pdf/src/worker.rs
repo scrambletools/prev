@@ -309,6 +309,12 @@ enum Request {
     Pages(PageEdit, oneshot::Sender<Result<Restructured>>),
     Extract(Vec<usize>, oneshot::Sender<Result<Vec<u8>>>),
     Lift(usize, String, oneshot::Sender<Result<Lifted>>),
+    Draft(
+        usize,
+        Box<Annotation>,
+        bool,
+        oneshot::Sender<Result<Arc<dyn PageDisplay>>>,
+    ),
     AnnotationLayer(usize, oneshot::Sender<Result<Arc<dyn PageDisplay>>>),
     Metadata(oneshot::Sender<Metadata>),
     Export(ExportOptions, Writer, oneshot::Sender<Result<()>>),
@@ -431,6 +437,18 @@ impl DocumentHandle {
     /// The page split for moving annotation `id` on screen.
     pub fn lift(&self, page: usize, id: String) -> oneshot::Receiver<Result<Lifted>> {
         self.request(|sender| Request::Lift(page, id, sender))
+    }
+
+    /// Annotation `annotation.id` as `annotation` has it, alone on a
+    /// transparent page, for showing it while its handles are dragged.
+    /// `fresh` starts from the annotation as the document has it.
+    pub fn draft(
+        &self,
+        page: usize,
+        annotation: Annotation,
+        fresh: bool,
+    ) -> oneshot::Receiver<Result<Arc<dyn PageDisplay>>> {
+        self.request(|sender| Request::Draft(page, Box::new(annotation), fresh, sender))
     }
 
     /// The annotations of `page` alone, on a transparent page.
@@ -735,6 +753,9 @@ impl DocumentThread {
             }
             Request::Lift(page, id, reply) => {
                 let _ = reply.send(self.document.lift_annotation(page, &id));
+            }
+            Request::Draft(page, annotation, fresh, reply) => {
+                let _ = reply.send(self.document.draft_annotation(page, &annotation, fresh));
             }
             Request::AnnotationLayer(page, reply) => {
                 let _ = reply.send(self.document.annotation_layer(page));

@@ -136,6 +136,16 @@ pub trait Document {
     /// Displays for moving an annotation on screen: the page without it,
     /// and the annotation alone on a transparent page.
     fn lift_annotation(&self, page: usize, id: &str) -> Result<Lifted>;
+    /// The annotation with `annotation.id`, as `annotation` has it, alone
+    /// on a transparent page: how it looks while its handles are dragged.
+    /// The document is not changed. `fresh` starts again from the
+    /// annotation as the document has it, as each drag must.
+    fn draft_annotation(
+        &mut self,
+        page: usize,
+        annotation: &Annotation,
+        fresh: bool,
+    ) -> Result<Arc<dyn PageDisplay>>;
     /// A page's annotations alone on a transparent page.
     fn annotation_layer(&self, page: usize) -> Result<Arc<dyn PageDisplay>>;
     /// The whole document written anew for another file: unused objects

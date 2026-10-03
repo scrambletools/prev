@@ -467,13 +467,19 @@ pub(crate) fn lift(
         &|annot| annotation_id(annot).as_deref() != Some(id),
         false,
     )?;
-    let alone = page_copy(
+    Ok((without, alone(document, page, id)?))
+}
+
+/// A copy of `page` with annotation `id` alone on an empty page. The
+/// document is not changed.
+pub(crate) fn alone(document: &PdfDocument, page: usize, id: &str) -> Result<PdfDocument> {
+    check_page(document, page)?;
+    page_copy(
         document,
         page,
         &|annot| annotation_id(annot).as_deref() == Some(id),
         true,
-    )?;
-    Ok((without, alone))
+    )
 }
 
 /// A copy of `page` with its annotations and none of its own contents,

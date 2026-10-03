@@ -41,6 +41,7 @@ impl Engine for MupdfEngine {
         Ok(Box::new(MupdfDocument {
             document,
             rewrite: false,
+            draft: None,
         }))
     }
 }
@@ -50,6 +51,9 @@ struct MupdfDocument {
     /// Set by redaction: the next save must rewrite the whole file, so the
     /// removed content does not survive in an earlier revision.
     rewrite: bool,
+    /// The page and id of the annotation being dragged, and a copy of the
+    /// page with it alone, which each step of the drag changes.
+    draft: Option<(usize, String, PdfDocument)>,
 }
 
 impl MupdfDocument {
@@ -345,12 +349,37 @@ impl Document for MupdfDocument {
         })
     }
 
+    fn draft_annotation(
+        &mut self,
+        page: usize,
+        annotation: &Annotation,
+        fresh: bool,
+    ) -> Result<Arc<dyn PageDisplay>> {
+        let kept = matches!(&self.draft, Some((on, id, _)) if *on == page && *id == annotation.id);
+        if fresh || !kept {
+            let copy = mupdf_pages::alone(&self.document, page, &annotation.id)?;
+            self.draft = Some((page, annotation.id.clone(), copy));
+        }
+        let Some((_, _, copy)) = self.draft.as_mut() else {
+            return Err(Error::Engine("no draft".into()));
+        };
+        let mut pdf_page = copy.load_pdf_page(0).map_err(engine_error)?;
+        mupdf_annotations::update_annotation(copy, &mut pdf_page, annotation, None)?;
+        pdf_page.update().map_err(engine_error)?;
+        page_display(copy, true)
+    }
+
     fn annotation_layer(&self, page: usize) -> Result<Arc<dyn PageDisplay>> {
         first_page_display(mupdf_pages::annotations_alone(&self.document, page)?, true)
     }
 }
 
 fn first_page_display(document: PdfDocument, transparent: bool) -> Result<Arc<dyn PageDisplay>> {
+    page_display(&document, transparent)
+}
+
+/// The first page of `document`, to render.
+fn page_display(document: &PdfDocument, transparent: bool) -> Result<Arc<dyn PageDisplay>> {
     let page = document.load_page(0).map_err(engine_error)?;
     let bounds = page.bounds().map_err(engine_error)?;
     let list = page.to_display_list(true).map_err(engine_error)?;
