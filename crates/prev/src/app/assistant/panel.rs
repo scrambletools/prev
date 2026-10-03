@@ -33,8 +33,8 @@ list_windows only when the user speaks of other windows. You get only what you \
 ask for, so read the file with page_text, search or render_page before you answer about it. \
 Positions on PDF pages are in points from the page's top-left corner, with y growing down; on an \
 image's markup, in image pixels. Every change saves to the file by itself, as edits in prev do, \
-and is one step of the user's Undo; there is nothing to save. The user's settings may make prev \
-ask them before a tool runs. Answer briefly, in the user's language; you may use Markdown.";
+and is one step of the user's Undo; there is nothing to save. Signing and applying redactions \
+cannot be undone, so do them only when the user asks for them. Answer briefly, in the user's language; you may use Markdown.";
 
 /// What the panel heard from its chat's thread or a tool call, through
 /// [`crate::post`].
@@ -322,7 +322,9 @@ impl Prev {
                         model,
                         key,
                         format!("{INSTRUCTIONS} {}", self.window_context(id)),
-                        tools::specs(&self.settings.ask_before),
+                        // The user asks for what the assistant does, so no
+                        // tool asks again.
+                        tools::specs(&prev_store::settings::AskBefore::never()),
                         move |event| {
                             crate::post(External::Assistant(id, Heard::Chat(number, event)));
                         },
@@ -554,7 +556,7 @@ impl Prev {
         let agent = self
             .panel_model(panel)
             .map_or_else(|| prev::fl!("assistant-title"), shown_name);
-        self.run_tool(local, agent)
+        self.run_tool_for_user(local, agent)
     }
 
     fn tool_answered(

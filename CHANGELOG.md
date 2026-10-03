@@ -7,6 +7,9 @@ All notable changes to prev. Versions follow
 
 ### Changed
 
+- The assistant no longer asks before signing, applying redactions or
+  anything else: it does what you asked it in the chat. The switches in
+  Settings that make prev ask first are for outside agents.
 - The pointer stays the plain arrow over buttons, links, annotations and
   form fields, and while panning; it changes only to resize, to select
   text and to draw. prev no longer has hand cursors of its own.

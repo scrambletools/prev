@@ -156,8 +156,8 @@ For a walkthrough of every feature with more screenshots, see
 - **Assistant**: a chat panel beside the document (the robot head on
   the toolbar) that answers about the file and works in it with the
   same tools as an outside agent: finding and pointing at things,
-  marking up, editing, signing, redacting and exporting, asking you
-  first where Settings says to. It talks to a model you add in
+  marking up, editing, signing, redacting and exporting, as you ask
+  it, without asking again. It talks to a model you add in
   Settings: a local model, such as Ollama's, that stays on your
   computer, or a cloud model from Anthropic, OpenAI or Google with your
   API key,

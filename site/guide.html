@@ -465,10 +465,11 @@ mid-chat, grouped by provider.</p>
 with each tool the model uses as a line of its own, and a small picture
 for the tools that look at a page. Models that think before they answer
 show their reasoning faintly as it comes, folded under Thoughts once they
-answer. The switches that make prev ask before an agent acts apply to the
-assistant too, and a change it makes is one step of Undo, as yours are.
+answer. The assistant does what you ask it without asking again: the
+switches that make prev ask before an agent acts are for outside agents.
+A change it makes is one step of Undo, as yours are; signing and
+applying redactions cannot be undone, so it does them only when asked.
 A model that cannot see pictures gets the page's text instead.</p>
-<figure><img class="shot" src="screenshots/assistant-ask.png" alt="The assistant, asked to redact an account number, has marked it in three places; prev asks whether to let the model apply the redactions" width="1360" height="796" loading="lazy"></figure>
 <h2 id="ai-agents">Working with AI agents</h2>
 <p>An AI agent, such as Claude Code or a local model in an MCP client, can
 work in prev for you: read a document, show you something in it, mark it
@@ -502,7 +503,8 @@ and export. With a switch on, prev shows what the agent asks to do in the
 window it acts on, with Allow and Don't Allow, and the agent waits for
 your answer. Signing and applying redactions ask at first, as Undo cannot
 take them back; the others start off. The agent is told which tools ask,
-so it can tell you to look at prev.</p>
+so it can tell you to look at prev. The switches are for outside agents;
+prev's own assistant acts on what you ask it without asking again.</p>
 <figure class="portrait"><img class="shot" src="screenshots/agent-ask.png" alt="prev asking: Let Claude Code sign this file?, adding that Undo cannot take this back, over a filled-in membership form" width="900" height="995" loading="lazy"></figure>
 <figure><img class="shot" src="screenshots/settings-outside-control.png" alt="The Agents tab of Settings: Allow outside control on, Claude Code allowed, and the Ask before an agent switches, with signing and applying redactions on" width="1360" height="791" loading="lazy"></figure>
 <h3 id="agent-work">What agents can do</h3>

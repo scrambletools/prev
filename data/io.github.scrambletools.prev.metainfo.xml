@@ -94,7 +94,7 @@
   <releases>
     <release version="2.1.0" date="2026-10-03">
       <description>
-        <p>Markup feels like a drawing app: dragging a handle shows the annotation as it will be, with lines keeping their width and text boxes rewrapping, dragging past the edge scrolls the page, a loupe shows what is under it as it moves, notes can be dragged, and every shape is framed by its own outline. The assistant now opens where the inspector does and takes its place, the toolbar no longer shifts as the markup bar opens, and the pointer stays the plain arrow except to resize, select text and draw.</p>
+        <p>Markup feels like a drawing app: dragging a handle shows the annotation as it will be, with lines keeping their width and text boxes rewrapping, dragging past the edge scrolls the page, a loupe shows what is under it as it moves, notes can be dragged, and every shape is framed by its own outline. The assistant now opens where the inspector does and takes its place, and does what you ask it without asking again, the toolbar no longer shifts as the markup bar opens, and the pointer stays the plain arrow except to resize, select text and draw.</p>
       </description>
     </release>
     <release version="2.0.0" date="2026-10-03">

@@ -143,6 +143,22 @@ pub struct AskBefore {
     pub exporting: bool,
 }
 
+impl AskBefore {
+    /// Asking before nothing: for the assistant, which acts on what the
+    /// user asks it.
+    pub fn never() -> Self {
+        Self {
+            reading: false,
+            viewing: false,
+            marking_up: false,
+            editing: false,
+            signing: false,
+            redacting: false,
+            exporting: false,
+        }
+    }
+}
+
 impl Default for AskBefore {
     fn default() -> Self {
         Self {

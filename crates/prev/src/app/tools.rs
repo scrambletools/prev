@@ -406,13 +406,23 @@ impl Prev {
     /// the user allows it when its kind asks first. `agent` is the name
     /// the user knows the agent by.
     pub(super) fn run_tool(&mut self, call: Call, agent: String) -> Task<Message> {
+        self.run_tool_asking(call, agent, true)
+    }
+
+    /// Runs the tool for the assistant, which acts on what the user asks
+    /// it in the chat: the switches for outside agents do not apply.
+    pub(super) fn run_tool_for_user(&mut self, call: Call, agent: String) -> Task<Message> {
+        self.run_tool_asking(call, agent, false)
+    }
+
+    fn run_tool_asking(&mut self, call: Call, agent: String, outside: bool) -> Task<Message> {
         let name = call.params["name"].as_str().unwrap_or_default().to_owned();
         let arguments = match &call.params["arguments"] {
             Value::Null => json!({}),
             arguments => arguments.clone(),
         };
         match find(&name) {
-            Some(tool) if tool.kind.asks(&self.settings.ask_before) => {
+            Some(tool) if outside && tool.kind.asks(&self.settings.ask_before) => {
                 // A window that cannot be found is the tool's to report.
                 match self.tool_window(arguments["window"].as_u64()) {
                     Ok(id) => self.ask_to_run(id, agent, tool, arguments, Answer(call)),
