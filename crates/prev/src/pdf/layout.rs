@@ -5,6 +5,8 @@ use prev_pdf::geometry::{PixelRect, Point, Size};
 
 pub const PAGE_GAP: f32 = 12.0;
 pub const MARGIN: f32 = 16.0;
+/// What a fitted zoom leaves spare, in pixels.
+const FIT_SLACK: f32 = 0.5;
 /// Tile edge in device pixels.
 pub const TILE: u32 = 512;
 
@@ -127,7 +129,9 @@ pub fn resolve_zoom(
                     (pair_width(left).max(pair_width(0)), gap, height)
                 }
             };
-            let width_zoom = (viewport.width - 2.0 * MARGIN - gaps).max(1.0)
+            // Half a pixel short, so rounding cannot make the pages a hair
+            // wider than the view, which would show a horizontal scrollbar.
+            let width_zoom = (viewport.width - 2.0 * MARGIN - gaps - FIT_SLACK).max(1.0)
                 / points_to_pixels(1.0)
                 / widest.max(1.0);
             if fit == Fit::Width {
