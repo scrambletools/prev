@@ -553,7 +553,7 @@ impl Prev {
         );
         let agent = self
             .panel_model(panel)
-            .map_or_else(|| prev::fl!("assistant-title"), |model| model.model.clone());
+            .map_or_else(|| prev::fl!("assistant-title"), shown_name);
         self.run_tool(local, agent)
     }
 
