@@ -118,6 +118,24 @@ pub const HANDLE_PIXELS: f32 = 8.0;
 /// Size of a shape made by clicking without dragging.
 pub const DEFAULT_SHAPE: f32 = 100.0;
 pub const NOTE_SIZE: f32 = 24.0;
+/// The side of the icon MuPDF draws for a note, in points, in the top-left
+/// corner of its rect, which it keeps larger.
+pub const NOTE_ICON: f32 = 16.0;
+
+/// The part of the page `annotation` shows on: its rect, or for a note
+/// just its icon.
+pub fn shown_rect(annotation: &Annotation) -> Rect {
+    let rect = annotation.rect;
+    match annotation.kind {
+        Kind::Note => Rect::new(
+            rect.x0,
+            rect.y0,
+            rect.x0 + rect.width().min(NOTE_ICON),
+            rect.y0 + rect.height().min(NOTE_ICON),
+        ),
+        _ => rect,
+    }
+}
 
 pub fn normalized(a: Point, b: Point) -> Rect {
     Rect::new(a.x.min(b.x), a.y.min(b.y), a.x.max(b.x), a.y.max(b.y))
@@ -141,7 +159,7 @@ fn distance_to_segment(point: Point, a: Point, b: Point) -> f32 {
 
 /// Whether `point` touches the annotation, with `slop` points of reach.
 pub fn hits(annotation: &Annotation, point: Point, slop: f32) -> bool {
-    if !expand(annotation.rect, slop).contains(point) {
+    if !expand(shown_rect(annotation), slop).contains(point) {
         return false;
     }
     let reach = slop + annotation.style.line_width / 2.0;
@@ -205,7 +223,7 @@ pub fn hit_handle(annotation: &Annotation, point: Point, handle: f32) -> Option<
             }
         }
     }
-    expand(annotation.rect, handle / 2.0)
+    expand(shown_rect(annotation), handle / 2.0)
         .contains(point)
         .then_some(Handle::Body)
 }
