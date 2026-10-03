@@ -234,10 +234,10 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for ImageCanvas<'_, Message
         let (content_width, content_height) = self.placement.content;
         let scrolls =
             content_width > viewport.width + 0.5 || content_height > viewport.height + 0.5;
-        match (state.drag_from, cursor.is_over(*viewport) && scrolls) {
-            (Some(_), _) => mouse::Interaction::Grabbing,
-            (None, true) => mouse::Interaction::Grab,
-            (None, false) => mouse::Interaction::None,
+        if state.drag_from.is_some() || cursor.is_over(*viewport) && scrolls {
+            mouse::Interaction::Idle
+        } else {
+            mouse::Interaction::None
         }
     }
 

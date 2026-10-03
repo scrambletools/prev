@@ -727,21 +727,6 @@ impl WindowState {
 
     /// Set the cursor icon.
     pub fn set_cursor(&mut self, cursor_icon: CursorIcon) {
-        // The pointing, open and closed hands are prev's, drawn at the
-        // window's scale.
-        let size =
-            (crate::platform_impl::hand_cursors::linux_size() * self.scale_factor()).round() as u16;
-        if let Some(image) = crate::platform_impl::hand_cursors::image(cursor_icon, size) {
-            let cursor = {
-                let mut pool = self.custom_cursor_pool.lock().unwrap();
-                CustomCursor::new(&mut pool, &image)
-            };
-            if self.cursor_visible {
-                self.apply_custom_cursor(&cursor);
-            }
-            self.selected_cursor = SelectedCursor::Custom(cursor);
-            return;
-        }
         self.selected_cursor = SelectedCursor::Named(cursor_icon);
 
         if !self.cursor_visible {

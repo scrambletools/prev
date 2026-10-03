@@ -97,7 +97,7 @@ impl<Message> PageCanvas<'_, Message> {
         // A drag keeps its pointer, wherever it goes.
         if let Some(handle) = viewer.dragged_handle() {
             return Some(match handle {
-                Handle::Body => mouse::Interaction::Grabbing,
+                Handle::Body => mouse::Interaction::Idle,
                 handle => handle_interaction(handle),
             });
         }
@@ -106,7 +106,7 @@ impl<Message> PageCanvas<'_, Message> {
             let point = viewer.layout.to_page(page, x, y)?;
             match markup::hit_handle(annotation, point, markup::HANDLE_PIXELS * per_pixel) {
                 Some(Handle::Body) if markup::movable(annotation) => {
-                    return Some(mouse::Interaction::Grab);
+                    return Some(mouse::Interaction::Idle);
                 }
                 Some(Handle::Body) | None => {}
                 Some(handle) => return Some(handle_interaction(handle)),
@@ -116,7 +116,7 @@ impl<Message> PageCanvas<'_, Message> {
         let markup = viewer.markup.get(&page)?;
         let slop = markup::HIT_SLOP * per_pixel.max(1.0);
         if markup::hit_annotation(&markup.annotations, point, slop).is_some() {
-            return Some(mouse::Interaction::Pointer);
+            return Some(mouse::Interaction::Idle);
         }
         let field = markup
             .fields
@@ -125,7 +125,7 @@ impl<Message> PageCanvas<'_, Message> {
         Some(match field.kind {
             FieldKind::Text { .. } => mouse::Interaction::Text,
             FieldKind::Button | FieldKind::Signature => return None,
-            _ => mouse::Interaction::Pointer,
+            _ => mouse::Interaction::Idle,
         })
     }
 }
@@ -189,7 +189,8 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
                 if modifiers.shift() != self.viewer.shift() {
                     shell.publish((self.on_message)(PdfMessage::Shift(modifiers.shift())));
                 }
-                // The pointer turns into a hand with the command key.
+                // With the command key, a drag pans and the pointer stays
+                // the plain arrow over text.
                 if modifiers.command() != self.viewer.command() {
                     shell.publish((self.on_message)(PdfMessage::Command(modifiers.command())));
                 }
@@ -289,12 +290,10 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
         viewport: &Rectangle,
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
-        if self.viewer.panning() {
-            return mouse::Interaction::Grabbing;
-        }
-        // With the command key held, a drag pans: show it before it starts.
-        if self.viewer.command() && cursor.is_over(*viewport) {
-            return mouse::Interaction::Grab;
+        // Panning, or about to with the command key held: the plain arrow,
+        // not the I-beam over text.
+        if self.viewer.panning() || self.viewer.command() && cursor.is_over(*viewport) {
+            return mouse::Interaction::Idle;
         }
         let Some(position) = cursor.position_over(*viewport) else {
             return mouse::Interaction::None;
@@ -305,7 +304,7 @@ impl<Message> Widget<Message, Theme, iced::Renderer> for PageCanvas<'_, Message>
             return interaction;
         }
         if self.viewer.link_at(x, y).is_some() {
-            mouse::Interaction::Pointer
+            mouse::Interaction::Idle
         } else if self.viewer.is_over_text(x, y) {
             mouse::Interaction::Text
         } else {

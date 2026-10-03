@@ -142,29 +142,23 @@ keeps to itself:
 - `src/platform_impl/macos/window_delegate.rs` and `view.rs`: a new
   cursor is also set straight away when the pointer is over the view.
   winit sets it through cursor rects alone, which AppKit applies only
-  when the mouse moves and not while a button is held, so the hand prev
-  shows when ⌘ is pressed, or the closed hand when a pan starts, waited
-  for the pointer to move.
+  when the mouse moves and not while a button is held, so a cursor prev
+  sets on a key press or as a drag starts waited for the pointer to
+  move.
 - `src/platform_impl/macos/window_delegate.rs`: each window also
   watches the application's `effectiveAppearance`, which follows the
   system. iced sets every window's appearance to the app's theme, and
   winit ignored appearance changes of such windows, so a switch between
   light and dark in System Settings never reached an app following the
   system.
-- `src/platform_impl/hand_cursors.rs` (new) and `hand_cursors/`:
-  pointing, open and closed hand cursors by Abdulkaiz Khatri (GPL-3.0,
-  see the README there), which `CursorIcon::Pointer`, `CursorIcon::Grab`
-  and `CursorIcon::Grabbing` use on Windows (`windows/util.rs`,
-  `window.rs`, `event_loop.rs`), whose pointing hand is drawn unlike
-  macOS's and which has no open or closed hand, falling back to the move
-  cursor, and on Wayland and X11 (`linux/wayland/window/state.rs`,
-  `linux/x11/window.rs`, `linux/x11/util/cursor.rs`), where they would
-  come from the cursor theme; macOS keeps its own. Their size follows
-  the system's cursor size and the window's scale.
+- `src/window.rs`: `set_cursor` shows the standard arrow for
+  `CursorIcon::Pointer`, `CursorIcon::Grab` and `CursorIcon::Grabbing`.
+  prev uses no hand cursors, and iced's own widgets, such as buttons,
+  checkboxes, menus and sliders, ask for them; this one place catches
+  them all, on every system.
 
 The full diff is `winit.patch` (`diff -ruN` of `src/` and `Cargo.toml`
-against the crates.io release), which leaves out the cursor images in
-`src/platform_impl/hand_cursors/`, as they are not text.
+against the crates.io release).
 
 **Updating:** when iced moves to a newer winit, re-apply the patch to that
 version, or drop the copy if winit comes to expose both.

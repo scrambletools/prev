@@ -1423,7 +1423,13 @@ impl Window {
     ///   cursor is shown.
     #[inline]
     pub fn set_cursor(&self, cursor: impl Into<Cursor>) {
-        let cursor = cursor.into();
+        // prev shows the standard arrow where a widget asks for a hand.
+        let cursor = match cursor.into() {
+            Cursor::Icon(CursorIcon::Pointer | CursorIcon::Grab | CursorIcon::Grabbing) => {
+                Cursor::Icon(CursorIcon::Default)
+            },
+            cursor => cursor,
+        };
         let _span = tracing::debug_span!("winit::Window::set_cursor",).entered();
         self.window.maybe_queue_on_main(move |w| w.set_cursor(cursor))
     }

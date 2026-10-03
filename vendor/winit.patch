@@ -129,70 +129,6 @@ diff -ruN '--exclude=hand_cursors' a/src/platform/open_files.rs b/src/platform/o
 +        None => PENDING.lock().unwrap_or_else(|e| e.into_inner()).extend(paths),
 +    }
 +}
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.rs
---- a/src/platform_impl/hand_cursors.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform_impl/hand_cursors.rs	2026-10-02 21:19:33.090985062 -0700
-@@ -0,0 +1,60 @@
-+//! The pointing, open and closed hands for `CursorIcon::Pointer`,
-+//! `CursorIcon::Grab` and `CursorIcon::Grabbing` where the system has no
-+//! open or closed hand (Windows) or its cursor theme draws them unlike
-+//! macOS (Linux): Abdulkaiz Khatri's, under the GPL-3.0 (see
-+//! `hand_cursors/README.md`).
-+
-+use crate::cursor::CursorImage;
-+use crate::window::CursorIcon;
-+
-+/// A hand at the cursor sizes it suits: each with its image's side, the
-+/// image and its hotspot. The 24 pixel one is drawn smaller on a 32 pixel
-+/// image.
-+type Hand = [(u16, u16, &'static [u8], u16, u16); 5];
-+
-+const POINTER: Hand = [
-+    (24, 32, include_bytes!("hand_cursors/pointer-24.rgba"), 7, 4),
-+    (32, 32, include_bytes!("hand_cursors/pointer-32.rgba"), 11, 6),
-+    (48, 48, include_bytes!("hand_cursors/pointer-48.rgba"), 15, 8),
-+    (64, 64, include_bytes!("hand_cursors/pointer-64.rgba"), 22, 13),
-+    (96, 96, include_bytes!("hand_cursors/pointer-96.rgba"), 30, 17),
-+];
-+const GRAB: Hand = [
-+    (24, 32, include_bytes!("hand_cursors/grab-24.rgba"), 11, 6),
-+    (32, 32, include_bytes!("hand_cursors/grab-32.rgba"), 16, 10),
-+    (48, 48, include_bytes!("hand_cursors/grab-48.rgba"), 22, 13),
-+    (64, 64, include_bytes!("hand_cursors/grab-64.rgba"), 33, 20),
-+    (96, 96, include_bytes!("hand_cursors/grab-96.rgba"), 44, 27),
-+];
-+const GRABBING: Hand = [
-+    (24, 32, include_bytes!("hand_cursors/grabbing-24.rgba"), 11, 7),
-+    (32, 32, include_bytes!("hand_cursors/grabbing-32.rgba"), 17, 10),
-+    (48, 48, include_bytes!("hand_cursors/grabbing-48.rgba"), 23, 14),
-+    (64, 64, include_bytes!("hand_cursors/grabbing-64.rgba"), 34, 21),
-+    (96, 96, include_bytes!("hand_cursors/grabbing-96.rgba"), 46, 28),
-+];
-+
-+/// The hand for `icon` for a cursor size of `size` pixels: the smallest
-+/// that is at least that, or the largest; `None` for any other cursor.
-+pub(crate) fn image(icon: CursorIcon, size: u16) -> Option<CursorImage> {
-+    let sizes = match icon {
-+        CursorIcon::Pointer => &POINTER,
-+        CursorIcon::Grab => &GRAB,
-+        CursorIcon::Grabbing => &GRABBING,
-+        _ => return None,
-+    };
-+    let &(_, side, rgba, x, y) =
-+        sizes.iter().find(|(fits, ..)| *fits >= size).unwrap_or(&sizes[sizes.len() - 1]);
-+    CursorImage::from_rgba(rgba.to_vec(), side, side, x, y).ok()
-+}
-+
-+/// The cursor size the desktop asks for on Linux, in pixels at a scale of
-+/// one: `XCURSOR_SIZE`, else 24.
-+#[cfg(any(x11_platform, wayland_platform))]
-+pub(crate) fn linux_size() -> f64 {
-+    std::env::var("XCURSOR_SIZE")
-+        .ok()
-+        .and_then(|size| size.trim().parse::<f64>().ok())
-+        .filter(|size| *size > 0.0)
-+        .unwrap_or(24.0)
-+}
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
 --- a/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:19:33.055634835 -0700
 +++ b/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:19:33.076889975 -0700
@@ -284,104 +220,6 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/common/xkb/state.rs
      }
  
      /// Reload the modifiers.
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/wayland/window/state.rs b/src/platform_impl/linux/wayland/window/state.rs
---- a/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:19:33.057918207 -0700
-+++ b/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:19:33.078835175 -0700
-@@ -727,6 +727,21 @@
- 
-     /// Set the cursor icon.
-     pub fn set_cursor(&mut self, cursor_icon: CursorIcon) {
-+        // The pointing, open and closed hands are prev's, drawn at the
-+        // window's scale.
-+        let size =
-+            (crate::platform_impl::hand_cursors::linux_size() * self.scale_factor()).round() as u16;
-+        if let Some(image) = crate::platform_impl::hand_cursors::image(cursor_icon, size) {
-+            let cursor = {
-+                let mut pool = self.custom_cursor_pool.lock().unwrap();
-+                CustomCursor::new(&mut pool, &image)
-+            };
-+            if self.cursor_visible {
-+                self.apply_custom_cursor(&cursor);
-+            }
-+            self.selected_cursor = SelectedCursor::Custom(cursor);
-+            return;
-+        }
-         self.selected_cursor = SelectedCursor::Named(cursor_icon);
- 
-         if !self.cursor_visible {
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/util/cursor.rs b/src/platform_impl/linux/x11/util/cursor.rs
---- a/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:19:33.059896950 -0700
-+++ b/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:19:33.080577798 -0700
-@@ -125,30 +125,34 @@
-         event_loop: &ActiveEventLoop,
-         cursor: PlatformCustomCursorSource,
-     ) -> CustomCursor {
-+        Self::from_image(&event_loop.xconn, &cursor.0)
-+    }
-+
-+    pub(crate) fn from_image(
-+        xconn: &Arc<XConnection>,
-+        image: &crate::cursor::CursorImage,
-+    ) -> CustomCursor {
-         unsafe {
--            let ximage = (event_loop.xconn.xcursor.XcursorImageCreate)(
--                cursor.0.width as i32,
--                cursor.0.height as i32,
--            );
-+            let ximage =
-+                (xconn.xcursor.XcursorImageCreate)(image.width as i32, image.height as i32);
-             if ximage.is_null() {
-                 panic!("failed to allocate cursor image");
-             }
--            (*ximage).xhot = cursor.0.hotspot_x as u32;
--            (*ximage).yhot = cursor.0.hotspot_y as u32;
-+            (*ximage).xhot = image.hotspot_x as u32;
-+            (*ximage).yhot = image.hotspot_y as u32;
-             (*ximage).delay = 0;
- 
--            let dst = slice::from_raw_parts_mut((*ximage).pixels, cursor.0.rgba.len() / 4);
--            for (dst, chunk) in dst.iter_mut().zip(cursor.0.rgba.chunks_exact(4)) {
-+            let dst = slice::from_raw_parts_mut((*ximage).pixels, image.rgba.len() / 4);
-+            for (dst, chunk) in dst.iter_mut().zip(image.rgba.chunks_exact(4)) {
-                 *dst = (chunk[0] as u32) << 16
-                     | (chunk[1] as u32) << 8
-                     | (chunk[2] as u32)
-                     | (chunk[3] as u32) << 24;
-             }
- 
--            let cursor =
--                (event_loop.xconn.xcursor.XcursorImageLoadCursor)(event_loop.xconn.display, ximage);
--            (event_loop.xconn.xcursor.XcursorImageDestroy)(ximage);
--            Self { inner: Arc::new(CustomCursorInner { xconn: event_loop.xconn.clone(), cursor }) }
-+            let cursor = (xconn.xcursor.XcursorImageLoadCursor)(xconn.display, ximage);
-+            (xconn.xcursor.XcursorImageDestroy)(ximage);
-+            Self { inner: Arc::new(CustomCursorInner { xconn: Arc::clone(xconn), cursor }) }
-         }
-     }
- }
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/window.rs b/src/platform_impl/linux/x11/window.rs
---- a/src/platform_impl/linux/x11/window.rs	2026-10-02 21:19:33.061114056 -0700
-+++ b/src/platform_impl/linux/x11/window.rs	2026-10-02 21:19:33.081729577 -0700
-@@ -1463,6 +1463,19 @@
-     pub fn set_cursor(&self, cursor: Cursor) {
-         match cursor {
-             Cursor::Icon(icon) => {
-+                // The pointing, open and closed hands are prev's.
-+                let size = (crate::platform_impl::hand_cursors::linux_size()
-+                    * self.scale_factor())
-+                .round() as u16;
-+                if let Some(image) = crate::platform_impl::hand_cursors::image(icon, size) {
-+                    let cursor = util::CustomCursor::from_image(&self.xconn, &image);
-+                    #[allow(clippy::mutex_atomic)]
-+                    if *self.cursor_visible.lock().unwrap() {
-+                        self.xconn.set_custom_cursor(self.xwindow, &cursor);
-+                    }
-+                    *self.selected_cursor.lock().unwrap() = SelectedCursor::Custom(cursor);
-+                    return;
-+                }
-                 let old_cursor = replace(
-                     &mut *self.selected_cursor.lock().unwrap(),
-                     SelectedCursor::Named(icon),
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
 --- a/src/platform_impl/macos/app_state.rs	2026-10-02 21:19:33.061825920 -0700
 +++ b/src/platform_impl/macos/app_state.rs	2026-10-02 21:19:33.082093948 -0700
@@ -684,114 +522,21 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/window_delegate.rs 
      }
  
      #[inline]
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/mod.rs b/src/platform_impl/mod.rs
---- a/src/platform_impl/mod.rs	2026-10-02 21:19:33.063455922 -0700
-+++ b/src/platform_impl/mod.rs	2026-10-02 21:19:33.082510254 -0700
-@@ -1,6 +1,8 @@
- use crate::monitor::{MonitorHandle as RootMonitorHandle, VideoModeHandle as RootVideoModeHandle};
- use crate::window::Fullscreen as RootFullscreen;
- 
-+#[cfg(any(windows_platform, x11_platform, wayland_platform))]
-+mod hand_cursors;
- #[cfg(android_platform)]
- mod android;
- #[cfg(ios_platform)]
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/event_loop.rs b/src/platform_impl/windows/event_loop.rs
---- a/src/platform_impl/windows/event_loop.rs	2026-10-02 21:19:33.067825377 -0700
-+++ b/src/platform_impl/windows/event_loop.rs	2026-10-02 21:19:33.088113816 -0700
-@@ -44,7 +44,7 @@
- use windows_sys::Win32::UI::Input::{RAWINPUT, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE};
- use windows_sys::Win32::UI::WindowsAndMessaging::{
-     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect, GetCursorPos,
--    GetMenu, LoadCursorW, MsgWaitForMultipleObjectsEx, PeekMessageW, PostMessageW,
-+    GetMenu, MsgWaitForMultipleObjectsEx, PeekMessageW, PostMessageW,
-     RegisterClassExW, RegisterWindowMessageA, SetCursor, SetWindowPos, TranslateMessage,
-     CREATESTRUCTW, GIDC_ARRIVAL, GIDC_REMOVAL, GWL_STYLE, GWL_USERDATA, HTCAPTION, HTCLIENT,
-     MINMAXINFO, MNC_CLOSE, MSG, MWMO_INPUTAVAILABLE, NCCALCSIZE_PARAMS, PM_REMOVE, PT_PEN,
-@@ -2175,9 +2175,7 @@
-             match set_cursor_to {
-                 Some(selected_cursor) => {
-                     let hcursor = match selected_cursor {
--                        SelectedCursor::Named(cursor_icon) => unsafe {
--                            LoadCursorW(0, util::to_windows_cursor(cursor_icon))
--                        },
-+                        SelectedCursor::Named(cursor_icon) => util::named_cursor(cursor_icon),
-                         SelectedCursor::Custom(cursor) => cursor.as_raw_handle(),
-                     };
-                     unsafe { SetCursor(hcursor) };
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.rs
---- a/src/platform_impl/windows/util.rs	2026-10-02 21:19:33.069059390 -0700
-+++ b/src/platform_impl/windows/util.rs	2026-10-02 21:19:33.087808463 -0700
-@@ -18,9 +18,9 @@
- use windows_sys::Win32::UI::Input::Pointer::{POINTER_INFO, POINTER_PEN_INFO, POINTER_TOUCH_INFO};
- use windows_sys::Win32::UI::WindowsAndMessaging::{
-     ClipCursor, GetClientRect, GetClipCursor, GetCursorPos, GetSystemMetrics, GetWindowPlacement,
--    GetWindowRect, IsIconic, ShowCursor, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP,
-+    GetWindowRect, IsIconic, LoadCursorW, ShowCursor, HCURSOR, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP,
-     IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE, IDC_SIZEWE, IDC_WAIT,
--    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_MAXIMIZE,
-+    SM_CXCURSOR, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_MAXIMIZE,
-     WINDOWPLACEMENT,
- };
- 
-@@ -159,6 +159,38 @@
-     unsafe { &__ImageBase as *const _ as _ }
- }
- 
-+/// The handle for a named cursor. Windows has no open or closed hand, so
-+/// `Grab` and `Grabbing` use prev's hands, at the size of the system's
-+/// cursors; every other cursor is one of Windows' own.
-+pub(crate) fn named_cursor(cursor: CursorIcon) -> HCURSOR {
-+    use std::sync::{Arc, OnceLock};
-+
-+    use super::icon::{RaiiCursor, WinCursor};
-+
-+    static POINTER: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
-+    static GRAB: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
-+    static GRABBING: OnceLock<Option<Arc<RaiiCursor>>> = OnceLock::new();
-+    let hand = || {
-+        // The size of the system's cursors: 32 pixels at 100%.
-+        let size = unsafe { GetSystemMetrics(SM_CXCURSOR) }.max(32) as u16;
-+        let image = crate::platform_impl::hand_cursors::image(cursor, size)?;
-+        match WinCursor::new(&image).ok()? {
-+            WinCursor::Cursor(cursor) => Some(cursor),
-+            WinCursor::Failed => None,
-+        }
-+    };
-+    let custom = match cursor {
-+        CursorIcon::Pointer => POINTER.get_or_init(hand).as_ref(),
-+        CursorIcon::Grab => GRAB.get_or_init(hand).as_ref(),
-+        CursorIcon::Grabbing => GRABBING.get_or_init(hand).as_ref(),
-+        _ => None,
-+    };
-+    match custom {
-+        Some(cursor) => cursor.as_raw_handle(),
-+        None => unsafe { LoadCursorW(0, to_windows_cursor(cursor)) },
-+    }
-+}
-+
- pub(crate) fn to_windows_cursor(cursor: CursorIcon) -> PCWSTR {
-     match cursor {
-         CursorIcon::Default => IDC_ARROW,
-diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/window.rs b/src/platform_impl/windows/window.rs
---- a/src/platform_impl/windows/window.rs	2026-10-02 21:19:33.069113985 -0700
-+++ b/src/platform_impl/windows/window.rs	2026-10-02 21:19:33.088609558 -0700
-@@ -33,7 +33,7 @@
- use windows_sys::Win32::UI::WindowsAndMessaging::{
-     CreateWindowExW, EnableMenuItem, FlashWindowEx, GetClientRect, GetCursorPos,
-     GetForegroundWindow, GetSystemMenu, GetSystemMetrics, GetWindowPlacement, GetWindowTextLengthW,
--    GetWindowTextW, IsWindowVisible, LoadCursorW, PeekMessageW, PostMessageW, RegisterClassExW,
-+    GetWindowTextW, IsWindowVisible, PeekMessageW, PostMessageW, RegisterClassExW,
-     SetCursor, SetCursorPos, SetForegroundWindow, SetMenuDefaultItem, SetWindowDisplayAffinity,
-     SetWindowPlacement, SetWindowPos, SetWindowTextW, TrackPopupMenu, CS_HREDRAW, CS_VREDRAW,
-     CW_USEDEFAULT, FLASHWINFO, FLASHW_ALL, FLASHW_STOP, FLASHW_TIMERNOFG, FLASHW_TRAY,
-@@ -405,8 +405,7 @@
-             Cursor::Icon(icon) => {
-                 self.window_state_lock().mouse.selected_cursor = SelectedCursor::Named(icon);
-                 self.thread_executor.execute_in_thread(move || unsafe {
--                    let cursor = LoadCursorW(0, util::to_windows_cursor(icon));
--                    SetCursor(cursor);
-+                    SetCursor(util::named_cursor(icon));
-                 });
-             },
-             Cursor::Custom(cursor) => {
+diff -ruN '--exclude=hand_cursors' a/src/window.rs b/src/window.rs
+--- a/src/window.rs	2026-10-03 14:09:50.056011074 -0700
++++ b/src/window.rs	2026-10-03 14:09:50.056713415 -0700
+@@ -1423,7 +1423,13 @@
+     ///   cursor is shown.
+     #[inline]
+     pub fn set_cursor(&self, cursor: impl Into<Cursor>) {
+-        let cursor = cursor.into();
++        // prev shows the standard arrow where a widget asks for a hand.
++        let cursor = match cursor.into() {
++            Cursor::Icon(CursorIcon::Pointer | CursorIcon::Grab | CursorIcon::Grabbing) => {
++                Cursor::Icon(CursorIcon::Default)
++            },
++            cursor => cursor,
++        };
+         let _span = tracing::debug_span!("winit::Window::set_cursor",).entered();
+         self.window.maybe_queue_on_main(move |w| w.set_cursor(cursor))
+     }

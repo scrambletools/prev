@@ -44,7 +44,7 @@ use windows_sys::Win32::UI::Input::Touch::{
 use windows_sys::Win32::UI::Input::{RAWINPUT, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect, GetCursorPos,
-    GetMenu, MsgWaitForMultipleObjectsEx, PeekMessageW, PostMessageW,
+    GetMenu, LoadCursorW, MsgWaitForMultipleObjectsEx, PeekMessageW, PostMessageW,
     RegisterClassExW, RegisterWindowMessageA, SetCursor, SetWindowPos, TranslateMessage,
     CREATESTRUCTW, GIDC_ARRIVAL, GIDC_REMOVAL, GWL_STYLE, GWL_USERDATA, HTCAPTION, HTCLIENT,
     MINMAXINFO, MNC_CLOSE, MSG, MWMO_INPUTAVAILABLE, NCCALCSIZE_PARAMS, PM_REMOVE, PT_PEN,
@@ -2175,7 +2175,9 @@ unsafe fn public_window_callback_inner(
             match set_cursor_to {
                 Some(selected_cursor) => {
                     let hcursor = match selected_cursor {
-                        SelectedCursor::Named(cursor_icon) => util::named_cursor(cursor_icon),
+                        SelectedCursor::Named(cursor_icon) => unsafe {
+                            LoadCursorW(0, util::to_windows_cursor(cursor_icon))
+                        },
                         SelectedCursor::Custom(cursor) => cursor.as_raw_handle(),
                     };
                     unsafe { SetCursor(hcursor) };

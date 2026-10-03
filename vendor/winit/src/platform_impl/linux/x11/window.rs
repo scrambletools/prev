@@ -1463,19 +1463,6 @@ impl UnownedWindow {
     pub fn set_cursor(&self, cursor: Cursor) {
         match cursor {
             Cursor::Icon(icon) => {
-                // The pointing, open and closed hands are prev's.
-                let size = (crate::platform_impl::hand_cursors::linux_size()
-                    * self.scale_factor())
-                .round() as u16;
-                if let Some(image) = crate::platform_impl::hand_cursors::image(icon, size) {
-                    let cursor = util::CustomCursor::from_image(&self.xconn, &image);
-                    #[allow(clippy::mutex_atomic)]
-                    if *self.cursor_visible.lock().unwrap() {
-                        self.xconn.set_custom_cursor(self.xwindow, &cursor);
-                    }
-                    *self.selected_cursor.lock().unwrap() = SelectedCursor::Custom(cursor);
-                    return;
-                }
                 let old_cursor = replace(
                     &mut *self.selected_cursor.lock().unwrap(),
                     SelectedCursor::Named(icon),

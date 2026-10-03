@@ -751,7 +751,7 @@ impl<'a, Message: Clone + 'a> Widget<Message, Theme, iced::Renderer> for Built<'
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
         if self.enabled() && cursor.is_over(layout.bounds()) {
-            mouse::Interaction::Pointer
+            mouse::Interaction::Idle
         } else {
             mouse::Interaction::default()
         }

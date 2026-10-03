@@ -1,8 +1,6 @@
 use crate::monitor::{MonitorHandle as RootMonitorHandle, VideoModeHandle as RootVideoModeHandle};
 use crate::window::Fullscreen as RootFullscreen;
 
-#[cfg(any(windows_platform, x11_platform, wayland_platform))]
-mod hand_cursors;
 #[cfg(android_platform)]
 mod android;
 #[cfg(ios_platform)]

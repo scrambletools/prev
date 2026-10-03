@@ -33,7 +33,7 @@ use windows_sys::Win32::UI::Input::Touch::{RegisterTouchWindow, TWF_WANTPALM};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, EnableMenuItem, FlashWindowEx, GetClientRect, GetCursorPos,
     GetForegroundWindow, GetSystemMenu, GetSystemMetrics, GetWindowPlacement, GetWindowTextLengthW,
-    GetWindowTextW, IsWindowVisible, PeekMessageW, PostMessageW, RegisterClassExW,
+    GetWindowTextW, IsWindowVisible, LoadCursorW, PeekMessageW, PostMessageW, RegisterClassExW,
     SetCursor, SetCursorPos, SetForegroundWindow, SetMenuDefaultItem, SetWindowDisplayAffinity,
     SetWindowPlacement, SetWindowPos, SetWindowTextW, TrackPopupMenu, CS_HREDRAW, CS_VREDRAW,
     CW_USEDEFAULT, FLASHWINFO, FLASHW_ALL, FLASHW_STOP, FLASHW_TIMERNOFG, FLASHW_TRAY,
@@ -405,7 +405,8 @@ impl Window {
             Cursor::Icon(icon) => {
                 self.window_state_lock().mouse.selected_cursor = SelectedCursor::Named(icon);
                 self.thread_executor.execute_in_thread(move || unsafe {
-                    SetCursor(util::named_cursor(icon));
+                    let cursor = LoadCursorW(0, util::to_windows_cursor(icon));
+                    SetCursor(cursor);
                 });
             },
             Cursor::Custom(cursor) => {
