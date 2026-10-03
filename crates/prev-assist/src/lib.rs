@@ -232,7 +232,7 @@ pub fn example_model(provider: Provider) -> &'static str {
     match provider {
         Provider::Anthropic => rig_core::providers::anthropic::CLAUDE_SONNET_5_5,
         Provider::OpenAi => rig_core::providers::openai::GPT_5_6,
-        Provider::Gemini => "gemini-3-flash-preview",
+        Provider::Gemini => "gemini-3.8-flash",
         Provider::Ollama => "qwen3.8",
         Provider::OpenAiCompatible => "local-model",
     }

@@ -201,9 +201,10 @@ fn listed_models(
 }
 
 /// Whether model `id` of `provider` is one to chat with, rather than one
-/// that draws, speaks, listens or embeds.
+/// that draws, speaks, listens, embeds, or works a live session, a robot
+/// or a computer.
 fn chats(provider: Provider, id: &str) -> bool {
-    const NOT_CHAT: [&str; 13] = [
+    const NOT_CHAT: [&str; 17] = [
         "embed",
         "embedding",
         "tts",
@@ -217,6 +218,10 @@ fn chats(provider: Provider, id: &str) -> bool {
         "moderation",
         "veo",
         "aqa",
+        "live",
+        "robotics",
+        "computer-use",
+        "translate",
     ];
     let id = id.to_lowercase();
     if NOT_CHAT.iter().any(|word| id.contains(word)) {
@@ -341,6 +346,19 @@ mod tests {
         assert!(!chats(Provider::OpenAi, "gpt-4o-realtime-preview"));
         assert!(chats(Provider::Gemini, "models/gemini-3-flash-preview"));
         assert!(!chats(Provider::Gemini, "models/gemini-embedding-001"));
+        assert!(!chats(Provider::Gemini, "models/gemini-3.8-live"));
+        assert!(!chats(
+            Provider::Gemini,
+            "models/gemini-robotics-er-2-preview"
+        ));
+        assert!(!chats(
+            Provider::Gemini,
+            "models/gemini-2.5-computer-use-preview-10-2025"
+        ));
+        assert!(!chats(
+            Provider::Gemini,
+            "models/gemini-3.5-live-translate-preview"
+        ));
         assert!(!chats(Provider::Gemini, "models/imagen-4"));
         assert!(chats(Provider::Anthropic, "claude-sonnet-5-5"));
     }
