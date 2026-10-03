@@ -339,6 +339,18 @@ and exporting) that makes prev ask before an agent's call runs; signing
 and redacting ask at first. What the agent reads goes to its model. The
 [guide](https://prev.run/guide.html#ai-agents) has more.
 
+### Assistant and agents at a glance
+
+| | Supported |
+|---|---|
+| Cloud models | Anthropic, OpenAI, Google Gemini, with your own key; suggests Claude Sonnet 5.5, GPT-5.6, Gemini 3.8 Flash |
+| Local models | Ollama (`localhost:11434`), LM Studio (`:1234`), llama.cpp (`:8080`), vLLM (`:8000`), or any address |
+| A model needs | Tool calling; pictures are optional |
+| MCP server | `prev --mcp` over standard input and output; no network port |
+| Tools (44) | 11 to read, 11 for the view, 7 for markup, 12 to edit, and one each to sign, redact and export |
+
+Every tool by name is in the [specifications](https://prev.run/specs.html#ai).
+
 ## Building
 
 prev builds with Rust 1.95 or newer. On Linux it needs these build
