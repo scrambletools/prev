@@ -3,7 +3,8 @@
 prev is a fast, open source document and image viewer for Linux, Windows
 and macOS, similar to macOS Preview. It views and edits PDFs (markup, forms,
 signatures, page editing, redaction, export), views and edits images, and
-views SVG and Markdown. The [README](../README.md) lists what it does
+views SVG and Markdown, with an assistant that works in a file with a
+model you choose. The [README](../README.md) lists what it does
 today and the [guide](https://prev.run/guide.html) shows how; this document covers how it is
 built, what it will not do, and what comes next.
 
@@ -33,8 +34,9 @@ Material Design 3.
 | Windows | One window per document; images opened together share one window with a thumbnail sidebar; one running instance |
 | Saving | Autosave in place, with the original kept as a version ("Revert To"); Export for copies |
 | Design | Material Design 3 Expressive, drawn with prev's own iced styles and widgets |
-| Colors | M3 dynamic color from a seed: the system's accent color (the desktop theme's on Linux, through the settings portal; Windows' and macOS's own), prev's blue otherwise or when turned off; light or dark follows the system |
+| Colors | M3 dynamic color from a seed: the system's accent color (the desktop theme's on Linux, through the settings portal; Windows' and macOS's own), prev's blue otherwise or when turned off; light or dark and the accent follow the system as they change. On Windows and macOS, toolbars, panels and dialogs take the system's title bar color |
 | Fonts | Roboto Flex (OFL-1.1) and Material Symbols Rounded (Apache-2.0), bundled |
+| Assistant and agents | One tool registry for outside agents over MCP (`prev --mcp`, rmcp) and the assistant panel (rig-core, pinned, in `prev-assist`); no bundled model; API keys in the system keychain ([ASSISTANT.md](ASSISTANT.md)) |
 | Interface languages | Fluent files in `i18n/`, one per language, 38 languages; the layout mirrors inside panels, dialogs and menus for right to left languages ([TRANSLATING.md](TRANSLATING.md)) |
 | Distribution | GitHub releases: .deb, .rpm, AppImage, tarball, Flatpak bundle, PKGBUILD, Windows MSI and zip, macOS disk image; AUR once published; not on Flathub |
 
@@ -72,9 +74,9 @@ Planned or considered, but not in prev today:
   winget listing. See [RELEASING.md](RELEASING.md#windows-code-signing).
 - **The AUR packages** (`prev`, `prev-git`), once an AUR account can be
   made.
-- **The first macOS release**, then a Developer ID signature and
-  notarization so Gatekeeper opens it without a warning, and a Homebrew
-  cask. See [RELEASING.md](RELEASING.md#macos-signing).
+- **macOS signing**: a Developer ID signature and notarization so
+  Gatekeeper opens prev without a warning, and a Homebrew cask. See
+  [RELEASING.md](RELEASING.md#macos-signing).
 - The items above, roughly in the order listed.
 
 ## Architecture
@@ -89,6 +91,8 @@ crates/
   prev-image/    decoding (including RAW and HEIC), editing, metadata, export
   prev-store/    settings, file locations, atomic writes, version history,
                  signatures, bookmarks
+  prev-assist/   the assistant's side of models: chats, tool calls,
+                 finding models, API keys in the keychain
 ```
 
 SVG and Markdown are small enough to live in `prev`.
@@ -165,7 +169,8 @@ a Windows and a macOS side; the rest of the app is shared.
 | Keyboard layout, for the input language | XKB layout from winit | the input locale | the input source (TIS) |
 | Clipboard images and prev's page marker | `wl-copy`, `wl-paste` | clipboard-win | the general pasteboard |
 | Drag and drop | vendored smithay-clipboard with a drag and drop patch ([PATCHES.md](../vendor/PATCHES.md)) | OLE drop target, data object and drop source (`dnd_windows.rs`) | AppKit dragging, through the vendored winit's drag hook ([PATCHES.md](../vendor/PATCHES.md), `dnd_macos.rs`) |
-| Theme | desktop theme's accent, system light or dark | accent color (DWM), light or dark | accent color (NSColor), light or dark |
+| Theme | desktop theme's accent, system light or dark, through the settings portal, watched | accent color (DWM), light or dark, the title bar's color | accent color (NSColor), light or dark, the title bar's color, prev's chrome drawn behind the transparent title bar |
+| Assistant's API keys | Secret Service (keyring) | Credential Manager (keyring) | Keychain (keyring) |
 | Pictures dropped as web addresses | curl | curl, which Windows includes | curl, which macOS includes |
 
 Drag and drop on every system feeds the same drag events, in the types
@@ -190,8 +195,8 @@ notches into short eased glides.
 
 - `cargo-deny` runs in CI with an allowlist of licenses compatible with
   the AGPL: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib,
-  Unicode-3.0, BSL-1.0, CC0-1.0, MPL-2.0, LGPL-2.1-or-later, LGPL-3.0,
-  GPL-3.0, AGPL-3.0. GPL-2.0-only is refused.
+  Unicode-3.0, BSL-1.0, CC0-1.0, 0BSD, MPL-2.0, LGPL-2.1-or-later,
+  LGPL-3.0, GPL-3.0, AGPL-3.0. GPL-2.0-only is refused.
 - A new crate is added only after checking its license and maintenance,
   and whether an existing dependency already does the job.
 - RAW support is a cargo feature, so a smaller build is possible.
@@ -247,6 +252,10 @@ driver mappings.
   machine and on a Mac mini.
 - A test renders every counted string in every language, and one checks
   that no translation uses a key or variable English lacks.
+- The assistant: each provider's streaming format is played back from a
+  local server, so CI covers Anthropic, OpenAI, Gemini and compatible
+  servers without keys; a scripted MCP session tests the agent server
+  end to end.
 
 ## Risks
 
@@ -259,6 +268,8 @@ driver mappings.
 | Drag and drop depends on a vendored smithay-clipboard patch | Re-apply it when iced updates smithay-clipboard; offer it upstream |
 | Autosave damaging files | Atomic writes, the original kept as a version, a test that checks every cross-reference offset after repeated saves |
 | Redaction leaking content | Dedicated tests; whole-file rewrite only |
+| rig-core changes quickly between versions | Pinned to one version, and known to `prev-assist` alone, so an update touches one crate; recorded tests catch a provider's format changing |
+| A model does the wrong thing in a file | Every change is one step of Undo; signing, applying redactions and other steps Undo cannot take back ask first by default |
 | Memory under heavy use, mostly MuPDF's store | Add a store size limit to the `mupdf` crate upstream if it becomes a problem, and remeasure |
 | Unsigned Windows downloads trigger SmartScreen warnings | Code signing through the SignPath Foundation |
 | Gatekeeper blocks the macOS app until it is notarized | A Developer ID signature and notarization in the release workflow |

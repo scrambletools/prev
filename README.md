@@ -11,7 +11,8 @@ Website and downloads: **[prev.run](https://prev.run)**
 > **Status:** [1.6.0](https://github.com/scrambletools/prev/releases/tag/v1.6.0)
 > is out, for Linux and Windows on x86_64 and ARM64, Linux on RISC-V, and
 > macOS on Apple Silicon, with the interface in 38 languages. PDF, image, SVG and Markdown viewing, image editing, PDF
-> markup, form filling, signatures, page editing and redaction all work.
+> markup, form filling, signatures, page editing and redaction all work,
+> and an assistant and outside AI agents can do them for you.
 > See the [development plan](docs/PLAN.md) for what comes next.
 
 ![A PDF with its table of contents in the sidebar](docs/screenshots/table-of-contents.png)
