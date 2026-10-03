@@ -203,6 +203,10 @@ struct Window {
     size: Size,
     /// The assistant panel, when open, with the window's chat.
     assistant: Option<assistant::Panel>,
+    /// The height of the system title bar over the window's content, which
+    /// prev leaves room for in its chrome color: on macOS, where the bar is
+    /// transparent; zero elsewhere and in full screen.
+    title_bar: f32,
 }
 
 enum Content {
@@ -223,6 +227,9 @@ pub enum Message {
     External(External),
     WindowOpened(window::Id),
     SurfaceKnown(window::Id, Option<usize>),
+    /// The user double-clicked prev's strip under a transparent title bar.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    TitleBarDoubleClicked(window::Id),
     WindowClosed(window::Id),
     /// The window manager or a shortcut asked to close a window.
     CloseRequested(window::Id),
@@ -643,6 +650,7 @@ impl Prev {
                 settings_open: false,
                 size,
                 assistant: None,
+                title_bar: 0.0,
             },
         );
         (id, opened.map(Message::WindowOpened))
@@ -867,6 +875,10 @@ impl Prev {
             Message::SurfaceKnown(id, surface) => {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.surface = surface;
+                    #[cfg(target_os = "macos")]
+                    {
+                        window.title_bar = prev::title_bar_macos::height(surface.unwrap_or(0));
+                    }
                 }
                 // Drops on Windows go to a target registered on each window;
                 // on macOS each window registers the types it takes.
@@ -894,9 +906,25 @@ impl Prev {
                 }
                 self.exit_if_done()
             }
+            Message::TitleBarDoubleClicked(id) => {
+                #[cfg(target_os = "macos")]
+                if let Some(view) = self.windows.get(&id).and_then(|window| window.surface) {
+                    prev::title_bar_macos::double_clicked(view);
+                }
+                #[cfg(not(target_os = "macos"))]
+                let _ = id;
+                Task::none()
+            }
             Message::Resized(id, size) => {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.size = size;
+                    // Entering or leaving full screen resizes the window,
+                    // and the bar leaves or comes back.
+                    #[cfg(target_os = "macos")]
+                    {
+                        window.title_bar =
+                            prev::title_bar_macos::height(window.surface.unwrap_or(0));
+                    }
                 }
                 Task::none()
             }
@@ -1569,6 +1597,23 @@ impl Prev {
             Some(panel) => iced::widget::row![body, panel].into(),
             None => body,
         };
+        // Room for a transparent system title bar, in the chrome color, so
+        // the bar shows prev's toolbar color behind its buttons and title.
+        let body = if window.title_bar > 0.0 {
+            iced::widget::column![
+                iced::widget::mouse_area(
+                    container(space())
+                        .width(Fill)
+                        .height(window.title_bar)
+                        .style(style::chrome)
+                )
+                .on_double_click(Message::TitleBarDoubleClicked(id)),
+                body
+            ]
+            .into()
+        } else {
+            body
+        };
         let prompt = self.agent_prompt(id).unwrap_or_else(full);
         ui::smooth::smooth(stack![body, notice, drop, settings, prompt])
     }
@@ -2148,7 +2193,18 @@ fn platform_settings() -> PlatformSpecific {
     }
 }
 
-#[cfg(not(any(target_os = "linux", windows)))]
+/// On macOS, the title bar is transparent over prev's own chrome, which
+/// runs up behind it; see `title_bar`.
+#[cfg(target_os = "macos")]
+fn platform_settings() -> PlatformSpecific {
+    PlatformSpecific {
+        titlebar_transparent: true,
+        fullsize_content_view: true,
+        ..PlatformSpecific::default()
+    }
+}
+
+#[cfg(not(any(target_os = "linux", windows, target_os = "macos")))]
 fn platform_settings() -> PlatformSpecific {
     PlatformSpecific::default()
 }

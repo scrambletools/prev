@@ -32,4 +32,6 @@ mod print_macos;
 #[cfg(windows)]
 mod print_windows;
 pub mod shortcuts;
+#[cfg(target_os = "macos")]
+pub mod title_bar_macos;
 pub mod ui;
