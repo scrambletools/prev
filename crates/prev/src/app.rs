@@ -27,6 +27,7 @@ use raw_window_handle::RawWindowHandle;
 use crate::External;
 
 mod agents;
+pub(crate) mod assistant;
 mod settings_view;
 mod tools;
 
@@ -71,6 +72,8 @@ pub struct Prev {
     agents: agents::Agents,
     /// The Settings tab shown, kept for the next time Settings opens.
     settings_tab: settings_view::SettingsTab,
+    /// The model being added in Settings' Assistant tab.
+    model_form: assistant::ModelForm,
     /// The notices each window showed after the last update, so new ones
     /// get their timer.
     notices_seen: BTreeMap<window::Id, Vec<String>>,
@@ -198,6 +201,8 @@ struct Window {
     settings_open: bool,
     /// The window's size, for telling when the pointer leaves it.
     size: Size,
+    /// The assistant panel, when open, with the window's chat.
+    assistant: Option<assistant::Panel>,
 }
 
 enum Content {
@@ -279,6 +284,12 @@ pub enum Message {
     SystemAccentToggled(bool),
     OutsideControlToggled(bool),
     SettingsTab(settings_view::SettingsTab),
+    ModelSettings(assistant::ModelMessage),
+    /// Open or close a window's assistant panel.
+    ToggleAssistant(window::Id),
+    Assistant(window::Id, assistant::PanelMessage),
+    /// A task finished with nothing to do.
+    Nothing,
     /// Forget the agents allowed to control prev, so they are asked about
     /// again.
     ForgetAgents,
@@ -382,6 +393,7 @@ impl Prev {
             focused: None,
             agents: agents::Agents::default(),
             settings_tab: settings_view::SettingsTab::default(),
+            model_form: assistant::ModelForm::default(),
             notices_seen: BTreeMap::new(),
         };
         ui::component::set_floating_bars(prev.settings.auto_hide_toolbar);
@@ -630,6 +642,7 @@ impl Prev {
                 drag_hover: false,
                 settings_open: false,
                 size,
+                assistant: None,
             },
         );
         (id, opened.map(Message::WindowOpened))
@@ -721,6 +734,7 @@ impl Prev {
             }
             Message::External(External::OpenPaths(paths)) => self.open_paths(paths),
             Message::External(External::Control(call)) => self.control(call),
+            Message::External(External::Assistant(id, heard)) => self.panel_heard(id, heard),
             #[cfg(target_os = "macos")]
             Message::External(External::Menu(action)) => {
                 let target = self
@@ -801,6 +815,12 @@ impl Prev {
             | Message::Markdown(id, markdown::Message::OpenSettings) => {
                 self.perform(id, Action::Settings)
             }
+            Message::Pdf(id, pdf_window::Message::ToggleAssistant)
+            | Message::Image(id, image_window::Message::ToggleAssistant)
+            | Message::Markdown(id, markdown::Message::ToggleAssistant)
+            | Message::ToggleAssistant(id) => self.toggle_assistant(id),
+            Message::Assistant(id, message) => self.panel_update(id, message),
+            Message::Nothing => Task::none(),
             Message::Pdf(id, message) => self.with_pdf(id, |pdf| pdf.update(message)),
             Message::Image(id, message) => {
                 // An export with markup finishes as MarkupExported.
@@ -1122,6 +1142,7 @@ impl Prev {
                 self.refresh_theme();
                 Task::none()
             }
+            Message::ModelSettings(message) => self.model_settings(message),
             Message::SettingsTab(tab) => {
                 self.settings_tab = tab;
                 Task::none()
@@ -1542,6 +1563,11 @@ impl Prev {
             self.settings_dialog(id)
         } else {
             full()
+        };
+        // The panel keeps its side in every language, as the inspector does.
+        let body = match self.panel_view(id) {
+            Some(panel) => iced::widget::row![body, panel].into(),
+            None => body,
         };
         let prompt = self.agent_prompt(id).unwrap_or_else(full);
         ui::smooth::smooth(stack![body, notice, drop, settings, prompt])

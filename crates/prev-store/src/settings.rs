@@ -69,6 +69,28 @@ pub struct Settings {
     /// The kinds of tool prev asks the user about before an agent's call
     /// runs.
     pub ask_before: AskBefore,
+    /// The models the assistant panel can use. Their keys are in the
+    /// system keychain, not here.
+    pub assistant_models: Vec<AssistantModel>,
+    /// The id of the model the panel uses.
+    pub assistant_model: Option<String>,
+}
+
+/// A model the assistant panel can use.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AssistantModel {
+    /// Names the model's key in the keychain, and the model here.
+    pub id: String,
+    /// `anthropic`, `open-ai`, `gemini`, `ollama` or `open-ai-compatible`.
+    pub provider: String,
+    pub model: String,
+    /// The server's address, for a local or compatible server.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    /// How much a local model reads at once, in tokens, when prev sets it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<u32>,
 }
 
 impl Default for Settings {
@@ -95,6 +117,8 @@ impl Default for Settings {
             bookmarks: locations.bookmarks,
             keys: toml::Table::new(),
             ask_before: AskBefore::default(),
+            assistant_models: Vec::new(),
+            assistant_model: None,
         }
     }
 }
@@ -272,6 +296,14 @@ mod tests {
             auto_hide_toolbar: true,
             signatures: PathBuf::from("/srv/signatures"),
             allowed_agents: vec!["claude-code".to_owned()],
+            assistant_models: vec![AssistantModel {
+                id: "ollama-qwen3.8".to_owned(),
+                provider: "ollama".to_owned(),
+                model: "qwen3.8".to_owned(),
+                address: None,
+                context: Some(65_536),
+            }],
+            assistant_model: Some("ollama-qwen3.8".to_owned()),
             ..Settings::default()
         };
         settings.save_to(&path).unwrap();
@@ -284,6 +316,8 @@ mod tests {
         assert!(text.contains("outside-control = true"), "{text}");
         assert!(text.contains("[ask-before]"), "{text}");
         assert!(text.contains("signing = true"), "{text}");
+        assert!(text.contains("[[assistant-models]]"), "{text}");
+        assert_eq!(Settings::load_from(&path).unwrap(), settings);
         assert!(
             text.contains("allowed-agents = [\"claude-code\"]"),
             "{text}"

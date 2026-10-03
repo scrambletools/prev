@@ -167,6 +167,8 @@ pub enum Message {
     ToggleFloatingBars,
     /// Opens the settings window; the app handles it.
     OpenSettings,
+    /// Open or close the assistant panel, which the app keeps.
+    ToggleAssistant,
     ToggleInspector,
     MetadataLoaded(prev_pdf::engine::Metadata),
     /// What the clipboard held when Paste was pressed.
@@ -269,6 +271,8 @@ pub struct PdfWindow {
     pointer_inside: bool,
     /// The inspector panel, with the document information once loaded.
     inspector: Option<Option<prev_pdf::engine::Metadata>>,
+    /// Whether the app shows its assistant panel beside this window.
+    assistant_shown: bool,
     /// Marking up an image: the document is a page made from the image,
     /// never saved, shown inside the image window with the markup bar.
     image_mode: bool,
@@ -350,6 +354,7 @@ impl PdfWindow {
             pointer_over_sidebar: None,
             pointer_inside: true,
             inspector: None,
+            assistant_shown: false,
             image_mode: false,
             start_view: None,
             canvas_bounds: std::cell::Cell::default(),
@@ -404,6 +409,11 @@ impl PdfWindow {
     /// The sidebar tab shown, if the sidebar is open.
     pub fn sidebar(&self) -> Option<Sidebar> {
         self.sidebar
+    }
+
+    /// Shows the assistant button pressed, or not.
+    pub fn set_assistant_shown(&mut self, shown: bool) {
+        self.assistant_shown = shown;
     }
 
     pub fn inspector_shown(&self) -> bool {
@@ -953,7 +963,9 @@ impl PdfWindow {
             Message::AnnotationRendered(result, gap, page, id, moving) => {
                 self.annotation_rendered(result, gap, page, id, moving)
             }
-            Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
+            Message::ToggleFloatingBars | Message::OpenSettings | Message::ToggleAssistant => {
+                Task::none()
+            }
             Message::ToggleInspector => self.toggle_inspector(),
             Message::MetadataLoaded(metadata) => {
                 if let Some(inspector) = self.inspector.as_mut() {
@@ -1734,13 +1746,19 @@ impl PdfWindow {
             (
                 component::group([
                     component::floating_bars_toggle(Message::ToggleFloatingBars),
+                    component::toggle_tool(
+                        Icon::AutoAwesome,
+                        crate::fl!("assistant-title"),
+                        self.assistant_shown,
+                        Message::ToggleAssistant,
+                    ),
                     component::tool(
                         Icon::Settings,
                         crate::fl!("pdf-settings"),
                         Some(Message::OpenSettings),
                     ),
                 ]),
-                TOOL_WIDTH * 2.0 + 4.0,
+                TOOL_WIDTH * 3.0 + 8.0,
                 None,
             ),
         ]);

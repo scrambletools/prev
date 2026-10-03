@@ -868,6 +868,32 @@ settings-outside-control = Outside control
 # settings-storage.
 settings-tab-general = General
 settings-tab-agents = Agents
+settings-tab-assistant = Assistant
+settings-assistant-note = The models the assistant panel can talk to. Keys are kept in the system's keychain.
+settings-assistant-none = No models yet. Add one below: a cloud model needs an API key from its provider, and a local one, such as Ollama's, its address.
+settings-assistant-in-use = In use
+settings-assistant-use = Use
+settings-assistant-remove = Remove
+settings-assistant-add = Add a model
+# The menu entry for a server that speaks OpenAI's API.
+settings-assistant-compatible = OpenAI-compatible server
+# $example is a model name, such as claude-sonnet-5-5.
+settings-assistant-model = Model, such as { $example }
+settings-assistant-key = API key
+# $example is an address, such as http://localhost:11434.
+settings-assistant-address = Address, such as { $example }
+# The menu of how much a local model reads at once.
+settings-assistant-context = Context
+# $thousands is the size in thousands of tokens, such as 32.
+settings-assistant-context-size = { $thousands }K tokens
+settings-assistant-context-note = More lets the assistant read more of a file in one chat, but the model takes more memory and may answer more slowly.
+settings-assistant-test = Test
+settings-assistant-add-button = Add
+settings-assistant-works = The model answered.
+settings-assistant-name-needed = Give the model's name.
+settings-assistant-key-needed = This model needs an API key.
+# $error is what the keychain said.
+settings-assistant-key-failed = The key could not be kept in the keychain: { $error }
 settings-allow-outside-control = Allow outside control
 settings-allow-outside-control-note = AI agents such as Claude Code can read and change your files in prev, through prev --mcp. prev asks before each new agent.
 # $agents is a list of agent names, such as claude-code.
@@ -898,3 +924,30 @@ agent-ask-export = Let { $agent } export this file?
 # $tool is the name of what the agent asks to do, such as Highlight text.
 agent-ask-body = { $agent } asks to use “{ $tool }”. Settings chooses what prev asks about.
 agent-ask-final = Undo cannot take this back.
+
+## The assistant panel
+
+assistant-title = Assistant
+assistant-new-chat = New chat
+assistant-ask = Ask about this file
+assistant-send = Send
+assistant-stop = Stop
+assistant-thinking = Thinking…
+assistant-running = Running…
+assistant-stopped = Stopped.
+assistant-no-model = Add a model in Settings first.
+assistant-add-model = The assistant needs a model: a cloud one with its API key, or a local one.
+assistant-open-settings = Add a model
+# $model is the model's name, such as claude-sonnet-5.
+assistant-switched = Now talking to { $model }.
+# Why the assistant's model did not answer. $model is the model's name,
+# such as qwen3.8; $provider is who serves it, such as Anthropic or Ollama.
+assistant-problem-context = The conversation no longer fits in what { $model } can read at once. Start a new chat, or choose a model that can read more.
+assistant-problem-key = { $provider } turned down the API key. Check it in Settings.
+assistant-problem-rate = { $provider } asks to slow down, or the account is out of credit. Try again in a moment.
+assistant-problem-model = { $provider } has no model named { $model }. Check its name in Settings.
+assistant-problem-unavailable = { $provider } is busy or having trouble. Try again in a moment.
+assistant-problem-unreachable = prev could not reach { $provider }. Check your connection, or that the server is running.
+assistant-problem-refused = { $model } declined to answer.
+# $message is what the provider said, untranslated.
+assistant-problem-other = { $model } did not answer: { $message }

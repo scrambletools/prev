@@ -77,6 +77,32 @@ impl std::fmt::Debug for Call {
 }
 
 impl Call {
+    /// A call made inside prev, as the assistant panel makes them, with
+    /// no connection: its answer goes to `on_done`, on a thread of its
+    /// own, and its notes are dropped.
+    pub fn local(
+        method: &str,
+        params: Value,
+        on_done: impl FnOnce(Result<Value, Error>) + Send + 'static,
+    ) -> Call {
+        let (sender, receiver) = mpsc::channel();
+        std::thread::spawn(move || {
+            let outcome = loop {
+                match receiver.recv() {
+                    Ok(Event::Note(_)) => {}
+                    Ok(Event::Done(outcome)) => break outcome,
+                    Err(_) => break Err(Error::new(code::NO_ANSWER, "prev did not answer")),
+                }
+            };
+            on_done(outcome);
+        });
+        Call {
+            method: method.to_owned(),
+            params,
+            reply: Reply(Arc::new(Mutex::new(Some(sender)))),
+        }
+    }
+
     /// Answers the call; only the first answer counts.
     pub fn reply(&self, result: Result<Value, Error>) {
         self.reply.send(result);
@@ -466,6 +492,21 @@ mod tests {
         let mut second = Client::connect(&test_name("thread")).unwrap();
         assert_eq!(first.call("a", Value::Null).unwrap(), Ok(json!("later")));
         assert_eq!(second.call("b", Value::Null).unwrap(), Ok(json!("later")));
+    }
+
+    #[test]
+    fn local_calls_answer_their_callback() {
+        let (sender, receiver) = mpsc::channel();
+        let answered = sender.clone();
+        let call = Call::local("slow", Value::Null, move |outcome| {
+            answered.send(outcome).unwrap();
+        });
+        echo(call);
+        assert_eq!(receiver.recv().unwrap(), Ok(json!("done")));
+        drop(Call::local("drop", Value::Null, move |outcome| {
+            sender.send(outcome).unwrap();
+        }));
+        assert_eq!(receiver.recv().unwrap().unwrap_err().code, code::NO_ANSWER);
     }
 
     #[test]

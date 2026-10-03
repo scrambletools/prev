@@ -31,6 +31,8 @@ icons! {
     ArrowForward = 0xe5c8, "arrow_forward";
     ArrowRightAlt = 0xe941, "arrow_right_alt";
     ArrowSelector = 0xf82f, "arrow_selector_tool";
+    ArrowUpward = 0xe5d8, "arrow_upward";
+    AutoAwesome = 0xe65f, "auto_awesome";
     AutoStories = 0xe666, "auto_stories";
     Bookmark = 0xe8e7, "bookmark";
     BookmarkAdd = 0xe598, "bookmark_add";
@@ -52,6 +54,7 @@ icons! {
     Draw = 0xe746, "draw";
     Edit = 0xf097, "edit";
     EditDocument = 0xf88c, "edit_document";
+    EditSquare = 0xf88d, "edit_square";
     Encrypted = 0xe593, "encrypted";
     Error = 0xf8b6, "error";
     ExpandLess = 0xe5ce, "expand_less";
@@ -115,6 +118,7 @@ icons! {
     Signature = 0xf74c, "signature";
     Stacks = 0xf500, "stacks";
     Star = 0xf09a, "star";
+    Stop = 0xe047, "stop";
     StickyNote = 0xf1fc, "sticky_note_2";
     TextFields = 0xe262, "text_fields";
     TextFormat = 0xe165, "text_format";

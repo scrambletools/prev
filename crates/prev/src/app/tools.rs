@@ -344,6 +344,25 @@ pub(super) fn list(ask: &settings::AskBefore) -> Value {
         .collect()
 }
 
+/// The tools as the assistant panel's chat gets them.
+pub(super) fn specs(ask: &settings::AskBefore) -> Vec<prev_assist::ToolSpec> {
+    list(ask)
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|tool| prev_assist::ToolSpec {
+            name: tool["name"].as_str().unwrap_or_default().to_owned(),
+            description: tool["description"].as_str().unwrap_or_default().to_owned(),
+            schema: tool["inputSchema"].clone(),
+        })
+        .collect()
+}
+
+/// Whether the tool named `name` takes a window number.
+pub(super) fn takes_window(name: &str) -> bool {
+    find(name).is_some_and(|tool| !(tool.schema)()["properties"]["window"].is_null())
+}
+
 /// MCP's hints for clients: what only reads, and what Undo cannot take
 /// back.
 fn annotations(kind: Kind) -> Value {

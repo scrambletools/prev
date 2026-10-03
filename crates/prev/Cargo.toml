@@ -37,6 +37,7 @@ usvg = "0.46"
 prev-image.workspace = true
 prev-pdf.workspace = true
 prev-store.workspace = true
+prev-assist.workspace = true
 rmcp = { version = "3", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["rt", "sync"] }
 schemars = "1"

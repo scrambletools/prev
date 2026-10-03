@@ -23,7 +23,7 @@ Material Design 3.
 |---|---|
 | License | AGPL-3.0-or-later, as MuPDF requires ([ADR 0001](decisions/0001-pdf-engine.md)) |
 | Platforms | Linux, Wayland first (Hyprland), X11 supported; Windows 10 and 11; macOS 11 and later. x86_64 and ARM64 on Linux and Windows, RISC-V on Linux, Apple Silicon on macOS |
-| Language | Rust, stable toolchain, edition 2024, minimum Rust 1.89 |
+| Language | Rust, stable toolchain, edition 2024, minimum Rust 1.95 |
 | GUI | iced 0.14: wgpu (Vulkan on Linux, DirectX 12 or Vulkan on Windows, Metal on macOS), tiny-skia on the CPU when no GPU backend starts |
 | PDF engine | MuPDF through the `mupdf` crate, behind an engine trait |
 | Images | The `image` crate and format decoders; rawler for camera RAW (LGPL-2.1, pure Rust) |

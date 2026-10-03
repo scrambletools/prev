@@ -301,6 +301,8 @@ pub enum Message {
     ToggleFloatingBars,
     /// Opens the settings window; the app handles it.
     OpenSettings,
+    /// Open or close the assistant panel, which the app keeps.
+    ToggleAssistant,
     Loaded(usize, Result<LoadedImage, String>),
     LevelReady(usize, u32, Option<Handle>),
     LevelAllocated(usize, u32, Option<Allocation>),
@@ -423,6 +425,8 @@ pub struct ImageWindow {
     size_input: (String, String),
     keep_proportions: bool,
     inspector: Option<Inspector>,
+    /// Whether the app shows its assistant panel beside this window.
+    assistant_shown: bool,
     pending_export: Option<PendingExport>,
     /// The export choices, kept for the next export from this window, and
     /// whether their dialog is showing.
@@ -599,6 +603,7 @@ impl ImageWindow {
             size_input: (String::new(), String::new()),
             keep_proportions: true,
             inspector: None,
+            assistant_shown: false,
             pending_export: None,
             export_choice: None,
             notice: None,
@@ -647,6 +652,11 @@ impl ImageWindow {
             frames: shown.image.frames.len().max(1),
             pixels,
         })
+    }
+
+    /// Shows the assistant button pressed, or not.
+    pub fn set_assistant_shown(&mut self, shown: bool) {
+        self.assistant_shown = shown;
     }
 
     /// The panel shown beside the image, if any.
@@ -776,7 +786,9 @@ impl ImageWindow {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
+            Message::ToggleFloatingBars | Message::OpenSettings | Message::ToggleAssistant => {
+                Task::none()
+            }
             Message::Loaded(index, result) => {
                 let near = index.abs_diff(self.current) <= KEEP_AROUND;
                 let Some(item) = self.items.get_mut(index) else {
@@ -2492,13 +2504,19 @@ impl ImageWindow {
         slots.push((
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
+                component::toggle_tool(
+                    Icon::AutoAwesome,
+                    crate::fl!("assistant-title"),
+                    self.assistant_shown,
+                    Message::ToggleAssistant,
+                ),
                 component::tool(
                     Icon::Settings,
                     crate::fl!("image-settings"),
                     Some(Message::OpenSettings),
                 ),
             ]),
-            TOOL_WIDTH * 2.0 + 4.0,
+            TOOL_WIDTH * 3.0 + 8.0,
             None,
             false,
         ));

@@ -57,6 +57,8 @@ pub enum Message {
     /// Handled by the app, as in the other windows.
     ToggleFloatingBars,
     OpenSettings,
+    /// Open or close the assistant panel, which the app keeps.
+    ToggleAssistant,
     /// Exporting the document as a picture: the dialog and its choices,
     /// the save dialog, and the result.
     Export,
@@ -102,6 +104,8 @@ pub struct MarkdownWindow {
     found: Cell<usize>,
     highlights: code::Highlights,
     inspector: bool,
+    /// Whether the app shows its assistant panel beside this window.
+    assistant_shown: bool,
     pointer_inside: bool,
     scroll_id: Id,
     search_id: Id,
@@ -236,6 +240,11 @@ impl MarkdownWindow {
         }
     }
 
+    /// Shows the assistant button pressed, or not.
+    pub fn set_assistant_shown(&mut self, shown: bool) {
+        self.assistant_shown = shown;
+    }
+
     pub fn inspector_shown(&self) -> bool {
         self.inspector
     }
@@ -263,6 +272,7 @@ impl MarkdownWindow {
             found: Cell::new(0),
             highlights: code::Highlights::default(),
             inspector: false,
+            assistant_shown: false,
             pointer_inside: true,
             scroll_id: Id::unique(),
             search_id: Id::unique(),
@@ -367,7 +377,9 @@ impl MarkdownWindow {
                 self.inspector = !self.inspector;
                 Task::none()
             }
-            Message::ToggleFloatingBars | Message::OpenSettings => Task::none(),
+            Message::ToggleFloatingBars | Message::OpenSettings | Message::ToggleAssistant => {
+                Task::none()
+            }
             Message::Export => {
                 if self.items.is_empty() {
                     return Task::none();
@@ -807,6 +819,12 @@ impl MarkdownWindow {
             ),
             component::group([
                 component::floating_bars_toggle(Message::ToggleFloatingBars),
+                component::toggle_tool(
+                    Icon::AutoAwesome,
+                    crate::fl!("assistant-title"),
+                    self.assistant_shown,
+                    Message::ToggleAssistant,
+                ),
                 component::tool(
                     Icon::Settings,
                     crate::fl!("markdown-settings"),

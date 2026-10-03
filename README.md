@@ -303,7 +303,7 @@ and redacting ask at first. What the agent reads goes to its model. The
 
 ## Building
 
-prev builds with Rust 1.89 or newer. On Linux it needs these build
+prev builds with Rust 1.95 or newer. On Linux it needs these build
 dependencies:
 
 ```sh

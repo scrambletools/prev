@@ -293,3 +293,38 @@ Each step ends with its tests passing and is usable on its own.
   cannot be used by other apps.
 - The model gets only what it asks for through the tools, never the
   whole file up front.
+
+### Steps
+
+Each step ends with its tests passing and is usable on its own.
+
+1. **The `prev-assist` crate.** rig-core 0.43, pinned, behind a small
+   interface: a model is a provider (Anthropic, OpenAI, Gemini, Ollama,
+   or any OpenAI-compatible server by its address), a model name and its
+   key or address. A chat runs on its own thread with a tokio runtime:
+   prev sends it the user's message and the tool definitions, and gets
+   back text as it streams, tool calls to run, and the end of the turn.
+   rig's completion API takes the tools as plain JSON schemas, so the
+   registry's tools go to it unchanged, and prev runs the tool loop
+   itself. rig needs Rust 1.95, so prev's minimum Rust rises from 1.89.
+2. **Keys and models in Settings.** An Assistant tab lists the models
+   added, each with its provider; Add asks for the provider, the model
+   and its key (or a local server's address), with a test that sends one
+   short message; one model is the panel's. Keys go to the system
+   keychain through the `keyring` crate, and `prev.toml` keeps the
+   rest.
+3. **Tools in process.** The panel's tool calls go through the same
+   registry and approval switches as an outside agent's, without the
+   control channel: a call made inside prev answers the chat directly.
+   The panel's window is the one tools act on when a call names none.
+4. **The panel.** A toolbar button opens it on the right, as the
+   inspector opens, in document, image and Markdown windows: the chat so
+   far, the model's replies as Markdown while they stream, each tool
+   call as one short line (with its picture for render tools), a field
+   to type in, Stop, and New Chat. A model that can see gets pictures
+   from the render tools; one that cannot gets their text. The panel
+   follows the window: each window has its own chat.
+5. **Trying the use cases** from the panel with a local model and a
+   cloud one, tuning the system prompt where it misleads them.
+6. **Docs and translations.** The guide's Assistant section, the
+   README, the specifications, and every language.

@@ -4,7 +4,7 @@
 mod app;
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use iced::futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 #[cfg(any(unix, windows))]
@@ -13,7 +13,7 @@ use prev::{omarchy, ui};
 
 /// Events from background threads, delivered through a subscription.
 #[derive(Debug, Clone)]
-pub enum External {
+pub(crate) enum External {
     OpenPaths(Vec<PathBuf>),
     /// A menu bar item was chosen.
     #[cfg(target_os = "macos")]
@@ -23,9 +23,19 @@ pub enum External {
     /// A request on the control channel, for `prev --mcp` and other
     /// clients.
     Control(prev::control::Call),
+    /// What a window's assistant chat or one of its tool calls said.
+    Assistant(iced::window::Id, app::assistant::Heard),
 }
 
 static EXTERNAL_EVENTS: Mutex<Option<UnboundedReceiver<External>>> = Mutex::new(None);
+static EXTERNAL_SENDER: OnceLock<UnboundedSender<External>> = OnceLock::new();
+
+/// Sends `event` to the app from any thread.
+pub(crate) fn post(event: External) {
+    if let Some(sender) = EXTERNAL_SENDER.get() {
+        send(sender, event);
+    }
+}
 
 fn main() -> iced::Result {
     #[cfg(windows)]
@@ -81,6 +91,7 @@ fn main() -> iced::Result {
         paths.push(PathBuf::from(argument));
     }
     let (sender, receiver) = mpsc::unbounded();
+    let _ = EXTERNAL_SENDER.set(sender.clone());
 
     #[cfg(unix)]
     if let Some(socket) =
