@@ -109,6 +109,14 @@ h3 { font-size: 20px; margin: 0 0 6px; font-weight: 650; }
 .hero { text-align: center; padding-top: 48px; }
 .hero-icon { display: block; margin: 0 auto; }
 .lede { font-size: 20px; max-width: 680px; margin: 0 auto 24px; color: var(--on-surface-variant); }
+/* The rest of the hero's lede wraps at the width of its first line. */
+.hero .lede { width: fit-content; }
+.lede-first { display: block; white-space: nowrap; }
+.lede-rest { display: block; width: 0; min-width: 100%; }
+@media (max-width: 640px) {
+  .lede-first { white-space: normal; }
+  .lede-rest { width: auto; }
+}
 .small { font-size: 15px; color: var(--on-surface-variant); }
 
 .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 0 0 12px; }
