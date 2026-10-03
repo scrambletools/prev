@@ -19,6 +19,7 @@
   --on-surface-variant: #44464f;
   --outline-variant: #c5c6d0;
   --shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.10);
+  --hero-shadow: var(--shadow);
   color-scheme: light;
 }
 
@@ -35,6 +36,13 @@
     --on-surface-variant: #c5c6d0;
     --outline-variant: #44464f;
     --shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
+    /* A hairline and a soft glow in the accent color, so the dark hero
+       screenshot stands off the dark page. */
+    --hero-shadow:
+      0 0 0 1px rgb(176 198 255 / 0.20),
+      0 0 48px 0 rgb(176 198 255 / 0.18),
+      0 0 140px 16px rgb(70 110 220 / 0.20),
+      0 24px 64px rgb(0 0 0 / 0.5);
     color-scheme: dark;
   }
 }
@@ -116,7 +124,7 @@ h3 { font-size: 20px; margin: 0 0 6px; font-weight: 650; }
 .button:hover { filter: brightness(1.08); }
 
 .shot { display: block; width: 100%; height: auto; border-radius: 16px; box-shadow: var(--shadow); }
-.hero-shot { margin-top: 40px; }
+.hero-shot { margin-top: 40px; box-shadow: var(--hero-shadow); }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
 .grid article { background: var(--surface-container); border-radius: 20px; padding: 22px 24px; }
