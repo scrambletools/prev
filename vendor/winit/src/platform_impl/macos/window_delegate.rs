@@ -456,7 +456,7 @@ declare_class!(
         fn observe_value(
             &self,
             key_path: Option<&NSString>,
-            _object: Option<&AnyObject>,
+            object: Option<&AnyObject>,
             change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
             _context: *mut c_void,
         ) {
@@ -478,10 +478,19 @@ declare_class!(
 
                 trace!(old = %unsafe { old.name() }, new = %unsafe { new.name() }, "effectiveAppearance changed");
 
+                // The application's appearance follows the system's even when
+                // the window's is set, as iced sets it to the app's theme: a
+                // change there is the system's, which the app should hear of.
+                let mtm = MainThreadMarker::from(self);
+                let app = NSApplication::sharedApplication(mtm);
+                let from_app = object.is_some_and(|object| {
+                    ptr::eq(object as *const AnyObject, Retained::as_ptr(&app).cast())
+                });
+
                 // Ignore the change if the window's theme is customized by the user (since in that
                 // case the `effectiveAppearance` is only emitted upon said customization, and then
                 // it's triggered directly by a user action, and we don't want to emit the event).
-                if unsafe { self.window().appearance() }.is_some() {
+                if !from_app && unsafe { self.window().appearance() }.is_some() {
                     return;
                 }
 
@@ -506,6 +515,8 @@ impl Drop for WindowDelegate {
     fn drop(&mut self) {
         unsafe {
             self.window().removeObserver_forKeyPath(self, ns_string!("effectiveAppearance"));
+            let app = NSApplication::sharedApplication(MainThreadMarker::from(&*self));
+            app.removeObserver_forKeyPath(self, ns_string!("effectiveAppearance"));
         }
     }
 }
@@ -783,6 +794,15 @@ impl WindowDelegate {
         // SAFETY: The observer is un-registered in the `Drop` of the delegate.
         unsafe {
             window.addObserver_forKeyPath_options_context(
+                &delegate,
+                ns_string!("effectiveAppearance"),
+                NSKeyValueObservingOptions::NSKeyValueObservingOptionNew
+                    | NSKeyValueObservingOptions::NSKeyValueObservingOptionOld,
+                ptr::null_mut(),
+            );
+            // And the application's, which follows the system's when the
+            // window's appearance is set; see `observe_value`.
+            NSApplication::sharedApplication(mtm).addObserver_forKeyPath_options_context(
                 &delegate,
                 ns_string!("effectiveAppearance"),
                 NSKeyValueObservingOptions::NSKeyValueObservingOptionNew

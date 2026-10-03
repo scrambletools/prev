@@ -145,6 +145,12 @@ keeps to itself:
   when the mouse moves and not while a button is held, so the hand prev
   shows when ⌘ is pressed, or the closed hand when a pan starts, waited
   for the pointer to move.
+- `src/platform_impl/macos/window_delegate.rs`: each window also
+  watches the application's `effectiveAppearance`, which follows the
+  system. iced sets every window's appearance to the app's theme, and
+  winit ignored appearance changes of such windows, so a switch between
+  light and dark in System Settings never reached an app following the
+  system.
 - `src/platform_impl/hand_cursors.rs` (new) and `hand_cursors/`:
   pointing, open and closed hand cursors by Abdulkaiz Khatri (GPL-3.0,
   see the README there), which `CursorIcon::Pointer`, `CursorIcon::Grab`

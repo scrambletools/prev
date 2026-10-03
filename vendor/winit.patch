@@ -1,6 +1,6 @@
 diff -ruN '--exclude=hand_cursors' a/Cargo.toml b/Cargo.toml
---- a/Cargo.toml	2026-10-02 21:36:58.658326594 -0700
-+++ b/Cargo.toml	2026-10-02 21:36:58.668174365 -0700
+--- a/Cargo.toml	2026-10-02 21:19:33.069891934 -0700
++++ b/Cargo.toml	2026-10-02 21:19:33.091409875 -0700
 @@ -509,6 +509,7 @@
      "NSRunLoop",
      "NSString",
@@ -11,7 +11,7 @@ diff -ruN '--exclude=hand_cursors' a/Cargo.toml b/Cargo.toml
  
 diff -ruN '--exclude=hand_cursors' a/src/platform/drag_drop.rs b/src/platform/drag_drop.rs
 --- a/src/platform/drag_drop.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/drag_drop.rs	2026-10-02 21:36:58.660374637 -0700
++++ b/src/platform/drag_drop.rs	2026-10-02 21:19:33.075018492 -0700
 @@ -0,0 +1,37 @@
 +//! prev: drags over a window, for the application to handle itself.
 +//!
@@ -52,7 +52,7 @@ diff -ruN '--exclude=hand_cursors' a/src/platform/drag_drop.rs b/src/platform/dr
 +}
 diff -ruN '--exclude=hand_cursors' a/src/platform/keyboard_layout.rs b/src/platform/keyboard_layout.rs
 --- a/src/platform/keyboard_layout.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/keyboard_layout.rs	2026-10-02 21:36:58.660068746 -0700
++++ b/src/platform/keyboard_layout.rs	2026-10-02 21:19:33.073894815 -0700
 @@ -0,0 +1,20 @@
 +//! prev: the keyboard layout the user is typing with.
 +//!
@@ -75,8 +75,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform/keyboard_layout.rs b/src/platf
 +    *LETTERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(letters);
 +}
 diff -ruN '--exclude=hand_cursors' a/src/platform/mod.rs b/src/platform/mod.rs
---- a/src/platform/mod.rs	2026-10-02 21:36:58.652668012 -0700
-+++ b/src/platform/mod.rs	2026-10-02 21:36:58.660116585 -0700
+--- a/src/platform/mod.rs	2026-10-02 21:19:33.052545599 -0700
++++ b/src/platform/mod.rs	2026-10-02 21:19:33.074064341 -0700
 @@ -11,6 +11,12 @@
  #[cfg(any(orbital_platform, docsrs))]
  pub mod orbital;
@@ -92,7 +92,7 @@ diff -ruN '--exclude=hand_cursors' a/src/platform/mod.rs b/src/platform/mod.rs
  pub mod wayland;
 diff -ruN '--exclude=hand_cursors' a/src/platform/open_files.rs b/src/platform/open_files.rs
 --- a/src/platform/open_files.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform/open_files.rs	2026-10-02 21:36:58.660151170 -0700
++++ b/src/platform/open_files.rs	2026-10-02 21:19:33.074116549 -0700
 @@ -0,0 +1,35 @@
 +//! prev: files macOS asks the application to open.
 +//!
@@ -131,7 +131,7 @@ diff -ruN '--exclude=hand_cursors' a/src/platform/open_files.rs b/src/platform/o
 +}
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/hand_cursors.rs b/src/platform_impl/hand_cursors.rs
 --- a/src/platform_impl/hand_cursors.rs	1969-12-31 16:00:00.000000000 -0800
-+++ b/src/platform_impl/hand_cursors.rs	2026-10-02 21:36:58.668065592 -0700
++++ b/src/platform_impl/hand_cursors.rs	2026-10-02 21:19:33.090985062 -0700
 @@ -0,0 +1,60 @@
 +//! The pointing, open and closed hands for `CursorIcon::Pointer`,
 +//! `CursorIcon::Grab` and `CursorIcon::Grabbing` where the system has no
@@ -194,8 +194,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/hand_cursors.rs b/src/pla
 +        .unwrap_or(24.0)
 +}
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/common/xkb/state.rs b/src/platform_impl/linux/common/xkb/state.rs
---- a/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:36:58.653494886 -0700
-+++ b/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:36:58.661328968 -0700
+--- a/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:19:33.055634835 -0700
++++ b/src/platform_impl/linux/common/xkb/state.rs	2026-10-02 21:19:33.076889975 -0700
 @@ -7,7 +7,8 @@
  #[cfg(x11_platform)]
  use x11_dl::xlib_xcb::xcb_connection_t;
@@ -285,8 +285,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/common/xkb/state.rs
  
      /// Reload the modifiers.
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/wayland/window/state.rs b/src/platform_impl/linux/wayland/window/state.rs
---- a/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:36:58.654423359 -0700
-+++ b/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:36:58.662079679 -0700
+--- a/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:19:33.057918207 -0700
++++ b/src/platform_impl/linux/wayland/window/state.rs	2026-10-02 21:19:33.078835175 -0700
 @@ -727,6 +727,21 @@
  
      /// Set the cursor icon.
@@ -310,8 +310,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/wayland/window/stat
  
          if !self.cursor_visible {
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/util/cursor.rs b/src/platform_impl/linux/x11/util/cursor.rs
---- a/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:36:58.655272674 -0700
-+++ b/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:36:58.662536803 -0700
+--- a/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:19:33.059896950 -0700
++++ b/src/platform_impl/linux/x11/util/cursor.rs	2026-10-02 21:19:33.080577798 -0700
 @@ -125,30 +125,34 @@
          event_loop: &ActiveEventLoop,
          cursor: PlatformCustomCursorSource,
@@ -360,8 +360,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/util/cursor.rs 
      }
  }
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/window.rs b/src/platform_impl/linux/x11/window.rs
---- a/src/platform_impl/linux/x11/window.rs	2026-10-02 21:36:58.655595416 -0700
-+++ b/src/platform_impl/linux/x11/window.rs	2026-10-02 21:36:58.663028450 -0700
+--- a/src/platform_impl/linux/x11/window.rs	2026-10-02 21:19:33.061114056 -0700
++++ b/src/platform_impl/linux/x11/window.rs	2026-10-02 21:19:33.081729577 -0700
 @@ -1463,6 +1463,19 @@
      pub fn set_cursor(&self, cursor: Cursor) {
          match cursor {
@@ -383,8 +383,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/linux/x11/window.rs b/src
                      &mut *self.selected_cursor.lock().unwrap(),
                      SelectedCursor::Named(icon),
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/app_state.rs b/src/platform_impl/macos/app_state.rs
---- a/src/platform_impl/macos/app_state.rs	2026-10-02 21:36:58.655740036 -0700
-+++ b/src/platform_impl/macos/app_state.rs	2026-10-02 21:36:58.663167049 -0700
+--- a/src/platform_impl/macos/app_state.rs	2026-10-02 21:19:33.061825920 -0700
++++ b/src/platform_impl/macos/app_state.rs	2026-10-02 21:19:33.082093948 -0700
 @@ -8,7 +8,9 @@
  use objc2_app_kit::{
      NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSRunningApplication,
@@ -428,8 +428,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/app_state.rs b/src/
              // overriding of the default menu even if it's created
              menu::initialize(&app);
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/view.rs b/src/platform_impl/macos/view.rs
---- a/src/platform_impl/macos/view.rs	2026-10-02 21:36:58.656018867 -0700
-+++ b/src/platform_impl/macos/view.rs	2026-10-02 21:36:58.663924022 -0700
+--- a/src/platform_impl/macos/view.rs	2026-10-02 21:19:33.063096110 -0700
++++ b/src/platform_impl/macos/view.rs	2026-10-02 21:19:33.082372387 -0700
 @@ -524,6 +524,29 @@
              self.update_modifiers(event, true);
          }
@@ -523,8 +523,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/view.rs b/src/platf
          let mut cursor_state = self.ivars().cursor_state.borrow_mut();
          cursor_state.cursor = icon;
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/window_delegate.rs b/src/platform_impl/macos/window_delegate.rs
---- a/src/platform_impl/macos/window_delegate.rs	2026-10-02 21:36:58.656094818 -0700
-+++ b/src/platform_impl/macos/window_delegate.rs	2026-10-02 21:36:58.668794837 -0700
+--- a/src/platform_impl/macos/window_delegate.rs	2026-10-02 21:19:33.063381383 -0700
++++ b/src/platform_impl/macos/window_delegate.rs	2026-10-02 21:19:33.082459279 -0700
 @@ -367,15 +367,19 @@
      unsafe impl NSDraggingDestination for WindowDelegate {
          /// Invoked when the dragged image enters destination bounds or frame
@@ -589,7 +589,46 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/window_delegate.rs 
              self.queue_event(WindowEvent::HoveredFileCancelled);
          }
      }
-@@ -673,6 +693,18 @@
+@@ -436,7 +456,7 @@
+         fn observe_value(
+             &self,
+             key_path: Option<&NSString>,
+-            _object: Option<&AnyObject>,
++            object: Option<&AnyObject>,
+             change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
+             _context: *mut c_void,
+         ) {
+@@ -458,10 +478,19 @@
+ 
+                 trace!(old = %unsafe { old.name() }, new = %unsafe { new.name() }, "effectiveAppearance changed");
+ 
++                // The application's appearance follows the system's even when
++                // the window's is set, as iced sets it to the app's theme: a
++                // change there is the system's, which the app should hear of.
++                let mtm = MainThreadMarker::from(self);
++                let app = NSApplication::sharedApplication(mtm);
++                let from_app = object.is_some_and(|object| {
++                    ptr::eq(object as *const AnyObject, Retained::as_ptr(&app).cast())
++                });
++
+                 // Ignore the change if the window's theme is customized by the user (since in that
+                 // case the `effectiveAppearance` is only emitted upon said customization, and then
+                 // it's triggered directly by a user action, and we don't want to emit the event).
+-                if unsafe { self.window().appearance() }.is_some() {
++                if !from_app && unsafe { self.window().appearance() }.is_some() {
+                     return;
+                 }
+ 
+@@ -486,6 +515,8 @@
+     fn drop(&mut self) {
+         unsafe {
+             self.window().removeObserver_forKeyPath(self, ns_string!("effectiveAppearance"));
++            let app = NSApplication::sharedApplication(MainThreadMarker::from(&*self));
++            app.removeObserver_forKeyPath(self, ns_string!("effectiveAppearance"));
+         }
+     }
+ }
+@@ -673,6 +704,18 @@
  }
  
  impl WindowDelegate {
@@ -608,7 +647,23 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/window_delegate.rs 
      pub(super) fn new(
          app_delegate: &ApplicationDelegate,
          attrs: WindowAttributes,
-@@ -1115,8 +1147,19 @@
+@@ -756,6 +799,15 @@
+                 NSKeyValueObservingOptions::NSKeyValueObservingOptionNew
+                     | NSKeyValueObservingOptions::NSKeyValueObservingOptionOld,
+                 ptr::null_mut(),
++            );
++            // And the application's, which follows the system's when the
++            // window's appearance is set; see `observe_value`.
++            NSApplication::sharedApplication(mtm).addObserver_forKeyPath_options_context(
++                &delegate,
++                ns_string!("effectiveAppearance"),
++                NSKeyValueObservingOptions::NSKeyValueObservingOptionNew
++                    | NSKeyValueObservingOptions::NSKeyValueObservingOptionOld,
++                ptr::null_mut(),
+             )
+         };
+ 
+@@ -1115,8 +1167,19 @@
              return;
          }
  
@@ -630,8 +685,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/macos/window_delegate.rs 
  
      #[inline]
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/mod.rs b/src/platform_impl/mod.rs
---- a/src/platform_impl/mod.rs	2026-10-02 21:36:58.656134913 -0700
-+++ b/src/platform_impl/mod.rs	2026-10-02 21:36:58.664050688 -0700
+--- a/src/platform_impl/mod.rs	2026-10-02 21:19:33.063455922 -0700
++++ b/src/platform_impl/mod.rs	2026-10-02 21:19:33.082510254 -0700
 @@ -1,6 +1,8 @@
  use crate::monitor::{MonitorHandle as RootMonitorHandle, VideoModeHandle as RootVideoModeHandle};
  use crate::window::Fullscreen as RootFullscreen;
@@ -642,8 +697,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/mod.rs b/src/platform_imp
  mod android;
  #[cfg(ios_platform)]
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/event_loop.rs b/src/platform_impl/windows/event_loop.rs
---- a/src/platform_impl/windows/event_loop.rs	2026-10-02 21:36:58.657691409 -0700
-+++ b/src/platform_impl/windows/event_loop.rs	2026-10-02 21:36:58.666768541 -0700
+--- a/src/platform_impl/windows/event_loop.rs	2026-10-02 21:19:33.067825377 -0700
++++ b/src/platform_impl/windows/event_loop.rs	2026-10-02 21:19:33.088113816 -0700
 @@ -44,7 +44,7 @@
  use windows_sys::Win32::UI::Input::{RAWINPUT, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE};
  use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -665,8 +720,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/event_loop.rs b/s
                      };
                      unsafe { SetCursor(hcursor) };
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/util.rs b/src/platform_impl/windows/util.rs
---- a/src/platform_impl/windows/util.rs	2026-10-02 21:36:58.658087989 -0700
-+++ b/src/platform_impl/windows/util.rs	2026-10-02 21:36:58.666445689 -0700
+--- a/src/platform_impl/windows/util.rs	2026-10-02 21:19:33.069059390 -0700
++++ b/src/platform_impl/windows/util.rs	2026-10-02 21:19:33.087808463 -0700
 @@ -18,9 +18,9 @@
  use windows_sys::Win32::UI::Input::Pointer::{POINTER_INFO, POINTER_PEN_INFO, POINTER_TOUCH_INFO};
  use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -719,8 +774,8 @@ diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/util.rs b/src/pla
      match cursor {
          CursorIcon::Default => IDC_ARROW,
 diff -ruN '--exclude=hand_cursors' a/src/platform_impl/windows/window.rs b/src/platform_impl/windows/window.rs
---- a/src/platform_impl/windows/window.rs	2026-10-02 21:36:58.658133714 -0700
-+++ b/src/platform_impl/windows/window.rs	2026-10-02 21:36:58.667155363 -0700
+--- a/src/platform_impl/windows/window.rs	2026-10-02 21:19:33.069113985 -0700
++++ b/src/platform_impl/windows/window.rs	2026-10-02 21:19:33.088609558 -0700
 @@ -33,7 +33,7 @@
  use windows_sys::Win32::UI::WindowsAndMessaging::{
      CreateWindowExW, EnableMenuItem, FlashWindowEx, GetClientRect, GetCursorPos,
