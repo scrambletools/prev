@@ -488,7 +488,11 @@ impl Prev {
                         container(small(prev::fl!(
                             "settings-assistant-found-at",
                             provider = label.clone(),
-                            address = address.clone()
+                            // Without the scheme, which would wrap alone.
+                            address = address
+                                .split_once("://")
+                                .map_or(address.as_str(), |(_, rest)| rest)
+                                .to_owned()
                         )))
                         .width(Fill),
                     ]
