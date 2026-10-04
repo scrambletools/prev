@@ -149,10 +149,16 @@ jobs:
 
   windows:
     # prev.exe with its HEIC and AVIF DLLs, the MSI installer and a zip.
-    # Signing through the SignPath Foundation runs once the repository
-    # variable SIGNPATH_ORGANIZATION_ID is set, after SignPath approves the
-    # project; until then the files are unsigned.
+    # Microsoft's Azure Artifact Signing signs prev.exe and the MSI once
+    # the repository variable AZURE_SIGNING_ACCOUNT is set (see
+    # docs/RELEASING.md); until then the files are unsigned. The job signs
+    # in to Azure with GitHub's OpenID Connect token, so no secret is
+    # kept, as the environment "release" that Azure trusts.
     if: ${{ !inputs.only || inputs.only == 'all' || inputs.only == 'windows' }}
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -164,7 +170,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       LIBCLANG_PATH: C:\Program Files\LLVM\bin
-      SIGNING: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+      SIGNING: ${{ vars.AZURE_SIGNING_ACCOUNT != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -209,48 +215,56 @@ jobs:
           Copy-Item target\release\prev.exe dist\
           Copy-Item vcpkg_installed\${{ matrix.arch }}-windows-prev\bin\heif.dll dist\
           Get-ChildItem dist
-      # Signs prev.exe itself; the bundled DLLs stay as their projects
-      # ship them.
-      - id: unsigned-exe
-        if: env.SIGNING == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-exe-${{ matrix.arch }}
-          path: dist/prev.exe
       - if: env.SIGNING == 'true'
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: azure/login@v2
         with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: prev
-          signing-policy-slug: release-signing
-          artifact-configuration-slug: exe
-          github-artifact-id: ${{ steps.unsigned-exe.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: dist
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # Signs prev.exe itself, before the installer and zip take it; the
+      # bundled DLLs stay as their projects ship them.
+      - if: env.SIGNING == 'true'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERTIFICATE_PROFILE }}
+          files: ${{ github.workspace }}\dist\prev.exe
+          description: prev
+          description-url: https://prev.run
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
       - name: Installer and zip
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
           packaging\windows\build.ps1 -Version $version -Source dist -Out packages -Arch ${{ matrix.arch }}
-      - id: unsigned-msi
-        if: env.SIGNING == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-msi-${{ matrix.arch }}
-          path: packages/*.msi
       - if: env.SIGNING == 'true'
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: azure/artifact-signing-action@v2
         with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: prev
-          signing-policy-slug: release-signing
-          artifact-configuration-slug: msi
-          github-artifact-id: ${{ steps.unsigned-msi.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: packages
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERTIFICATE_PROFILE }}
+          files-folder: ${{ github.workspace }}\packages
+          files-folder-filter: msi
+          description: prev
+          description-url: https://prev.run
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
+      # The signatures, checked: an unsigned file must not go out as a
+      # signed release.
+      - if: env.SIGNING == 'true'
+        name: Check the signatures
+        shell: pwsh
+        run: |
+          foreach ($file in @(Get-Item dist\prev.exe) + @(Get-ChildItem packages\*.msi)) {
+            $signature = Get-AuthenticodeSignature $file.FullName
+            Write-Host "$($file.Name): $($signature.Status) $($signature.SignerCertificate.Subject)"
+            if ($signature.Status -ne 'Valid') { throw "$($file.Name) is not signed" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}

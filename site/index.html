@@ -139,9 +139,8 @@
 
   <section id="code-signing" class="policy">
     <h2>Code signing policy</h2>
-    <p>Windows releases of prev are to be signed. Free code signing provided by
-      <a href="https://about.signpath.io">SignPath.io</a>, certificate by
-      <a href="https://signpath.org">SignPath Foundation</a>.</p>
+    <p>Windows releases of prev are to be signed by Scramble Tools with
+      <a href="https://learn.microsoft.com/azure/artifact-signing/">Microsoft Azure Artifact Signing</a>.</p>
     <ul>
       <li><strong>What is signed:</strong> only programs built from this project's own
         <a href="https://github.com/scrambletools/prev">source code</a> by its GitHub Actions release
@@ -151,9 +150,10 @@
         <a href="https://github.com/scrambletools">scrambletools</a> GitHub account, who review
         every outside contribution before it is merged.</li>
       <li><strong>Approvers:</strong> the owner of the
-        <a href="https://github.com/scrambletools">scrambletools</a> GitHub account, who approves each
-        signing request.</li>
-      <li>Everyone on the team signs in to GitHub and SignPath with two-factor authentication.</li>
+        <a href="https://github.com/scrambletools">scrambletools</a> GitHub account, who alone can
+        publish a release, and with it a signing.</li>
+      <li>Signing runs only in the release workflow, which signs in to Azure without a stored secret.
+        Everyone on the team signs in to GitHub and Azure with two-factor authentication.</li>
     </ul>
     <h3 id="privacy">Privacy</h3>
     <p>This program will not transfer any information to other networked systems unless specifically
@@ -161,7 +161,7 @@
       picture you drop onto it as a web address, to open links you click, and, when you use the
       assistant with a model you added, to send that model your messages and what it asks to read
       from the file you are working on: to the provider you chose for a cloud model, or to the
-      server you gave for a local one. API keys stay in your system's keychain. prev has no
+      server you gave for a local model. API keys stay in your system's keychain. prev has no
       accounts and sends no telemetry. This website sets no cookies and loads nothing from other
       sites.</p>
   </section>
