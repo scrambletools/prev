@@ -48,6 +48,9 @@ pub enum Message {
     ZoomIn,
     ZoomOut,
     ActualSize,
+    /// Lets the text fill the window instead of keeping to its reading
+    /// width, or back.
+    ToggleFullWidth,
     SearchChanged(String),
     NextMatch,
     PreviousMatch,
@@ -107,6 +110,8 @@ pub struct MarkdownWindow {
     found: Cell<usize>,
     highlights: code::Highlights,
     inspector: bool,
+    /// The text fills the window rather than keeping to `MAX_WIDTH`.
+    full_width: bool,
     /// Whether the app shows its assistant panel beside this window.
     assistant_shown: bool,
     pointer_inside: bool,
@@ -286,6 +291,7 @@ impl MarkdownWindow {
             found: Cell::new(0),
             highlights: code::Highlights::default(),
             inspector: false,
+            full_width: false,
             assistant_shown: false,
             pointer_inside: true,
             scroll_id: Id::unique(),
@@ -370,6 +376,10 @@ impl MarkdownWindow {
             Message::ZoomOut => {
                 self.size = self.size.saturating_sub(1);
                 self.reveal()
+            }
+            Message::ToggleFullWidth => {
+                self.full_width = !self.full_width;
+                Task::none()
             }
             Message::ActualSize => {
                 self.size = NORMAL_SIZE;
@@ -752,14 +762,17 @@ impl MarkdownWindow {
         let zoom = self.zoom();
         let document = self.rendered(theme, &self.query, &self.found);
         let top = 32.0 + component::floating_room(true);
-        let page = container(document)
-            .max_width(MAX_WIDTH * zoom)
-            .padding(Padding {
-                top,
-                right: 40.0,
-                bottom: 32.0,
-                left: 40.0,
-            });
+        let width = if self.full_width {
+            f32::INFINITY
+        } else {
+            MAX_WIDTH * zoom
+        };
+        let page = container(document).max_width(width).padding(Padding {
+            top,
+            right: 40.0,
+            bottom: 32.0,
+            left: 40.0,
+        });
         container(
             component::scroll(container(page).center_x(Fill))
                 .id(self.scroll_id.clone())
@@ -828,12 +841,24 @@ impl MarkdownWindow {
                     (self.size + 1 < SIZES.len()).then_some(Message::ZoomIn),
                 ),
             ]),
-            component::group([component::toggle_tool(
-                Icon::OneToOne,
-                crate::fl!("markdown-actual-size"),
-                self.size == NORMAL_SIZE,
-                Message::ActualSize,
-            )]),
+            component::group([
+                // Lit while the text keeps to its reading width, as it
+                // does at first. The icon stays filled, a column with
+                // margins; its outline reads as three columns.
+                component::tip(
+                    ui::icon_button(Icon::WidthNormal)
+                        .always_filled()
+                        .selected(!self.full_width)
+                        .on_press(Message::ToggleFullWidth),
+                    crate::fl!("markdown-limit-width"),
+                ),
+                component::toggle_tool(
+                    Icon::OneToOne,
+                    crate::fl!("markdown-actual-size"),
+                    self.size == NORMAL_SIZE,
+                    Message::ActualSize,
+                ),
+            ]),
             iced::widget::space::horizontal(),
             search,
             component::toolbar_divider(),

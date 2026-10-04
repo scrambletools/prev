@@ -566,6 +566,7 @@ markdown-smaller-text = ข้อความเล็กลง
 markdown-larger-text = ข้อความใหญ่ขึ้น
 markdown-zoom = { $percent }%
 markdown-actual-size = ขนาดจริง
+markdown-limit-width = จำกัดความกว้างของข้อความ
 markdown-inspector = ตัวตรวจสอบ
 markdown-export = ส่งออก
 markdown-settings = การตั้งค่า

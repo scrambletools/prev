@@ -702,6 +702,7 @@ markdown-smaller-text = Mindre tekst
 markdown-larger-text = Større tekst
 markdown-zoom = { $percent }%
 markdown-actual-size = Faktisk størrelse
+markdown-limit-width = Begræns tekstbredden
 # Tooltip and panel title.
 markdown-inspector = Inspektør
 markdown-export = Eksporter

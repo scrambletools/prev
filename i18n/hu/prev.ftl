@@ -578,6 +578,7 @@ markdown-smaller-text = Kisebb szöveg
 markdown-larger-text = Nagyobb szöveg
 markdown-zoom = { $percent }%
 markdown-actual-size = Tényleges méret
+markdown-limit-width = Szövegszélesség korlátozása
 markdown-inspector = Felügyelő
 markdown-export = Exportálás
 markdown-settings = Beállítások

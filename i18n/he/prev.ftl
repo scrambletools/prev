@@ -582,6 +582,7 @@ markdown-smaller-text = טקסט קטן יותר
 markdown-larger-text = טקסט גדול יותר
 markdown-zoom = { $percent }%
 markdown-actual-size = גודל אמיתי
+markdown-limit-width = הגבלת רוחב הטקסט
 markdown-inspector = פרטים
 markdown-export = ייצוא
 markdown-settings = הגדרות

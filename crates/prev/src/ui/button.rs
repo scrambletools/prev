@@ -128,6 +128,8 @@ pub struct Button<'a, Message> {
     position: Position,
     icon_only: bool,
     selected: Option<bool>,
+    /// Draws the icon filled whether selected or not.
+    always_filled: bool,
     width: Length,
     height: Option<f32>,
     on_press: Option<Message>,
@@ -174,6 +176,7 @@ impl<'a, Message: Clone + 'a> Button<'a, Message> {
             position: Position::Alone,
             icon_only,
             selected: None,
+            always_filled: false,
             width: Length::Shrink,
             height: None,
             on_press: None,
@@ -184,7 +187,7 @@ impl<'a, Message: Clone + 'a> Button<'a, Message> {
         let icon_size = self.size.icon();
         let content = match self.content {
             Content::Icon(glyph) => {
-                if self.selected == Some(true) {
+                if self.selected == Some(true) || self.always_filled {
                     icon::filled(glyph, icon_size).into()
                 } else {
                     icon::icon(glyph, icon_size).into()
@@ -235,6 +238,13 @@ impl<'a, Message: Clone + 'a> Button<'a, Message> {
 
     pub fn position(mut self, position: Position) -> Self {
         self.position = position;
+        self
+    }
+
+    /// Draws the icon filled in every state, for icons whose outline
+    /// reads as something else.
+    pub fn always_filled(mut self) -> Self {
+        self.always_filled = true;
         self
     }
 

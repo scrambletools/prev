@@ -710,6 +710,7 @@ markdown-smaller-text = छोटा टेक्स्ट
 markdown-larger-text = बड़ा टेक्स्ट
 markdown-zoom = { $percent }%
 markdown-actual-size = वास्तविक आकार
+markdown-limit-width = टेक्स्ट की चौड़ाई सीमित करें
 # Tooltip and panel title.
 markdown-inspector = इंस्पेक्टर
 markdown-export = एक्सपोर्ट करें

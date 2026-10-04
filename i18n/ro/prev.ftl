@@ -593,6 +593,7 @@ markdown-smaller-text = Text mai mic
 markdown-larger-text = Text mai mare
 markdown-zoom = { $percent }%
 markdown-actual-size = Dimensiune reală
+markdown-limit-width = Limitează lățimea textului
 markdown-inspector = Inspector
 markdown-export = Exportă
 markdown-settings = Configurări

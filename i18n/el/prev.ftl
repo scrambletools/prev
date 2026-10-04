@@ -578,6 +578,7 @@ markdown-smaller-text = Μικρότερο κείμενο
 markdown-larger-text = Μεγαλύτερο κείμενο
 markdown-zoom = { $percent }%
 markdown-actual-size = Πραγματικό μέγεθος
+markdown-limit-width = Περιορισμός πλάτους κειμένου
 markdown-inspector = Επιθεωρητής
 markdown-export = Εξαγωγή
 markdown-settings = Ρυθμίσεις

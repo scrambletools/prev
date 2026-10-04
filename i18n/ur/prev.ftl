@@ -581,6 +581,7 @@ markdown-smaller-text = چھوٹا متن
 markdown-larger-text = بڑا متن
 markdown-zoom = { $percent }%
 markdown-actual-size = اصل سائز
+markdown-limit-width = متن کی چوڑائی محدود کریں
 markdown-inspector = انسپکٹر
 markdown-export = برآمد کریں
 markdown-settings = ترتیبات

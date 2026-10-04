@@ -584,6 +584,7 @@ markdown-smaller-text = Text més petit
 markdown-larger-text = Text més gran
 markdown-zoom = { $percent } %
 markdown-actual-size = Mida real
+markdown-limit-width = Limita l'amplada del text
 markdown-inspector = Inspector
 markdown-export = Exporta
 markdown-settings = Configuració

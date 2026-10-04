@@ -702,6 +702,7 @@ markdown-smaller-text = متن کوچک‌تر
 markdown-larger-text = متن بزرگ‌تر
 markdown-zoom = { $percent }%
 markdown-actual-size = اندازهٔ واقعی
+markdown-limit-width = محدود کردن عرض متن
 # Tooltip and panel title.
 markdown-inspector = بازرس
 markdown-export = صادر کردن

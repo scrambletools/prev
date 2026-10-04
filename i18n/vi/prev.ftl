@@ -567,6 +567,7 @@ markdown-smaller-text = Chữ nhỏ hơn
 markdown-larger-text = Chữ lớn hơn
 markdown-zoom = { $percent }%
 markdown-actual-size = Kích thước thực
+markdown-limit-width = Giới hạn độ rộng văn bản
 markdown-inspector = Bộ kiểm tra
 markdown-export = Xuất
 markdown-settings = Cài đặt

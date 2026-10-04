@@ -583,6 +583,7 @@ markdown-smaller-text = Maandishi madogo zaidi
 markdown-larger-text = Maandishi makubwa zaidi
 markdown-zoom = { $percent }%
 markdown-actual-size = Ukubwa halisi
+markdown-limit-width = Weka kikomo cha upana wa maandishi
 markdown-inspector = Kikaguzi
 markdown-export = Hamisha
 markdown-settings = Mipangilio

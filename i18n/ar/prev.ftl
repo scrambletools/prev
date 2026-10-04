@@ -742,6 +742,7 @@ markdown-smaller-text = نص أصغر
 markdown-larger-text = نص أكبر
 markdown-zoom = { $percent }%
 markdown-actual-size = الحجم الفعلي
+markdown-limit-width = تحديد عرض النص
 # Tooltip and panel title.
 markdown-inspector = المراقب
 markdown-export = تصدير

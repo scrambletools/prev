@@ -733,6 +733,7 @@ markdown-smaller-text = Зменшити текст
 markdown-larger-text = Збільшити текст
 markdown-zoom = { $percent }%
 markdown-actual-size = Справжній розмір
+markdown-limit-width = Обмежити ширину тексту
 # Tooltip and panel title.
 markdown-inspector = Інспектор
 markdown-export = Експорт

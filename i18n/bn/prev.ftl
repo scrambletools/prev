@@ -579,6 +579,7 @@ markdown-smaller-text = ছোট লেখা
 markdown-larger-text = বড় লেখা
 markdown-zoom = { $percent }%
 markdown-actual-size = প্রকৃত আকার
+markdown-limit-width = লেখার প্রস্থ সীমিত করুন
 markdown-inspector = পরিদর্শক
 markdown-export = রপ্তানি করুন
 markdown-settings = সেটিংস

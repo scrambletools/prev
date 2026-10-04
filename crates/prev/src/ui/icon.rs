@@ -63,6 +63,7 @@ icons! {
     FitPage = 0xf77a, "fit_page";
     FitScreen = 0xea10, "fit_screen";
     FitWidth = 0xf779, "fit_width";
+    WidthNormal = 0xf8f6, "width_normal";
     Flip = 0xe3e8, "flip";
     FlipVertical = 0xe005, "flip rotated a quarter turn";
     FolderOpen = 0xe2c8, "folder_open";

@@ -567,6 +567,7 @@ markdown-smaller-text = Teks lebih kecil
 markdown-larger-text = Teks lebih besar
 markdown-zoom = { $percent }%
 markdown-actual-size = Saiz sebenar
+markdown-limit-width = Hadkan lebar teks
 markdown-inspector = Pemeriksa
 markdown-export = Eksport
 markdown-settings = Tetapan

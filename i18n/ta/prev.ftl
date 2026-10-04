@@ -580,6 +580,7 @@ markdown-smaller-text = சிறிய உரை
 markdown-larger-text = பெரிய உரை
 markdown-zoom = { $percent }%
 markdown-actual-size = உண்மையான அளவு
+markdown-limit-width = உரையின் அகலத்தைக் கட்டுப்படுத்து
 markdown-inspector = ஆய்வி
 markdown-export = ஏற்றுமதி செய்
 markdown-settings = அமைப்புகள்

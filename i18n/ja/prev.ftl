@@ -672,6 +672,7 @@ markdown-smaller-text = 文字を小さく
 markdown-larger-text = 文字を大きく
 markdown-zoom = { $percent }%
 markdown-actual-size = 実際のサイズ
+markdown-limit-width = テキストの幅を制限
 # Tooltip and panel title.
 markdown-inspector = インスペクタ
 markdown-export = 書き出す

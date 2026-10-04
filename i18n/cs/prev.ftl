@@ -603,6 +603,7 @@ markdown-smaller-text = Menší text
 markdown-larger-text = Větší text
 markdown-zoom = { $percent } %
 markdown-actual-size = Skutečná velikost
+markdown-limit-width = Omezit šířku textu
 markdown-inspector = Inspektor
 markdown-export = Exportovat
 markdown-settings = Nastavení

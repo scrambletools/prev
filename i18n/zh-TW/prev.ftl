@@ -672,6 +672,7 @@ markdown-smaller-text = 縮小文字
 markdown-larger-text = 放大文字
 markdown-zoom = { $percent }%
 markdown-actual-size = 實際大小
+markdown-limit-width = 限制文字寬度
 # Tooltip and panel title.
 markdown-inspector = 檢閱器
 markdown-export = 輸出

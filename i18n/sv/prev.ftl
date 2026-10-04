@@ -575,6 +575,7 @@ markdown-smaller-text = Mindre text
 markdown-larger-text = Större text
 markdown-zoom = { $percent } %
 markdown-actual-size = Verklig storlek
+markdown-limit-width = Begränsa textbredden
 markdown-inspector = Inspektör
 markdown-export = Exportera
 markdown-settings = Inställningar

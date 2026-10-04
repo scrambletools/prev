@@ -693,6 +693,7 @@ markdown-smaller-text = 텍스트 작게
 markdown-larger-text = 텍스트 크게
 markdown-zoom = { $percent }%
 markdown-actual-size = 실제 크기
+markdown-limit-width = 텍스트 너비 제한
 # Tooltip and panel title.
 markdown-inspector = 속성
 markdown-export = 내보내기

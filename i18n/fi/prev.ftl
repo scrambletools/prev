@@ -576,6 +576,7 @@ markdown-smaller-text = Pienempi teksti
 markdown-larger-text = Suurempi teksti
 markdown-zoom = { $percent } %
 markdown-actual-size = Todellinen koko
+markdown-limit-width = Rajoita tekstin leveyttä
 markdown-inspector = Tiedot
 markdown-export = Vie
 markdown-settings = Asetukset

@@ -702,6 +702,7 @@ markdown-smaller-text = Daha küçük metin
 markdown-larger-text = Daha büyük metin
 markdown-zoom = %{ $percent }
 markdown-actual-size = Gerçek boyut
+markdown-limit-width = Metin genişliğini sınırla
 # Tooltip and panel title.
 markdown-inspector = Denetçi
 markdown-export = Dışa aktar
