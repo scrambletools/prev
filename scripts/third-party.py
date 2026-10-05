@@ -25,7 +25,8 @@ BUNDLED = [
     ("Dancing Script", "OFL-1.1", "font for typed signatures", "https://github.com/googlefonts/DancingScript"),
     ("Material Symbols Rounded", "Apache-2.0", "icons", "https://github.com/google/material-design-icons"),
     ("smithay-clipboard", "MIT", "vendored with a drag and drop patch, see vendor/PATCHES.md", "https://github.com/Smithay/smithay-clipboard"),
-    ("iced_graphics, iced_widget", "MIT", "vendored with right to left text input patches, see vendor/PATCHES.md", "https://github.com/iced-rs/iced"),
+    ("scramble-ui", "MIT OR Apache-2.0", "the Material Design 3 interface shared by Scramble Tools apps", "https://github.com/scrambletools/scramble-ui"),
+    ("iced_graphics, iced_widget", "MIT", "with right to left text input patches, from scramble-ui's vendor/", "https://github.com/iced-rs/iced"),
     ("winit", "Apache-2.0", "vendored with patches for the keyboard layout in use, the files macOS opens, drag and drop, cursors, and the standard arrow where a hand is asked for, see vendor/PATCHES.md", "https://github.com/rust-windowing/winit"),
 ]
 

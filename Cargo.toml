@@ -15,6 +15,8 @@ prev-image = { path = "crates/prev-image", version = "2.1.0" }
 prev-pdf = { path = "crates/prev-pdf", version = "2.1.0" }
 prev-store = { path = "crates/prev-store", version = "2.1.0" }
 prev-assist = { path = "crates/prev-assist", version = "2.1.0" }
+# Material Design 3 for iced, shared by Scramble Tools apps.
+scramble-ui = { git = "https://github.com/scrambletools/scramble-ui", rev = "4d08da23082512ae1641ca11d9a2c34708c9c50f" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
@@ -30,9 +32,10 @@ strip = true
 # Adds file drag and drop to the clipboard's data device; see vendor/PATCHES.md.
 [patch.crates-io]
 smithay-clipboard = { path = "vendor/smithay-clipboard" }
-# Right to left text in text inputs; see vendor/PATCHES.md.
-iced_graphics = { path = "vendor/iced_graphics" }
-iced_widget = { path = "vendor/iced_widget" }
+# Right to left text in text inputs; the copies live with scramble-ui, see
+# its vendor/PATCHES.md.
+iced_graphics = { git = "https://github.com/scrambletools/scramble-ui", rev = "4d08da23082512ae1641ca11d9a2c34708c9c50f" }
+iced_widget = { git = "https://github.com/scrambletools/scramble-ui", rev = "4d08da23082512ae1641ca11d9a2c34708c9c50f" }
 # The keyboard layout in use, for the side empty text fields start on; see
 # vendor/PATCHES.md.
 winit = { path = "vendor/winit" }

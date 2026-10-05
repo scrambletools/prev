@@ -512,4 +512,7 @@ The bundled fonts keep their own licenses: Roboto Flex and Dancing Script
 under the SIL Open Font License 1.1 ([Roboto Flex](crates/prev/assets/fonts/OFL.txt),
 [Dancing Script](crates/prev/assets/fonts/OFL-DancingScript.txt)) and Material
 Symbols under the [Apache License 2.0](crates/prev/assets/fonts/LICENSE-MaterialSymbols.txt).
-`scripts/build-fonts.py` rebuilds them from pinned upstream sources.
+Roboto Flex and Material Symbols come with
+[scramble-ui](https://github.com/scrambletools/scramble-ui), which builds
+them; `scripts/build-fonts.py` rebuilds Dancing Script from its pinned
+upstream source.

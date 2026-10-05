@@ -33,7 +33,7 @@ Material Design 3.
 | Markdown | iced's Markdown widget (pulldown-cmark), syntect highlighting; view and export as a picture, no editing |
 | Windows | One window per document; images opened together share one window with a thumbnail sidebar; one running instance |
 | Saving | Autosave in place, with the original kept as a version ("Revert To"); Export for copies |
-| Design | Material Design 3 Expressive, drawn with prev's own iced styles and widgets |
+| Design | Material Design 3 Expressive, drawn with scramble-ui's iced styles and widgets |
 | Colors | M3 dynamic color from a seed: the system's accent color (the desktop theme's on Linux, through the settings portal; Windows' and macOS's own), prev's blue otherwise or when turned off; light or dark and the accent follow the system as they change. On Windows and macOS, toolbars, panels and dialogs take the system's title bar color |
 | Fonts | Roboto Flex (OFL-1.1) and Material Symbols Rounded (Apache-2.0), bundled |
 | Assistant and agents | One tool registry for outside agents over MCP (`prev --mcp`, rmcp) and the assistant panel (rig-core, pinned, in `prev-assist`); no bundled model; API keys in the system keychain ([ASSISTANT.md](ASSISTANT.md)) |
@@ -182,7 +182,11 @@ files dropped on the same disk.
 
 ### Interface
 
-Material 3 components live in `crates/prev/src/ui`: toolbars that move
+Material 3 components come from
+[scramble-ui](https://github.com/scrambletools/scramble-ui), shared by
+Scramble Tools apps and pinned by commit in the root `Cargo.toml`;
+`crates/prev/src/ui` re-exports it beside prev's export dialog. It has
+toolbars that move
 groups that do not fit into a "More" menu, side sheets, dialogs over a
 scrim, snackbars, tabs, M3 sliders and fields, state layers and spring
 motion. iced 0.14 cannot draw a layer at partial opacity, so things

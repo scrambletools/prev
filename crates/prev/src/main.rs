@@ -149,7 +149,9 @@ fn main() -> iced::Result {
         app::Prev::view,
     )
     .settings(iced::Settings {
-        fonts: ui::font::files().collect(),
+        fonts: ui::font::files()
+            .chain([std::borrow::Cow::Borrowed(prev::pdf::signature::FONT_FILE)])
+            .collect(),
         default_font: ui::font::TEXT,
         default_text_size: ui::font::DEFAULT_SIZE.into(),
         antialiasing: true,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Assembles prev's website (prev.run) into OUT: the pages in site/, plus
-# the icon, the screenshots and the font they use, from the repository.
+# the icon and the screenshots, from the repository.
 #
 #   scripts/build-site.sh [OUT]
 set -euo pipefail
@@ -12,6 +12,5 @@ rm -rf "$out"
 mkdir -p "$out/screenshots"
 cp "$root"/site/* "$out/"
 cp "$root/data/icons/hicolor/scalable/apps/io.github.scrambletools.prev.svg" "$out/icon.svg"
-cp "$root/crates/prev/assets/fonts/RobotoFlex.ttf" "$out/"
 cp -r "$root/docs/screenshots/." "$out/screenshots/"
 echo "Built the site in $out"

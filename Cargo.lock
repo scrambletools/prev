@@ -2322,6 +2322,7 @@ dependencies = [
 [[package]]
 name = "iced_graphics"
 version = "0.14.0"
+source = "git+https://github.com/scrambletools/scramble-ui?rev=4d08da23082512ae1641ca11d9a2c34708c9c50f#4d08da23082512ae1641ca11d9a2c34708c9c50f"
 dependencies = [
  "bitflags 2.13.2",
  "bytemuck",
@@ -2426,6 +2427,7 @@ dependencies = [
 [[package]]
 name = "iced_widget"
 version = "0.14.2"
+source = "git+https://github.com/scrambletools/scramble-ui?rev=4d08da23082512ae1641ca11d9a2c34708c9c50f#4d08da23082512ae1641ca11d9a2c34708c9c50f"
 dependencies = [
  "iced_highlighter",
  "iced_renderer",
@@ -4308,7 +4310,6 @@ dependencies = [
  "iced_runtime",
  "image",
  "interprocess",
- "material-colors",
  "muda",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
@@ -4323,6 +4324,7 @@ dependencies = [
  "rmcp",
  "rust-embed",
  "schemars",
+ "scramble-ui",
  "serde",
  "serde_json",
  "smithay-clipboard",
@@ -5314,6 +5316,20 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "scramble-ui"
+version = "0.1.0"
+source = "git+https://github.com/scrambletools/scramble-ui?rev=4d08da23082512ae1641ca11d9a2c34708c9c50f#4d08da23082512ae1641ca11d9a2c34708c9c50f"
+dependencies = [
+ "ashpd",
+ "iced",
+ "material-colors",
+ "objc2-app-kit 0.3.2",
+ "serde",
+ "toml 1.1.6+spec-1.1.0",
+ "windows-sys 0.61.2",
+]
 
 [[package]]
 name = "sctk-adwaita"

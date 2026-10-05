@@ -6,6 +6,15 @@ use std::sync::Arc;
 
 use prev_pdf::engine::Bitmap;
 
+/// Handwriting, for typed signatures. The bundled instance is semibold,
+/// and iced only picks a named font at its exact weight.
+pub const FONT: iced::Font = iced::Font {
+    family: iced::font::Family::Name("Dancing Script"),
+    weight: iced::font::Weight::Semibold,
+    ..iced::Font::DEFAULT
+};
+pub const FONT_FILE: &[u8] = include_bytes!("../../assets/fonts/DancingScript.ttf");
+
 /// Height of stored signature images, in pixels: enough to stay sharp
 /// when a signature is placed large or the page is zoomed in.
 const HEIGHT: f32 = 480.0;
@@ -156,7 +165,7 @@ pub fn from_text(text: &str, ink: [u8; 3]) -> Option<Vec<u8>> {
         text = escape(text),
     );
     let mut fonts = usvg::fontdb::Database::new();
-    fonts.load_font_data(crate::ui::font::SIGNATURE_FILE.to_vec());
+    fonts.load_font_data(FONT_FILE.to_vec());
     let options = usvg::Options {
         fontdb: Arc::new(fonts),
         ..usvg::Options::default()

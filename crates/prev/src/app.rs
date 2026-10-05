@@ -2083,7 +2083,7 @@ fn quit<T>() -> Task<T> {
 /// Colors offered for the scheme when the system accent is not used,
 /// prev's blue first.
 const ACCENT_SWATCHES: [Color; 11] = [
-    ui::scheme::PREV_SEED,
+    ui::scheme::DEFAULT_SEED,
     Color::from_rgb8(0x00, 0x89, 0x7b),
     Color::from_rgb8(0x43, 0xa0, 0x47),
     Color::from_rgb8(0xf9, 0xa8, 0x25),
@@ -2102,27 +2102,10 @@ fn chosen_accent(settings: &Settings) -> Color {
         .accent_color
         .as_deref()
         .and_then(hex_to_color)
-        .unwrap_or(ui::scheme::PREV_SEED)
+        .unwrap_or(ui::scheme::DEFAULT_SEED)
 }
 
-/// "#RRGGBB" (or "RRGGBB") as a color.
-fn hex_to_color(hex: &str) -> Option<Color> {
-    let hex = hex.trim().trim_start_matches('#');
-    if hex.len() != 6 {
-        return None;
-    }
-    let value = u32::from_str_radix(hex, 16).ok()?;
-    Some(Color::from_rgb8(
-        (value >> 16) as u8,
-        (value >> 8) as u8,
-        value as u8,
-    ))
-}
-
-fn color_to_hex(color: Color) -> String {
-    let [red, green, blue, _] = color.into_rgba8();
-    format!("#{red:02X}{green:02X}{blue:02X}")
-}
+use ui::appearance::{color_to_hex, hex_to_color};
 
 /// A round button that picks `color` for the scheme, ringed when chosen.
 fn accent_swatch<'a>(color: Color, selected: bool) -> Element<'a, Message> {
@@ -2167,23 +2150,18 @@ fn theme_choice(
     system_accent: Option<Color>,
     system_dark: bool,
 ) -> (Color, bool) {
-    let omarchy = omarchy.filter(|_| settings.system_accent);
-    let dark = match (settings.appearance, omarchy) {
-        (Appearance::System, Some(palette)) => palette.mode == omarchy::Mode::Dark,
-        (Appearance::System, None) => system_dark,
-        (Appearance::Light, _) => false,
-        (Appearance::Dark, _) => true,
-    };
-    let seed = match omarchy {
-        Some(palette) => {
-            let accent = palette.accent;
-            Color::from_rgb8(accent.red, accent.green, accent.blue)
-        }
-        None => system_accent
-            .filter(|_| settings.system_accent)
-            .unwrap_or_else(|| chosen_accent(settings)),
-    };
-    (seed, dark)
+    ui::appearance::choose(ui::appearance::Inputs {
+        appearance: match settings.appearance {
+            Appearance::System => ui::appearance::Appearance::System,
+            Appearance::Light => ui::appearance::Appearance::Light,
+            Appearance::Dark => ui::appearance::Appearance::Dark,
+        },
+        system_accent: settings.system_accent,
+        omarchy,
+        system_accent_color: system_accent,
+        system_dark,
+        chosen_accent: chosen_accent(settings),
+    })
 }
 
 fn start_view(id: window::Id) -> Element<'static, Message> {
@@ -2356,11 +2334,11 @@ mod tests {
     fn follows_system_without_omarchy() {
         assert_eq!(
             choice(Appearance::System, true, None, true),
-            (ui::scheme::PREV_SEED, true)
+            (ui::scheme::DEFAULT_SEED, true)
         );
         assert_eq!(
             choice(Appearance::Light, true, None, true),
-            (ui::scheme::PREV_SEED, false)
+            (ui::scheme::DEFAULT_SEED, false)
         );
     }
 
@@ -2395,7 +2373,7 @@ mod tests {
             .0
         };
         assert_eq!(with(true, None), accent);
-        assert_eq!(with(false, None), ui::scheme::PREV_SEED);
+        assert_eq!(with(false, None), ui::scheme::DEFAULT_SEED);
         assert_eq!(
             with(true, Some(&omarchy_dark())),
             Color::from_rgb8(0x82, 0xfb, 0x9c),
@@ -2435,7 +2413,7 @@ mod tests {
         let omarchy = omarchy_dark();
         assert_eq!(
             choice(Appearance::System, false, Some(&omarchy), false),
-            (ui::scheme::PREV_SEED, false)
+            (ui::scheme::DEFAULT_SEED, false)
         );
     }
 }

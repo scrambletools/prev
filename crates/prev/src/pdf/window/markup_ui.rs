@@ -1205,7 +1205,7 @@ impl PdfWindow {
                     } else {
                         dialog.typed.clone()
                     })
-                    .font(ui::font::SIGNATURE)
+                    .font(crate::pdf::signature::FONT)
                     .size(48)
                     .color(if dialog.typed.is_empty() {
                         Color::from_rgb(0.7, 0.7, 0.7)

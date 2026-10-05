@@ -84,6 +84,13 @@ fn with_aliases(languages: Vec<LanguageIdentifier>) -> Vec<LanguageIdentifier> {
 pub fn set_language(tag: Option<&str>) {
     *CHOSEN.write().unwrap_or_else(PoisonError::into_inner) = tag.and_then(|tag| tag.parse().ok());
     select(&LOADER);
+    // scramble-ui's components name their own buttons.
+    crate::ui::labels::set(crate::ui::labels::Labels {
+        close: crate::fl!("common-close"),
+        more: crate::fl!("app-toolbar-more"),
+        keep_toolbar_shown: crate::fl!("app-toolbar-keep-shown"),
+        auto_hide_toolbar: crate::fl!("app-toolbar-auto-hide"),
+    });
 }
 
 /// The languages prev has text for: each one's tag and its name in its
