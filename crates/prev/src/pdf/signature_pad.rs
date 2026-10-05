@@ -94,9 +94,15 @@ impl State {
         let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
         let all: Vec<Vec<(f32, f32)>> =
             strokes.iter().chain(self.current.iter()).cloned().collect();
-        crate::pdf::signature::draw_strokes(&mut pixmap, &all, pen_width * scale, ink, |(x, y)| {
-            (x * scale, y * scale)
-        });
+        let live = self.current.is_some();
+        crate::pdf::signature::draw_strokes(
+            &mut pixmap,
+            &all,
+            pen_width * scale,
+            ink,
+            live,
+            |(x, y)| (x * scale, y * scale),
+        );
         // tiny-skia keeps premultiplied pixels; iced wants them straight.
         let mut pixels = pixmap.take();
         for pixel in pixels.as_chunks_mut::<4>().0 {

@@ -52,66 +52,137 @@ fn smoothed(points: &[(f32, f32)]) -> Vec<(f32, f32)> {
     points
 }
 
-/// Strokes as smooth paths: the points evened out, then quadratic curves
-/// through the midpoints between them. `map` places each point.
-fn stroke_paths(
-    strokes: &[Vec<(f32, f32)>],
-    map: impl Fn((f32, f32)) -> (f32, f32),
-) -> Vec<tiny_skia::Path> {
-    let mut paths = Vec::new();
-    for points in strokes {
-        let mut builder = tiny_skia::PathBuilder::new();
-        let points = smoothed(points);
-        let mut mapped = points.iter().map(|point| map(*point));
-        let Some(first) = mapped.next() else {
-            continue;
+/// How long a stroke's tail is, in pen widths, as the pen lifts off.
+const TAPER_LENGTH: f32 = 12.0;
+/// The most of a stroke the tail takes, so short marks keep their body.
+const TAPER_SHARE: f32 = 0.45;
+/// How thin the tail ends, as a share of the pen's width.
+const TAPER_END: f32 = 0.12;
+
+/// A stroke as a dense line of points: the points evened out, then
+/// quadratic curves through the midpoints between them, sampled about
+/// every pixel. `map` places each point.
+fn stroke_line(points: &[(f32, f32)], map: &impl Fn((f32, f32)) -> (f32, f32)) -> Vec<(f32, f32)> {
+    let mapped: Vec<(f32, f32)> = smoothed(points).into_iter().map(map).collect();
+    let Some(&first) = mapped.first() else {
+        return Vec::new();
+    };
+    let mut line = vec![first];
+    let mut start = first;
+    // As the curves before: each runs from where the last one ended, bent
+    // toward the previous point, to midway between it and this one; the
+    // last ends on the last point.
+    for index in 1..mapped.len() {
+        let (control, point) = (mapped[index - 1], mapped[index]);
+        let end = if index + 1 == mapped.len() {
+            point
+        } else {
+            ((control.0 + point.0) / 2.0, (control.1 + point.1) / 2.0)
         };
-        builder.move_to(first.0, first.1);
-        let rest: Vec<(f32, f32)> = mapped.collect();
-        if rest.is_empty() {
-            // A dot.
-            builder.line_to(first.0 + 0.01, first.1);
+        let length = (control.0 - start.0).hypot(control.1 - start.1)
+            + (end.0 - control.0).hypot(end.1 - control.1);
+        let steps = (length.ceil() as usize).clamp(1, 64);
+        for step in 1..=steps {
+            let t = step as f32 / steps as f32;
+            let u = 1.0 - t;
+            line.push((
+                u * u * start.0 + 2.0 * u * t * control.0 + t * t * end.0,
+                u * u * start.1 + 2.0 * u * t * control.1 + t * t * end.1,
+            ));
         }
-        let mut previous = first;
-        for (index, point) in rest.iter().enumerate() {
-            if index + 1 == rest.len() {
-                builder.quad_to(previous.0, previous.1, point.0, point.1);
-            } else {
-                let middle = ((previous.0 + point.0) / 2.0, (previous.1 + point.1) / 2.0);
-                builder.quad_to(previous.0, previous.1, middle.0, middle.1);
-            }
-            previous = *point;
-        }
-        paths.extend(builder.finish());
+        start = end;
     }
-    paths
+    line
 }
 
 /// Draws strokes in `ink` onto `pixmap`, antialiased, `width` pixels wide.
+/// Each stroke's end thins out, as a pen gliding off the page, except the
+/// last one while `live`, which the pen is still drawing.
 pub fn draw_strokes(
     pixmap: &mut tiny_skia::Pixmap,
     strokes: &[Vec<(f32, f32)>],
     width: f32,
     ink: [u8; 3],
+    live: bool,
     map: impl Fn((f32, f32)) -> (f32, f32),
 ) {
     let mut paint = tiny_skia::Paint::default();
     paint.set_color_rgba8(ink[0], ink[1], ink[2], 255);
     paint.anti_alias = true;
-    let stroke = tiny_skia::Stroke {
+    let pen = |width: f32| tiny_skia::Stroke {
         width,
         line_cap: tiny_skia::LineCap::Round,
         line_join: tiny_skia::LineJoin::Round,
         ..tiny_skia::Stroke::default()
     };
-    for path in stroke_paths(strokes, map) {
-        pixmap.stroke_path(
-            &path,
-            &paint,
-            &stroke,
-            tiny_skia::Transform::identity(),
-            None,
-        );
+    let mut draw = |points: &[(f32, f32)], width: f32| {
+        let mut builder = tiny_skia::PathBuilder::new();
+        builder.move_to(points[0].0, points[0].1);
+        if points.len() == 1 {
+            // A dot.
+            builder.line_to(points[0].0 + 0.01, points[0].1);
+        }
+        for point in &points[1..] {
+            builder.line_to(point.0, point.1);
+        }
+        if let Some(path) = builder.finish() {
+            pixmap.stroke_path(
+                &path,
+                &paint,
+                &pen(width),
+                tiny_skia::Transform::identity(),
+                None,
+            );
+        }
+    };
+    for (index, points) in strokes.iter().enumerate() {
+        let line = stroke_line(points, &map);
+        if line.is_empty() {
+            continue;
+        }
+        // How far along the stroke each point is.
+        let mut along = vec![0.0_f32];
+        for pair in line.windows(2) {
+            let last = along[along.len() - 1];
+            along.push(last + (pair[1].0 - pair[0].0).hypot(pair[1].1 - pair[0].1));
+        }
+        let total = along[along.len() - 1];
+        let drawing = live && index + 1 == strokes.len();
+        let taper = (width * TAPER_LENGTH).min(total * TAPER_SHARE);
+        if drawing || taper < width {
+            draw(&line, width);
+            continue;
+        }
+        let start = total - taper;
+        let split = along
+            .iter()
+            .position(|&at| at >= start)
+            .unwrap_or(line.len() - 1);
+        draw(&line[..=split], width);
+        // The tail, in short overlapping pieces, each thinner than the last.
+        let step = (width * 0.25).max(0.5);
+        let point_at = |at: f32| {
+            let next = along
+                .iter()
+                .position(|&a| a >= at)
+                .unwrap_or(line.len() - 1);
+            if next == 0 {
+                return line[0];
+            }
+            let (a, b) = (line[next - 1], line[next]);
+            let span = (along[next] - along[next - 1]).max(f32::EPSILON);
+            let t = ((at - along[next - 1]) / span).clamp(0.0, 1.0);
+            (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t)
+        };
+        let mut at = along[split];
+        while at < total {
+            let next = (at + step).min(total);
+            let t = ((at + next) / 2.0 - start) / taper;
+            // Thins slowly at first, then faster, as the pen leaves.
+            let thin = 1.0 - (1.0 - TAPER_END) * t.clamp(0.0, 1.0).powf(1.4);
+            draw(&[point_at(at), point_at(next)], width * thin);
+            at = next;
+        }
     }
 }
 
@@ -135,9 +206,14 @@ pub fn from_strokes(strokes: &[Vec<(f32, f32)>], line_width: f32, ink: [u8; 3]) 
         (width * scale).ceil().max(1.0) as u32,
         (height * scale).ceil().max(1.0) as u32,
     )?;
-    draw_strokes(&mut pixmap, strokes, line_width * scale, ink, |(x, y)| {
-        ((x - x0 + pad) * scale, (y - y0 + pad) * scale)
-    });
+    draw_strokes(
+        &mut pixmap,
+        strokes,
+        line_width * scale,
+        ink,
+        false,
+        |(x, y)| ((x - x0 + pad) * scale, (y - y0 + pad) * scale),
+    );
     pixmap.encode_png().ok()
 }
 
@@ -313,6 +389,30 @@ mod tests {
         assert!(coverage > 0.01 && coverage < 0.5, "coverage {coverage}");
         assert_eq!(bitmap.pixels[3], 0, "the corner is transparent");
         assert!(from_strokes(&[], 3.0, INK).is_none());
+    }
+
+    #[test]
+    fn strokes_thin_out_at_the_end() {
+        let mut pixmap = tiny_skia::Pixmap::new(220, 40).unwrap();
+        let stroke = vec![(10.0, 20.0), (110.0, 20.0), (210.0, 20.0)];
+        draw_strokes(&mut pixmap, &[stroke], 8.0, INK, false, |point| point);
+        // Inked rows down the column at `x`.
+        let thickness = |x: u32| {
+            (0..40)
+                .filter(|&y| pixmap.pixel(x, y).is_some_and(|pixel| pixel.alpha() > 128))
+                .count()
+        };
+        assert!(thickness(60) >= 7, "body {}", thickness(60));
+        assert!(thickness(195) < thickness(60), "tail {}", thickness(195));
+        assert!(thickness(206) <= 2, "end {}", thickness(206));
+        // While the pen is down the stroke keeps its width to the end.
+        let mut live = tiny_skia::Pixmap::new(220, 40).unwrap();
+        let stroke = vec![(10.0, 20.0), (110.0, 20.0), (210.0, 20.0)];
+        draw_strokes(&mut live, &[stroke], 8.0, INK, true, |point| point);
+        let inked = (0..40)
+            .filter(|&y| live.pixel(206, y).is_some_and(|pixel| pixel.alpha() > 128))
+            .count();
+        assert!(inked >= 7, "live end {inked}");
     }
 
     #[test]
