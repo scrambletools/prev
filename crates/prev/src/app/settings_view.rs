@@ -432,8 +432,10 @@ impl Prev {
                             },
                         ))
                         .width(Fill),
-                        ui::button(Kind::Filled, prev::fl!("settings-assistant-use-key"))
-                            .on_press(send(ModelMessage::UseKey)),
+                        component::beside_field(
+                            ui::button(Kind::Filled, prev::fl!("settings-assistant-use-key"))
+                                .on_press(send(ModelMessage::UseKey))
+                        ),
                     ]
                     .spacing(8)
                     .align_y(Center),
@@ -545,11 +547,13 @@ impl Prev {
                             },
                         ))
                         .width(Fill),
-                        ui::button(Kind::Text, prev::fl!("settings-assistant-look-again"))
-                            .on_press_maybe(
-                                (!matches!(form.found, Found::Looking))
-                                    .then_some(send(ModelMessage::Search)),
-                            ),
+                        component::beside_field(
+                            ui::button(Kind::Text, prev::fl!("settings-assistant-look-again"))
+                                .on_press_maybe(
+                                    (!matches!(form.found, Found::Looking))
+                                        .then_some(send(ModelMessage::Search)),
+                                )
+                        ),
                     ]
                     .spacing(8)
                     .align_y(Center),
@@ -702,11 +706,13 @@ impl Prev {
                         },
                     ))
                     .width(Fill),
-                    ui::button(Kind::Text, prev::fl!("settings-assistant-add-button"))
-                        .on_press_maybe(
-                            (!form.typed.trim().is_empty() && form.adding.is_none())
-                                .then(|| send(ModelMessage::Add(form.typed.clone()))),
-                        ),
+                    component::beside_field(
+                        ui::button(Kind::Text, prev::fl!("settings-assistant-add-button"))
+                            .on_press_maybe(
+                                (!form.typed.trim().is_empty() && form.adding.is_none())
+                                    .then(|| send(ModelMessage::Add(form.typed.clone()))),
+                            )
+                    ),
                 ]
                 .spacing(8)
                 .align_y(Center),

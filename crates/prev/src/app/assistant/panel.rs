@@ -698,13 +698,7 @@ impl Prev {
                     .then_some(message(PanelMessage::Send)),
             )
         };
-        // The field keeps room above its box for the raised label; the
-        // same room above the button centres it on the box.
-        let action = container(action).padding(Padding {
-            top: 8.0,
-            ..Padding::ZERO
-        });
-        let input = row![field, action]
+        let input = row![field, component::beside_field(action)]
             .spacing(8)
             .align_y(Center)
             .padding(Padding {

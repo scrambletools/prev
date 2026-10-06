@@ -1754,15 +1754,15 @@ impl Prev {
             .spacing(8)
             .align_y(Center);
             if changed {
-                entry = entry.push(
+                entry = entry.push(component::beside_field(
                     ui::button(Kind::Filled, prev::fl!("settings-storage-apply"))
                         .on_press(Message::StorageApply(storage)),
-                );
+                ));
             }
-            entry = entry.push(
+            entry = entry.push(component::beside_field(
                 ui::button(Kind::Tonal, prev::fl!("settings-storage-choose"))
                     .on_press(Message::StorageChoose(storage)),
-            );
+            ));
             rows = rows.push(entry);
             if let Some(problem) = &self.storage_errors[storage.index()] {
                 rows = rows.push(ui::aligned(

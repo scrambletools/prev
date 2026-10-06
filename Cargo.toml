@@ -16,7 +16,7 @@ prev-pdf = { path = "crates/prev-pdf", version = "2.1.0" }
 prev-store = { path = "crates/prev-store", version = "2.1.0" }
 prev-assist = { path = "crates/prev-assist", version = "2.1.0" }
 # Material Design 3 for iced, shared by Scramble Tools apps.
-scramble-ui = { git = "https://github.com/scrambletools/scramble-ui", rev = "6e894317f4d939365df5ead06d959a654bda0b61", version = "0.1.0" }
+scramble-ui = { git = "https://github.com/scrambletools/scramble-ui", rev = "32d27eb62468a2b227f866c12b5da00ae2eee26b", version = "0.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
@@ -34,8 +34,8 @@ strip = true
 smithay-clipboard = { path = "vendor/smithay-clipboard" }
 # Right to left text in text inputs; the copies live with scramble-ui, see
 # its vendor/PATCHES.md.
-iced_graphics = { git = "https://github.com/scrambletools/scramble-ui", rev = "6e894317f4d939365df5ead06d959a654bda0b61" }
-iced_widget = { git = "https://github.com/scrambletools/scramble-ui", rev = "6e894317f4d939365df5ead06d959a654bda0b61" }
+iced_graphics = { git = "https://github.com/scrambletools/scramble-ui", rev = "32d27eb62468a2b227f866c12b5da00ae2eee26b" }
+iced_widget = { git = "https://github.com/scrambletools/scramble-ui", rev = "32d27eb62468a2b227f866c12b5da00ae2eee26b" }
 # The keyboard layout in use, for the side empty text fields start on; see
 # vendor/PATCHES.md.
 winit = { path = "vendor/winit" }
