@@ -721,7 +721,7 @@ impl Prev {
     /// The menu of models, grouped by who serves them, under a button
     /// showing the one in use.
     fn model_menu<'a>(&'a self, id: window::Id, panel: &'a Panel) -> Element<'a, Message> {
-        use prev::ui::popover::{self, popover};
+        use prev::ui::dropdown::{self, Entry as Item};
         let message = move |message: PanelMessage| Message::Assistant(id, message);
         let models = &self.settings.assistant_models;
         let chosen = self.panel_model(panel);
@@ -734,27 +734,7 @@ impl Prev {
                 .count()
                 > 1
         };
-        let anchor_label = chosen.map_or_else(String::new, shown_name);
-        let anchor_detail = chosen.map_or_else(String::new, group_label);
-        let anchor = ui::button::custom(
-            Kind::Outlined,
-            row![
-                column![
-                    ui::styled(anchor_label, Type::LabelLarge).style(on_surface),
-                    ui::styled(anchor_detail, Type::BodySmall).style(style::on_surface_variant),
-                ]
-                .spacing(2)
-                .width(Fill),
-                ui::icon(Icon::ArrowDropDown, 20.0),
-            ]
-            .spacing(8)
-            .align_y(Center),
-        )
-        .shape(ui::button::Shape::Square)
-        .width(Fill)
-        .height(52.0)
-        .on_press(message(PanelMessage::Menu(!panel.menu_open)));
-        let mut items = column![].width(WIDTH - 48.0);
+        let mut items = Vec::new();
         let mut groups: Vec<(String, Option<String>)> = Vec::new();
         for model in models {
             if !groups.contains(&group(model)) {
@@ -766,44 +746,36 @@ impl Prev {
                 .iter()
                 .filter(|model| model.provider == provider && model.address == address)
                 .collect();
-            items = items.push(menu_heading(group_label(members[0])));
+            items.push(Item::heading(group_label(members[0])));
             for model in members {
                 let mut label = shown_name(model);
                 if clashes(model) {
                     label = format!("{label} ({})", model.model);
                 }
-                items = items.push(component::list_row(
-                    None,
-                    label,
-                    0.0,
-                    chosen.is_some_and(|chosen| chosen.id == model.id),
-                    Some(message(PanelMessage::Model(model.id.clone()))),
-                ));
+                items.push(
+                    Item::item(label, message(PanelMessage::Model(model.id.clone())))
+                        .checked(chosen.is_some_and(|chosen| chosen.id == model.id)),
+                );
             }
         }
-        items = items.push(iced::widget::rule::horizontal(1));
-        items = items.push(component::list_row(
-            Some(Icon::Settings),
-            prev::fl!("assistant-add-another"),
-            0.0,
-            false,
-            Some(message(PanelMessage::OpenSettings)),
-        ));
-        popover(
-            anchor,
-            // No scroll area: one in a popover loses track of the pointer
-            // near its end, and a hovered row stays lit after it leaves.
-            panel.menu_open.then(|| popover::surface(items)),
-            message(PanelMessage::Menu(false)),
-        )
-        .close_on_choice()
-        .into()
-    }
-}
-
-fn on_surface(theme: &iced::Theme) -> text::Style {
-    text::Style {
-        color: Some(ui::Scheme::of(theme).on_surface),
+        items.push(Item::divider());
+        items.push(
+            Item::item(
+                prev::fl!("assistant-add-another"),
+                message(PanelMessage::OpenSettings),
+            )
+            .icon(Icon::Settings),
+        );
+        dropdown::menu(chosen.map_or_else(String::new, shown_name), items)
+            .detail(chosen.map_or_else(String::new, group_label))
+            // A value picked, as the settings' drop-downs show theirs.
+            .text(Type::BodyLarge)
+            .size(ui::button::Size::Medium)
+            .width(Fill)
+            .open(panel.menu_open, move |open| {
+                Message::Assistant(id, PanelMessage::Menu(open))
+            })
+            .into()
     }
 }
 
@@ -843,17 +815,6 @@ fn host_of(address: &str) -> &str {
 /// Whether `host` is this computer.
 fn is_local(host: &str) -> bool {
     matches!(host, "localhost" | "127.0.0.1" | "::1" | "0.0.0.0") || host.ends_with(".localhost")
-}
-
-fn menu_heading<'a>(label: String) -> Element<'a, Message> {
-    container(ui::styled(label, Type::LabelMedium).style(style::on_surface_variant))
-        .padding(Padding {
-            top: 8.0,
-            right: 16.0,
-            bottom: 4.0,
-            left: 16.0,
-        })
-        .into()
 }
 
 fn entry_view<'a>(

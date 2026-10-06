@@ -5,7 +5,6 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use crate::ui::dir::column;
 use crate::{column, row};
 use iced::keyboard::Modifiers;
 use iced::widget::{container, space};
@@ -14,7 +13,7 @@ use prev_pdf::annotation::Kind;
 use prev_pdf::engine::{ExportOptions, PageDisplay, Reduce};
 use prev_pdf::worker::flatten;
 
-use super::markup_ui::{Menu, menu_item};
+use super::markup_ui::Menu;
 use super::{Message, PdfWindow, State, THUMBNAIL_SPACING, thumbnail_height};
 use crate::dialog;
 use crate::i18n::Describe;
@@ -23,7 +22,7 @@ use crate::pdf::export::{self, Format};
 use crate::pdf::viewer::{PdfMessage, PdfViewer, Pick};
 use crate::ui::button::{self, Kind as ButtonKind};
 use crate::ui::component::{self, Backdrop};
-use crate::ui::popover::{self, popover};
+use crate::ui::dropdown::{self, Entry};
 use crate::ui::{self, Icon, Type, style};
 
 /// Pages copied with Ctrl+C, as a PDF, for pasting into any window.
@@ -433,19 +432,10 @@ impl PdfWindow {
     // The Pages menu.
 
     pub(super) fn pages_menu<'a>(&'a self, viewer: &'a PdfViewer) -> Element<'a, Message> {
-        let _reading = crate::ui::dir::reading();
-        let open = self.menu == Some(Menu::Pages);
-        let anchor = component::tip(
-            ui::icon_button(Icon::Stacks)
-                .selected(open)
-                .on_press(Message::Menu(Some(Menu::Pages))),
-            crate::fl!("pages-menu"),
-        );
         let count = viewer.target_pages().len();
         let item = |glyph: Icon, label: String, action: PageAction| {
-            menu_item(Some(glyph), label, false, Message::PageAction(action))
+            Entry::item(label, Message::PageAction(action)).icon(glyph)
         };
-        let pasteable = clipboard();
         // Rotating is on the toolbar beside this menu.
         let mut items = vec![
             item(
@@ -464,12 +454,11 @@ impl PdfWindow {
                 PageAction::Copy,
             ),
         ];
-        if let Some((_, pages)) = pasteable {
-            items.push(menu_item(
-                Some(Icon::ContentPaste),
+        if let Some((_, pages)) = clipboard() {
+            items.push(item(
+                Icon::ContentPaste,
                 crate::fl!("pages-paste", count = pages),
-                false,
-                Message::PageAction(PageAction::Paste),
+                PageAction::Paste,
             ));
         }
         if viewer.edit.area.is_some() {
@@ -492,13 +481,13 @@ impl PdfWindow {
                 PageAction::Redact,
             ));
         }
-        let content = column(items).width(260).padding([0, 8]);
-        popover(
-            anchor,
-            open.then(|| popover::surface(content)),
-            Message::Menu(None),
-        )
-        .into()
+        dropdown::icon_menu(Icon::Stacks, items)
+            .size(button::Size::Small)
+            .tip(crate::fl!("pages-menu"))
+            .open(self.menu == Some(Menu::Pages), |open| {
+                Message::Menu(open.then_some(Menu::Pages))
+            })
+            .into()
     }
 
     /// Redaction marks waiting to be applied, from the notes list, which

@@ -7,7 +7,7 @@ use crate::ui::dir::{column, row};
 use crate::{column, row};
 use iced::widget::image::Handle as ImageHandle;
 use iced::widget::{container, image, pin, space, stack, text, text_editor, text_input};
-use iced::{Center, Color, Element, Fill, Length, Padding, Task, Theme};
+use iced::{Center, Color, Element, Fill, Length, Task, Theme};
 use prev_pdf::annotation::{Align, Annotation, FieldKind, Font, Kind, Rgb, TextMarkup};
 use prev_pdf::engine::Bitmap;
 use prev_store::signatures::{Signature, SignatureStore};
@@ -25,7 +25,7 @@ use crate::pdf::viewer::PdfViewer;
 use crate::pdf::viewer::editing::{EditMessage, StyleChange};
 use crate::ui::button::{self, Kind as ButtonKind};
 use crate::ui::component::{self, Backdrop};
-use crate::ui::popover::{self, popover};
+use crate::ui::dropdown::{self, Entry, Segment, Swatch};
 use crate::ui::{self, Icon, Scheme, Type, icon, shape, style};
 
 /// Where the redaction tools are among the markup bar's slots.
@@ -162,53 +162,13 @@ fn markup_icon(style: TextMarkup) -> Icon {
     }
 }
 
-/// A round color button; `None` shows "no color" as a slashed outline.
-fn swatch<'a>(color: Option<Rgb>, selected: bool, message: Message) -> Element<'a, Message> {
-    let dot = container(space().width(20).height(20)).style(move |theme: &Theme| {
-        let scheme = Scheme::of(theme);
-        iced::widget::container::Style {
-            background: color.map(|color| to_color(color).into()),
-            border: iced::Border {
-                color: if selected {
-                    scheme.primary
-                } else {
-                    scheme.outline_variant
-                },
-                width: if selected { 3.0 } else { 1.0 },
-                radius: shape::FULL.into(),
-            },
-            ..Default::default()
-        }
-    });
-    let content: Element<'a, Message> = match color {
-        Some(_) => dot.into(),
-        None => stack![dot, container(icon::icon(Icon::Close, 16)).center(20)].into(),
-    };
-    button::custom(ButtonKind::Standard, content)
-        .size(button::Size::ExtraSmall)
-        .width(32)
-        .on_press(message)
-        .into()
-}
-
-pub(super) fn menu_item<'a>(
-    glyph: Option<Icon>,
-    label: impl text::IntoFragment<'a>,
-    selected: bool,
-    message: Message,
-) -> Element<'a, Message> {
-    component::list_row(glyph, label, 0.0, selected, Some(message)).into()
-}
-
-fn menu_section<'a>(label: impl text::IntoFragment<'a>) -> Element<'a, Message> {
-    container(ui::styled(label, Type::LabelMedium).style(style::on_surface_variant))
-        .padding(Padding {
-            top: 8.0,
-            right: 16.0,
-            bottom: 4.0,
-            left: 16.0,
-        })
-        .into()
+/// A menu's color swatch; `None` stands for no color.
+fn swatch(color: Option<Rgb>, selected: bool, message: Message) -> Swatch<Message> {
+    Swatch {
+        color: color.map(to_color),
+        selected,
+        message,
+    }
 }
 
 fn edit(message: EditMessage) -> Message {
@@ -532,69 +492,68 @@ impl PdfWindow {
                            label: String,
                            menu: Menu,
                            selected: bool,
-                           content: Element<'a, Message>| {
-            let open = self.menu == Some(menu);
-            let anchor = component::tip(
-                ui::icon_button(glyph)
-                    .selected(selected || open)
-                    .on_press(Message::Menu(Some(menu))),
-                label,
-            );
-            Element::from(popover(
-                anchor,
-                open.then(|| popover::surface(content)),
-                Message::Menu(None),
-            ))
+                           entries: Vec<Entry<Message>>| {
+            Element::from(
+                dropdown::icon_menu(glyph, entries)
+                    .size(button::Size::Small)
+                    .selected(selected)
+                    .tip(label)
+                    // Signatures take the width they are given.
+                    .menu_width(if menu == Menu::Signatures { 300.0 } else { 0.0 })
+                    .open(self.menu == Some(menu), move |open| {
+                        Message::Menu(open.then_some(menu))
+                    }),
+            )
         };
         let shape_tool = match tool {
             Tool::Shape(shape) => Some(shape),
             _ => None,
         };
-        let shapes = column(Shape::ALL.iter().map(|shape| {
-            menu_item(
-                Some(shape_icon(*shape)),
-                shape.label(),
-                shape_tool == Some(*shape),
-                edit(EditMessage::SetTool(Tool::Shape(*shape))),
-            )
-        }))
-        .width(240)
-        .padding([0, 8]);
+        let shapes = Shape::ALL
+            .iter()
+            .map(|shape| {
+                Entry::item(
+                    shape.label(),
+                    edit(EditMessage::SetTool(Tool::Shape(*shape))),
+                )
+                .icon(shape_icon(*shape))
+                .checked(shape_tool == Some(*shape))
+            })
+            .collect();
         let highlight_tool = match tool {
             Tool::Highlight(style) => Some(style),
             _ => None,
         };
-        let highlight = column![
-            column(
-                [
-                    TextMarkup::Highlight,
-                    TextMarkup::Underline,
-                    TextMarkup::StrikeOut
-                ]
-                .into_iter()
-                .map(|style| {
-                    let (label, glyph) = markup_label(style);
-                    menu_item(
-                        Some(glyph),
-                        label,
-                        highlight_tool == Some(style),
-                        edit(EditMessage::SetTool(Tool::Highlight(style))),
-                    )
-                })
-            ),
-            menu_section(crate::fl!("markup-menu-color")),
-            row(HIGHLIGHT_COLORS.iter().map(|(color, _)| {
-                swatch(
-                    Some(*color),
-                    viewer.edit.markup_color == *color,
-                    edit(EditMessage::MarkupColor(*color)),
-                )
-            }))
-            .spacing(2)
-            .padding([0, 12]),
+        let mut highlight: Vec<Entry<Message>> = [
+            TextMarkup::Highlight,
+            TextMarkup::Underline,
+            TextMarkup::StrikeOut,
         ]
-        .width(240)
-        .padding([0, 8]);
+        .into_iter()
+        .map(|style| {
+            let (label, glyph) = markup_label(style);
+            Entry::item(label, edit(EditMessage::SetTool(Tool::Highlight(style))))
+                .icon(glyph)
+                .checked(highlight_tool == Some(style))
+        })
+        .collect();
+        highlight.push(Entry::heading(crate::fl!("markup-menu-color")));
+        highlight.push(
+            Entry::swatches(
+                HIGHLIGHT_COLORS
+                    .iter()
+                    .map(|(color, _)| {
+                        swatch(
+                            Some(*color),
+                            viewer.edit.markup_color == *color,
+                            edit(EditMessage::MarkupColor(*color)),
+                        )
+                    })
+                    .collect(),
+                HIGHLIGHT_COLORS.len(),
+            )
+            .keep_open(),
+        );
 
         let selected = viewer
             .selected_annotation()
@@ -603,46 +562,45 @@ impl PdfWindow {
         let text_style = selected
             .filter(|annotation| annotation.kind == Kind::FreeText)
             .map_or(viewer.edit.text_style, |annotation| annotation.style);
-        let line_style = column![
-            column(LINE_WIDTHS.iter().map(|width| {
-                menu_item(
-                    Some(Icon::LineWeight),
-                    {
-                        let width: f32 = *width;
-                        crate::fl!("markup-line-width", width = width)
-                    },
-                    style.line_width == *width,
-                    edit(EditMessage::Style(StyleChange::LineWidth(*width))),
+        // Styles stay open to try a few.
+        let mut line_style: Vec<Entry<Message>> = LINE_WIDTHS
+            .iter()
+            .map(|width| {
+                let width: f32 = *width;
+                Entry::item(
+                    crate::fl!("markup-line-width", width = width),
+                    edit(EditMessage::Style(StyleChange::LineWidth(width))),
                 )
-            })),
-            menu_item(
-                Some(Icon::LineStyle),
+                .icon(Icon::LineWeight)
+                .checked(style.line_width == width)
+                .keep_open()
+            })
+            .collect();
+        line_style.push(
+            Entry::item(
                 crate::fl!("markup-dashed"),
-                style.dashed,
                 edit(EditMessage::Style(StyleChange::Dashed(!style.dashed))),
-            ),
-        ]
-        .width(200)
-        .padding([0, 8]);
+            )
+            .icon(Icon::LineStyle)
+            .checked(style.dashed)
+            .keep_open(),
+        );
         let colors = |current: Option<Rgb>, make: fn(Option<Rgb>) -> StyleChange| {
-            let mut swatches: Vec<Element<'a, Message>> = vec![swatch(
+            let none = swatch(
                 None,
                 current.is_none(),
                 edit(EditMessage::Style(make(None))),
-            )];
-            swatches.extend(SWATCHES.iter().map(|(color, _)| {
-                swatch(
-                    Some(*color),
-                    current == Some(*color),
-                    edit(EditMessage::Style(make(Some(*color)))),
-                )
-            }));
-            let mut grid = column![].spacing(2).padding([4, 12]);
-            let mut swatches = swatches.into_iter().peekable();
-            while swatches.peek().is_some() {
-                grid = grid.push(row(swatches.by_ref().take(6)).spacing(2));
-            }
-            Element::from(grid)
+            );
+            let swatches = std::iter::once(none)
+                .chain(SWATCHES.iter().map(|(color, _)| {
+                    swatch(
+                        Some(*color),
+                        current == Some(*color),
+                        edit(EditMessage::Style(make(Some(*color)))),
+                    )
+                }))
+                .collect();
+            vec![Entry::swatches(swatches, 6).keep_open()]
         };
         let border_colors = colors(style.color, StyleChange::Color);
         let fill_colors = colors(style.fill, StyleChange::Fill);
@@ -652,64 +610,64 @@ impl PdfWindow {
             (Font::Times, "Times"),
             (Font::Courier, "Courier"),
         ];
-        let text_menu = column![
-            menu_section(crate::fl!("markup-menu-font")),
-            column(fonts.into_iter().map(|(font, label)| {
-                menu_item(
-                    None,
-                    label,
-                    text_style.font == font,
-                    edit(EditMessage::Style(StyleChange::Font(font))),
-                )
-            })),
-            menu_section(crate::fl!("markup-menu-size")),
-            container(component::connected(
+        let mut text_menu = vec![Entry::heading(crate::fl!("markup-menu-font"))];
+        text_menu.extend(fonts.into_iter().map(|(font, label)| {
+            Entry::item(label, edit(EditMessage::Style(StyleChange::Font(font))))
+                .checked(text_style.font == font)
+                .keep_open()
+        }));
+        text_menu.push(Entry::heading(crate::fl!("markup-menu-size")));
+        text_menu.push(
+            Entry::segments(
                 FONT_SIZES
                     .iter()
-                    .map(|size| {
-                        ui::button(ButtonKind::Tonal, format!("{size}"))
-                            .size(button::Size::ExtraSmall)
-                            .selected(text_style.font_size == *size)
-                            .on_press(edit(EditMessage::Style(StyleChange::FontSize(*size))))
+                    .map(|size| Segment {
+                        icon: None,
+                        label: format!("{size}"),
+                        selected: text_style.font_size == *size,
+                        message: edit(EditMessage::Style(StyleChange::FontSize(*size))),
                     })
-                    .collect()
-            ))
-            .padding([0, 12]),
-            menu_section(crate::fl!("markup-menu-color")),
-            row(SWATCHES.iter().take(8).map(|(color, _)| {
-                swatch(
-                    Some(*color),
-                    text_style.text_color == *color,
-                    edit(EditMessage::Style(StyleChange::TextColor(*color))),
-                )
-            }))
-            .spacing(2)
-            .padding([0, 12]),
-            menu_section(crate::fl!("markup-menu-alignment")),
-            container(component::connected(
+                    .collect(),
+            )
+            .keep_open(),
+        );
+        text_menu.push(Entry::heading(crate::fl!("markup-menu-color")));
+        text_menu.push(
+            Entry::swatches(
+                SWATCHES
+                    .iter()
+                    .take(8)
+                    .map(|(color, _)| {
+                        swatch(
+                            Some(*color),
+                            text_style.text_color == *color,
+                            edit(EditMessage::Style(StyleChange::TextColor(*color))),
+                        )
+                    })
+                    .collect(),
+                8,
+            )
+            .keep_open(),
+        );
+        text_menu.push(Entry::heading(crate::fl!("markup-menu-alignment")));
+        text_menu.push(
+            Entry::segments(
                 [
                     (Align::Left, Icon::FormatAlignLeft),
                     (Align::Center, Icon::FormatAlignCenter),
                     (Align::Right, Icon::FormatAlignRight),
                 ]
                 .into_iter()
-                .map(|(align, glyph)| {
-                    ui::icon_button(glyph)
-                        .kind(ButtonKind::Tonal)
-                        .size(button::Size::ExtraSmall)
-                        .selected(text_style.align == align)
-                        .on_press(edit(EditMessage::Style(StyleChange::Align(align))))
+                .map(|(align, glyph)| Segment {
+                    icon: Some(glyph),
+                    label: String::new(),
+                    selected: text_style.align == align,
+                    message: edit(EditMessage::Style(StyleChange::Align(align))),
                 })
-                .collect()
-            ))
-            .padding(Padding {
-                top: 0.0,
-                right: 12.0,
-                bottom: 8.0,
-                left: 12.0,
-            }),
-        ]
-        .width(Length::Shrink);
+                .collect(),
+            )
+            .keep_open(),
+        );
 
         let signatures = self.signature_menu();
         // The menus above read in the interface's direction; the bar does
@@ -734,7 +692,7 @@ impl PdfWindow {
                 crate::fl!("markup-tool-shapes"),
                 Menu::Shapes,
                 shape_tool.is_some(),
-                shapes.into(),
+                shapes,
             ),
             tool_button(
                 Icon::TextFields,
@@ -749,7 +707,7 @@ impl PdfWindow {
                 crate::fl!("markup-tool-highlight"),
                 Menu::Highlight,
                 highlight_tool.is_some(),
-                highlight.into(),
+                highlight,
             ));
         }
         drawing_tools.push(tool_button(
@@ -842,7 +800,7 @@ impl PdfWindow {
                         crate::fl!("markup-shape-style"),
                         Menu::LineStyle,
                         false,
-                        line_style.into(),
+                        line_style,
                     ),
                     menu_button(
                         Icon::BorderColor,
@@ -863,7 +821,7 @@ impl PdfWindow {
                         crate::fl!("markup-text-style"),
                         Menu::TextStyle,
                         false,
-                        text_menu.into(),
+                        text_menu,
                     ),
                 ]),
                 DIVIDER_WIDTH + tools(4.0) + 4.0,
@@ -937,70 +895,30 @@ impl PdfWindow {
         container(bar).height(Fill).align_y(Center).into()
     }
 
-    fn signature_menu(&self) -> Element<'_, Message> {
-        let mut content = column![].width(300).padding([0, 8]);
+    fn signature_menu(&self) -> Vec<Entry<Message>> {
+        let mut entries = Vec::new();
         if self.signatures.is_empty() {
-            content = content.push(
-                container(ui::aligned(
-                    ui::styled(crate::fl!("signature-menu-empty"), Type::BodyMedium)
-                        .style(style::on_surface_variant),
-                ))
-                .padding([8, 16]),
-            );
+            entries.push(Entry::note(crate::fl!("signature-menu-empty")));
         }
         for (index, loaded) in self.signatures.iter().enumerate() {
-            let preview = container(
-                image(loaded.handle.clone())
-                    .height(36)
-                    .content_fit(iced::ContentFit::Contain),
-            )
-            .width(Fill)
-            .height(44)
-            .align_y(Center)
-            .padding([4, 8])
-            .style(|_| iced::widget::container::Style {
-                background: Some(Color::WHITE.into()),
-                border: iced::border::rounded(shape::SMALL),
-                ..Default::default()
-            });
-            let entry = button::custom(
-                ButtonKind::Row,
-                column![
-                    preview,
-                    ui::styled(&loaded.signature.description, Type::LabelMedium)
-                        .style(style::on_surface_variant),
-                ]
-                .spacing(4)
-                .padding([6, 0]),
-            )
-            .height(76.0)
-            .width(Fill)
-            .shape(button::Shape::Square)
-            .on_press(Message::PlaceSignature(index));
-            content = content.push(
-                row![
-                    entry,
-                    component::tip(
-                        ui::icon_button(Icon::Delete)
-                            .size(button::Size::ExtraSmall)
-                            .on_press(Message::RemoveSignature(index)),
-                        crate::fl!("signature-delete")
-                    )
-                ]
-                .spacing(4)
-                .align_y(Center),
+            entries.push(
+                Entry::picture(
+                    loaded.handle.clone(),
+                    &loaded.signature.description,
+                    Message::PlaceSignature(index),
+                )
+                .action(
+                    Icon::Delete,
+                    crate::fl!("signature-delete"),
+                    Message::RemoveSignature(index),
+                ),
             );
         }
-        content = content.push(
-            container(iced::widget::rule::horizontal(1).style(style::divider)).padding([4, 0]),
+        entries.push(Entry::divider());
+        entries.push(
+            Entry::item(crate::fl!("signature-create"), Message::NewSignature).icon(Icon::Add),
         );
-        content = content.push(menu_item(
-            Some(Icon::Add),
-            crate::fl!("signature-create"),
-            false,
-            Message::NewSignature,
-        ));
-        content.into()
+        entries
     }
 
     /// Editors floating over the page: a text box or note being typed, a
@@ -1122,17 +1040,18 @@ impl PdfWindow {
                 *page,
                 prev_pdf::geometry::Point::new(field.rect.x0, field.rect.y1),
             )?;
-            let menu = popover::surface(
-                column(options.iter().map(|option| {
-                    menu_item(
-                        (field.value == *option).then_some(Icon::Check),
-                        option.as_str(),
-                        field.value == *option,
-                        Message::Edit(EditMessage::Choose(option.clone())),
-                    )
-                }))
-                .width((field.rect.width() * scale).max(160.0))
-                .padding([0, 8]),
+            let menu = dropdown::surface(
+                options
+                    .iter()
+                    .map(|option| {
+                        Entry::item(
+                            option.as_str(),
+                            Message::Edit(EditMessage::Choose(option.clone())),
+                        )
+                        .checked(field.value == *option)
+                    })
+                    .collect(),
+                (field.rect.width() * scale).max(160.0),
             );
             return Some(placed(menu, (origin.0, origin.1 + 2.0)));
         }
@@ -1311,8 +1230,8 @@ impl PdfWindow {
 /// Ink swatches and, for drawing, a pen width slider.
 fn pen_controls<'a>(dialog: &SignatureDialog, width: bool) -> Element<'a, Message> {
     let inks = row(signature::INKS.iter().map(|(ink, _)| {
-        swatch(
-            Some(Rgb::from_rgb8(ink[0], ink[1], ink[2])),
+        component::swatch(
+            Some(Color::from_rgb8(ink[0], ink[1], ink[2])),
             dialog.ink == *ink,
             Message::SignatureInk(*ink),
         )
