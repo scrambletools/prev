@@ -64,4 +64,5 @@ EOF
     fi
 fi
 
-echo "Installed prev $(git -C "$root" describe --always --dirty 2>/dev/null || echo "$(grep -m1 '^version' "$root/Cargo.toml")") to $bin_dir/prev"
+# The version the installed program reports, from Cargo.toml and the commit.
+echo "Installed $("$bin_dir/prev" --version) to $bin_dir/prev"
