@@ -335,12 +335,8 @@ impl Prev {
             ui::aligned(ui::styled(text, Type::BodySmall).style(style::on_surface_variant))
         };
         let context_menu = |size: u32, on_pick: Box<dyn Fn(ContextSize) -> Message>| {
-            iced::widget::pick_list(context_sizes(), Some(ContextSize(size)), on_pick)
-                .font(ui::font::TEXT)
-                .text_size(14)
-                .padding([6, 10])
-                .style(style::outlined_select)
-                .menu_style(style::select_menu)
+            ui::dropdown::pick(context_sizes(), Some(ContextSize(size)), on_pick)
+                .size(ui::button::Size::ExtraSmall)
         };
         let mut models = column![note(prev::fl!("settings-assistant-note"))].spacing(8);
         if self.settings.assistant_models.is_empty() {
@@ -407,17 +403,12 @@ impl Prev {
         let form = &self.model_form;
         let provider = form.provider;
         let label = provider_label(provider);
-        let provider_menu = iced::widget::pick_list(
-            prev_assist::Provider::ALL.map(ProviderChoice).to_vec(),
+        let provider_menu = ui::dropdown::pick(
+            prev_assist::Provider::ALL.map(ProviderChoice),
             Some(ProviderChoice(provider)),
             |choice| Message::ModelSettings(ModelMessage::Provider(choice)),
         )
-        .font(ui::font::TEXT)
-        .text_size(16)
-        .padding([10, 12])
-        .width(Fill)
-        .style(style::outlined_select)
-        .menu_style(style::select_menu);
+        .width(Fill);
         let mut add = column![
             component::section(prev::fl!("settings-assistant-add")),
             provider_menu,

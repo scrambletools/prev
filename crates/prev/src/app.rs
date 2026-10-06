@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use iced::keyboard::{self, Key, Modifiers};
-use iced::widget::{container, pick_list, space, stack, text, toggler};
+use iced::widget::{container, space, stack, text, toggler};
 use iced::window::{self, settings::PlatformSpecific};
 use iced::{Center, Color, Element, Event, Fill, Size, Subscription, Task, Theme, event};
 use prev::default_app;
@@ -1811,16 +1811,10 @@ impl Prev {
             .find(|choice| choice.tag == self.settings.language)
             .unwrap_or(&choices[0])
             .clone();
-        pick_list(choices, Some(selected), |choice: LanguageChoice| {
+        ui::dropdown::pick(choices, Some(selected), |choice: LanguageChoice| {
             Message::LanguageSelected(choice.tag)
         })
-        .font(ui::font::TEXT)
-        .text_size(16)
-        .padding([10, 12])
         .width(Fill)
-        .right_to_left(ui::dir::mirrored())
-        .style(style::outlined_select)
-        .menu_style(style::select_menu)
         .into()
     }
 
@@ -1840,16 +1834,10 @@ impl Prev {
             .find(|choice| choice.tag == self.settings.input_language)
             .unwrap_or(&choices[0])
             .clone();
-        pick_list(choices, Some(selected), |choice: LanguageChoice| {
+        ui::dropdown::pick(choices, Some(selected), |choice: LanguageChoice| {
             Message::InputLanguageSelected(choice.tag)
         })
-        .font(ui::font::TEXT)
-        .text_size(16)
-        .padding([10, 12])
         .width(Fill)
-        .right_to_left(ui::dir::mirrored())
-        .style(style::outlined_select)
-        .menu_style(style::select_menu)
         .into()
     }
 
