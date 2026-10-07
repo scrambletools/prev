@@ -3,6 +3,33 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [2.2.0] - 2026-10-06
+
+### Added
+
+- A button on the Markdown toolbar lets the text fill the window, for
+  wide tables and long lines, or keeps it to its reading width, as it
+  is at first.
+
+### Changed
+
+- The markup bar's menus, the Pages menu, a form field's choices and
+  the assistant's model menu have a new look: headings over groups,
+  round color swatches, size and alignment buttons in the text style
+  menu, and saved signatures shown as pictures.
+- Drop-downs in Settings and the assistant's model button are plain
+  until pointed at; their menus are as wide as their longest choice,
+  and a long value ends in an ellipsis.
+- The strokes of a drawn signature thin to a point as the pen lifts, as
+  a pen gliding off the page, on the pad and in the saved signature.
+
+### Fixed
+
+- Buttons beside a text field, such as the assistant's send button and
+  Storage's Choose and Apply, line up with the field's box.
+- The install script reports the version it installed rather than an
+  old release's name.
+
 ## [2.1.0] - 2026-10-03
 
 ### Changed
@@ -293,6 +320,7 @@ The first release.
 - Material 3 design, light and dark, with colors from the desktop theme,
   an optional floating toolbar, and reduced motion.
 
+[2.2.0]: https://github.com/scrambletools/prev/releases/tag/v2.2.0
 [2.1.0]: https://github.com/scrambletools/prev/releases/tag/v2.1.0
 [2.0.0]: https://github.com/scrambletools/prev/releases/tag/v2.0.0
 [1.6.0]: https://github.com/scrambletools/prev/releases/tag/v1.6.0

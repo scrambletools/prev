@@ -152,7 +152,7 @@ adler2 2.0.1
 
 ### AGPL-3.0-or-later
 
-prev-assist 2.1.0
+prev-assist 2.2.0
 
 ### Apache-2.0 / MIT
 

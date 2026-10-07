@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="2.2.0" date="2026-10-06">
+      <description>
+        <p>Menus have a new look: the markup bar's style menus show headings, round color swatches and size and alignment buttons, saved signatures appear as pictures, and drop-downs stay plain until pointed at. Drawn signatures now taper as the pen lifts, Markdown text can fill the window for wide tables and long lines, and buttons beside text fields line up with them.</p>
+      </description>
+    </release>
     <release version="2.1.0" date="2026-10-03">
       <description>
         <p>Markup feels like a drawing app: dragging a handle shows the annotation as it will be, with lines keeping their width and text boxes rewrapping, dragging past the edge scrolls the page, a loupe shows what is under it as it moves, notes can be dragged, and every shape is framed by its own outline. The assistant now opens where the inspector does and takes its place, and does what you ask it without asking again, the toolbar no longer shifts as the markup bar opens, and the pointer stays the plain arrow except to resize, select text and draw.</p>
