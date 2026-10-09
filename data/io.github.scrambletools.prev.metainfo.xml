@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="2.2.1" date="2026-10-08">
+      <description>
+        <p>The Windows installer and program are now signed by Scramble Tools LLC, so Windows names the publisher rather than warning of an unknown one.</p>
+      </description>
+    </release>
     <release version="2.2.0" date="2026-10-06">
       <description>
         <p>Menus have a new look: the markup bar's style menus show headings, round color swatches and size and alignment buttons, saved signatures appear as pictures, and drop-downs stay plain until pointed at. Drawn signatures now taper as the pen lifts, Markdown text can fill the window for wide tables and long lines, and buttons beside text fields line up with them.</p>

@@ -4,17 +4,17 @@ members = ["crates/*"]
 exclude = ["vendor"]
 
 [workspace.package]
-version = "2.2.0"
+version = "2.2.1"
 edition = "2024"
 rust-version = "1.95"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/scrambletools/prev"
 
 [workspace.dependencies]
-prev-image = { path = "crates/prev-image", version = "2.2.0" }
-prev-pdf = { path = "crates/prev-pdf", version = "2.2.0" }
-prev-store = { path = "crates/prev-store", version = "2.2.0" }
-prev-assist = { path = "crates/prev-assist", version = "2.2.0" }
+prev-image = { path = "crates/prev-image", version = "2.2.1" }
+prev-pdf = { path = "crates/prev-pdf", version = "2.2.1" }
+prev-store = { path = "crates/prev-store", version = "2.2.1" }
+prev-assist = { path = "crates/prev-assist", version = "2.2.1" }
 # Material Design 3 for iced, shared by Scramble Tools apps.
 scramble-ui = { git = "https://github.com/scrambletools/scramble-ui", rev = "32d27eb62468a2b227f866c12b5da00ae2eee26b", version = "0.1.0" }
 
