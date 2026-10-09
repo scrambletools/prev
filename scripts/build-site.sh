@@ -10,7 +10,9 @@ out=${1:-$root/target/site}
 
 rm -rf "$out"
 mkdir -p "$out/screenshots"
-cp "$root"/site/* "$out/"
+# site/. rather than site/*, so .well-known, which Azure checks the
+# publisher domain by, comes along.
+cp -r "$root"/site/. "$out/"
 cp "$root/data/icons/hicolor/scalable/apps/io.github.scrambletools.prev.svg" "$out/icon.svg"
 cp -r "$root/docs/screenshots/." "$out/screenshots/"
 echo "Built the site in $out"
