@@ -67,12 +67,12 @@ Builds without it are development builds.
 
 ## Windows code signing
 
-Until releases are signed, Windows shows SmartScreen's "Windows protected
-your PC" warning for the MSI and `prev.exe`. They are signed with
-Microsoft's Azure Artifact Signing (formerly Trusted Signing), under the
-Scramble Tools organization, which Windows then shows as the publisher.
-The release workflow signs once the variables below are set, signing in
-to Azure with GitHub's OpenID Connect token, so no secret is stored.
+Since 2.2.1 the MSI and `prev.exe` are signed with Microsoft's Azure
+Artifact Signing (formerly Trusted Signing), under the Scramble Tools
+LLC organization, which Windows shows as the publisher. The release
+workflow signs while the variables below are set, signing in to Azure
+with GitHub's OpenID Connect token, so no secret is stored. To set it
+up again, such as in a new account:
 
 1. In the Azure portal, with a subscription, register the resource
    provider `Microsoft.CodeSigning` and create an Artifact Signing
@@ -83,12 +83,15 @@ to Azure with GitHub's OpenID Connect token, so no secret is stored.
    Organization for Scramble Tools. Microsoft checks the business's
    registration and may ask for documents; this takes days.
 3. Once validated, create a certificate profile of type Public Trust,
-   such as `prev`, from that validation.
-4. In Microsoft Entra ID, register an app, such as `prev-release`, and
-   add a federated credential for GitHub Actions: organization
-   `scrambletools`, repository `prev`, entity type Environment, name
-   `release`. Give the app the role "Artifact Signing Certificate
-   Profile Signer" on the account.
+   program type None, from that validation; ours is `scramble-apps`.
+4. In Microsoft Entra ID, register an app, such as `prev`, and add a
+   federated credential for GitHub Actions: organization
+   `scrambletoolsllc`, repository `prev`, entity type Environment, name
+   `release`. GitHub names the run by its ids, so the subject is
+   `repo:scrambletoolsllc@339905752/prev@1388495165:environment:release`.
+   Give the app the role "Artifact Signing Certificate Profile Signer"
+   on the account (Access control (IAM), Add role assignment, then
+   search for the app by name).
 5. Set the repository variables (Settings, Secrets and variables,
    Actions, Variables): `AZURE_CLIENT_ID` (the app's client ID),
    `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_SIGNING_ENDPOINT`,
@@ -97,8 +100,9 @@ to Azure with GitHub's OpenID Connect token, so no secret is stored.
    than ship an unsigned file as signed.
 6. Try it without releasing: run the Release workflow by hand with
    Windows only, and check the signature of `prev.exe` in the artifact.
-7. With signed releases, list prev on winget: a manifest pointing at the
-   release's MSI, submitted as a pull request to `microsoft/winget-pkgs`.
+7. After each release, update prev on winget: manifests for
+   `ScrambleTools.prev` pointing at the release's MSIs, submitted as a
+   pull request to `microsoft/winget-pkgs`.
 
 ## macOS signing
 
