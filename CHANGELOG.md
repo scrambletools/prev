@@ -3,6 +3,14 @@
 All notable changes to prev. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [2.2.2] - 2026-10-10
+
+### Fixed
+
+- The names and descriptions of prev's tools, which the assistant and
+  outside agents read and prev shows when an agent asks first, are in
+  US English like the rest of the interface, such as Adjust Color.
+
 ## [2.2.1] - 2026-10-08
 
 ### Changed
@@ -328,6 +336,7 @@ The first release.
 - Material 3 design, light and dark, with colors from the desktop theme,
   an optional floating toolbar, and reduced motion.
 
+[2.2.2]: https://github.com/scrambletools/prev/releases/tag/v2.2.2
 [2.2.1]: https://github.com/scrambletools/prev/releases/tag/v2.2.1
 [2.2.0]: https://github.com/scrambletools/prev/releases/tag/v2.2.0
 [2.1.0]: https://github.com/scrambletools/prev/releases/tag/v2.1.0

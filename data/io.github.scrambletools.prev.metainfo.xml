@@ -92,6 +92,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="2.2.2" date="2026-10-10">
+      <description>
+        <p>The names and descriptions of prev's tools, which the assistant and outside agents read, are now in US English like the rest of the interface.</p>
+      </description>
+    </release>
     <release version="2.2.1" date="2026-10-08">
       <description>
         <p>The Windows installer and program are now signed by Scramble Tools LLC, so Windows names the publisher rather than warning of an unknown one.</p>
