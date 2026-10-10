@@ -61,7 +61,7 @@ pub(super) fn tools() -> Vec<Tool> {
             "edit_annotation",
             "Change an annotation",
             Kind::Markup,
-            "Changes an annotation's text, colours, line width, font size, or box (which \
+            "Changes an annotation's text, colors, line width, font size, or box (which \
              moves and resizes it). Ids come from list_annotations and the markup tools.",
             edit_annotation,
         ),
@@ -84,7 +84,7 @@ pub(super) fn tools() -> Vec<Tool> {
     ]
 }
 
-/// A colour as "#rrggbb", or a common name such as red.
+/// A color as "#rrggbb", or a common name such as red.
 type Hex = String;
 
 #[derive(Deserialize, JsonSchema, Clone, Copy, Default)]
@@ -117,7 +117,7 @@ struct Highlight {
     area: Option<[f32; 4]>,
     /// highlight if left out.
     style: Option<Style>,
-    /// The colour, such as "#ffdb33"; the markup bar's colour if left out.
+    /// The color, such as "#ffdb33"; the markup bar's color if left out.
     color: Option<Hex>,
 }
 
@@ -134,7 +134,7 @@ struct AddNote {
     y: f32,
     /// What the note says.
     text: String,
-    /// The icon's colour; yellow if left out.
+    /// The icon's color; yellow if left out.
     color: Option<Hex>,
 }
 
@@ -153,11 +153,11 @@ struct AddTextBox {
     text: String,
     /// The text size in points; the markup bar's if left out.
     font_size: Option<f32>,
-    /// The text's colour.
+    /// The text's color.
     text_color: Option<Hex>,
-    /// The border's colour, or "none".
+    /// The border's color, or "none".
     border: Option<Hex>,
-    /// The fill colour, or "none".
+    /// The fill color, or "none".
     fill: Option<Hex>,
     /// The narrowest the box may be, in points.
     min_width: Option<f32>,
@@ -188,9 +188,9 @@ struct AddShape {
     /// to (x1, y1), the arrow head at the end.
     #[serde(rename = "box")]
     area: [f32; 4],
-    /// The outline's colour, or "none"; the markup bar's if left out.
+    /// The outline's color, or "none"; the markup bar's if left out.
     color: Option<Hex>,
-    /// The fill colour, or "none".
+    /// The fill color, or "none".
     fill: Option<Hex>,
     /// The outline's width in points.
     line_width: Option<f32>,
@@ -245,7 +245,7 @@ struct AddRedaction {
     whole_words: Option<bool>,
 }
 
-/// `"#rrggbb"` as a colour, or `None` for "none".
+/// `"#rrggbb"` as a color, or `None` for "none".
 pub(super) fn color(hex: &str) -> Result<Option<Rgb>, Error> {
     let hex = hex.trim();
     if hex.eq_ignore_ascii_case("none") {
@@ -272,7 +272,7 @@ pub(super) fn color(hex: &str) -> Result<Option<Rgb>, Error> {
     match (digits.len(), channel(0), channel(2), channel(4)) {
         (6, Ok(red), Ok(green), Ok(blue)) => Ok(Some(Rgb::from_rgb8(red, green, blue))),
         _ => Err(invalid(format!(
-            "{hex} is not a colour; give one as \"#rrggbb\" or a name such as red or blue."
+            "{hex} is not a color; give one as \"#rrggbb\" or a name such as red or blue."
         ))),
     }
 }
@@ -913,7 +913,7 @@ mod tests {
     use prev_pdf::text::{TextChar, TextLine};
 
     #[test]
-    fn colours_read_from_hex() {
+    fn colors_read_from_hex() {
         assert_eq!(color("#ff0000").unwrap(), Some(Rgb::from_rgb8(255, 0, 0)));
         assert_eq!(color("00ff7f").unwrap(), Some(Rgb::from_rgb8(0, 255, 127)));
         assert_eq!(color("none").unwrap(), None);

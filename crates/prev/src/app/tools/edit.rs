@@ -108,10 +108,10 @@ pub(super) fn tools() -> Vec<Tool> {
         ),
         tool(
             "adjust_color",
-            "Adjust colour",
+            "Adjust color",
             Kind::Edit,
-            "Sets the image's colour adjustments, as the Adjust Color sliders do: exposure in \
-             stops (-2 to 2), contrast (-1 to 1), saturation (0 grey to 2, 1 unchanged), \
+            "Sets the image's color adjustments, as the Adjust Color sliders do: exposure in \
+             stops (-2 to 2), contrast (-1 to 1), saturation (0 gray to 2, 1 unchanged), \
              temperature (-1 cool to 1 warm), tint (-1 green to 1 magenta), sepia (0 to 1), \
              sharpness (0 to 1), and levels black, white (0 to 1) and gamma. Those left out \
              stay as they are; reset starts from none.",

@@ -354,7 +354,7 @@ mod tests {
         assert_eq!(second.y, first.bottom() + PAGE_GAP);
         assert!(
             (first.x + first.width / 2.0 - (second.x + second.width / 2.0)).abs() < 0.01,
-            "centred"
+            "centered"
         );
         assert_eq!(
             layout.content.width,
@@ -425,7 +425,7 @@ mod tests {
         let area = layout.page_area(1).unwrap();
         assert!(
             (area.y - (900.0 - area.height) / 2.0).abs() < 0.01,
-            "vertically centred"
+            "vertically centered"
         );
     }
 

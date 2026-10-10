@@ -34,7 +34,7 @@ pub(super) fn tools() -> Vec<Tool> {
             "scroll_to",
             "Show a place on a page",
             Kind::View,
-            "Centres a point of a PDF page, in points from its top-left corner, in the window, \
+            "Centers a point of a PDF page, in points from its top-left corner, in the window, \
              optionally at a zoom, as when showing the user what is being talked about.",
             scroll_to,
         ),

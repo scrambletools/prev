@@ -82,7 +82,7 @@ pub(super) fn tools() -> Vec<Tool> {
             Kind::Read,
             "Lists a PDF's annotations, or one page's: highlights, notes, text boxes, shapes, \
              ink, stamps such as signatures, and redactions not yet applied, each with its id, \
-             page, box in points, colour and text.",
+             page, box in points, color and text.",
             list_annotations,
         ),
         tool(
