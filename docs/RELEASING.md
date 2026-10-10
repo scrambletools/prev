@@ -83,7 +83,8 @@ up again, such as in a new account:
    Organization for Scramble Tools. Microsoft checks the business's
    registration and may ask for documents; this takes days.
 3. Once validated, create a certificate profile of type Public Trust,
-   program type None, from that validation; ours is `scramble-apps`.
+   program type None, from that validation; ours is
+   `Scramble-Tools-Authority` in the account `Scramble-Tools`.
 4. In Microsoft Entra ID, register an app, such as `prev`, and add a
    federated credential for GitHub Actions: organization
    `scrambletoolsllc`, repository `prev`, entity type Environment, name
